@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Home, Settings as SettingsIcon, BarChart3, AlertCircle, FileText } from 'lucide-react';
+import { isSupabaseConfigured } from './lib/supabase';
 import HomeButtons from './components/HomeButtons';
 import VisitForm from './components/VisitForm';
 import ProductSaleForm from './components/ProductSaleForm';
@@ -34,6 +35,29 @@ function App() {
     setShowProductForm(false);
     setShowSubscriptionForm(false);
   };
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+        <div className="max-w-lg w-full rounded-2xl border-2 border-amber-200 bg-white p-6 shadow-lg text-slate-800">
+          <h1 className="text-xl font-bold text-amber-800 mb-3">Supabase の接続先が未設定です</h1>
+          <p className="text-sm mb-3">
+            本番では次の 2 つを <strong>Vercel</strong> の環境変数に入れ、<strong>再デプロイ</strong>してください。値は Supabase
+            の Project Settings → API から取得できます。
+          </p>
+          <ul className="text-sm font-mono space-y-1 bg-slate-50 p-3 rounded-lg mb-4 break-all">
+            <li>VITE_SUPABASE_URL</li>
+            <li>VITE_SUPABASE_ANON_KEY</li>
+          </ul>
+          <p className="text-xs text-slate-600">
+            手順: Vercel ダッシュボード → このプロジェクト → Settings → Environment Variables
+            → Production（必要なら Preview も）に上記を追加 → Deployments から Redeploy。
+            ローカルでは <code className="bg-slate-100 px-1 rounded">project/.env</code> に同じ変数名で保存します。
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-24">
