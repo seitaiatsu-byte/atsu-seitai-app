@@ -1,0 +1,44 @@
+【このリポジトリの前提】
+・フロント（Vite）はフォルダ「project/」にあります。
+・Vercel の「Root Directory」が「project」のとき、使われる設定は「project/vercel.json」です（リポジトリ直下の vercel.json はこの構成では参照されません）。
+
+【あなたが Vercel の Web 上で必ず行うこと（ここは代理操作不可）】
+1) 対象プロジェクトを開く → Settings → Build and Deployment を開く。
+
+2) Root Directory
+   - 推奨: project（このフォルダに index.html と package.json があるため）
+   - もし空にする場合は、Git のルートでビルドする必要があり、別途 Build / Output の設定が必要です。迷ったら「project」のまま。
+
+3) Build Command / Output Directory / Install Command に「Override（上書き）」が付いている場合
+   - 黄色の「Production の設定が Project Settings と違う」警告が出ているときは、本番デプロイに古い Override が残っていることが多いです。
+   - Override をオフにするか、次と一致させて Save:
+     - Root Directory = project のとき:
+       Build Command: npm run build（または空で Vite 自動）
+       Output Directory: dist
+       Install Command: npm ci（または空。リポジトリの project/vercel.json に npm ci を記載済み）
+   - Save がグレーアウトする場合は、値を一度変更して元に戻す、または Override のトグルを切り替えて保存を試す。
+
+4) Node.js Version
+   - project/.nvmrc に 22 を指定済み。ダッシュボードで 24.x のままでも動く場合が多いが、問題が出たら 22.x に合わせる。
+
+5) Environment Variables
+   - project は Vite のため、Supabase 等は VITE_ 接頭辞の変数が必要です（例: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY）。
+   - 未設定だとビルドは通っても実行時に API に繋がりません。
+
+【リポジトリ側で確認済みのコマンド】
+・project フォルダ内: npm ci && npm run build → 成功
+・リポジトリルート: npm run build（cd project してからビルド）→ 成功
+
+【デプロイのトリガー】
+・GitHub の main に push すると、連携していれば Vercel が自動デプロイします。
+
+【Production Overrides が直せない → 新規プロジェクトで Git 連携（最短）】
+※ Cursor から Vercel にログインして「Import」ボタンを押すことはできない。以下はブラウザで 2〜3 分。
+1) vercel.com → Add New… → Project → 同じ GitHub リポジトリを Import。
+2) Root Directory に「project」と入力（必須）。Build / Output の上書きは空のまま。
+3) Environment Variables を旧プロジェクトからコピー（VITE_SUPABASE_URL 等）→ Deploy。
+4) 新 URL で動作確認後、旧プロジェクトは Settings → Delete Project。
+
+【CLI のみ（Git 連携なし・即デプロイ）】
+・PC で一度 vercel login 済みなら: cd project して npx vercel deploy --prod
+・リンク先は project 直下の .vercel（git 管理外）。新規リンクは npx vercel link。

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#14b8a6" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="顧客管理" />
+    <title>整体院顧客管理システム</title>
+    <meta name="description" content="整体院の顧客管理・来店記録・売上管理システム" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // 開発中やlocalhostではSWを登録しない（白画面のキャッシュ事故回避）
+      if ('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js?v=4').catch((e) => {
+            console.error('SW register failed:', e);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

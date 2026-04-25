@@ -1,0 +1,2 @@
+このファイルは192x192pxのアイコン画像です。
+ロゴ画像を用意するか、https://www.favicon-generator.org/ などで生成してください。
