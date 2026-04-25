@@ -20,7 +20,7 @@
       // 開発中やlocalhostではSWを登録しない（白画面のキャッシュ事故回避）
       if ('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/service-worker.js?v=4').catch((e) => {
+          navigator.serviceWorker.register('/service-worker.js?v=5').catch((e) => {
             console.error('SW register failed:', e);
           });
         });

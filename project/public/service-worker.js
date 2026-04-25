@@ -1,5 +1,5 @@
 // アプリ更新を確実に反映するため、HTML / JS / CSS はキャッシュしない（オフライン時のみ古いキャッシュを参照）
-const CACHE_NAME = 'seitaiin-v4-static';
+const CACHE_NAME = 'seitaiin-v5-static';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
