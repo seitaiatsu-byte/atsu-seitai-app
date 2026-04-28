@@ -177,13 +177,16 @@ export default function IndividualChart() {
     });
     products.forEach((p) => {
       const pm = formatPaymentMethodLabel(p.payment_method, paymentMethodNames);
+      const qty = Number(p.quantity || 0);
+      const amount = Number(p.amount || 0);
+      const unit = qty > 0 ? Math.round(amount / qty) : 0;
       rows.push({
         id: `p-${p.id}`,
         kind: 'product',
         date: p.sale_date,
         label: '物販',
-        sublabel: `${p.product_name || '商品'} ×${p.quantity} / ${pm}`,
-        amount: Number(p.amount || 0),
+        sublabel: `${p.product_name || '商品'} ×${p.quantity} @¥${unit.toLocaleString()} / ${pm}`,
+        amount,
       });
     });
     subs.forEach((s) => {

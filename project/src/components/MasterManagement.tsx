@@ -3,14 +3,24 @@ import { supabase } from '../lib/supabase';
 import { Settings, Plus, Trash2, Edit2, Check, X, ClipboardList, CreditCard, Clock, Users, LayoutGrid, Megaphone, Repeat, Target, ChevronUp, ChevronDown } from 'lucide-react';
 
 type TableName = 'menu_master' | 'payment_detail_master' | 'payment_method_master' | 'product_master' | 'subscription_master' | 'staff_master' | 'main_complaint_master' | 'referral_source_master';
+type MasterItem = {
+  id: string;
+  name: string;
+  display_order: number;
+  is_active: boolean;
+  price?: number | null;
+};
 
 export default function MasterManagement() {
   const [activeTab, setActiveTab] = useState<TableName>('menu_master');
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<MasterItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
+  const [newItemPrice, setNewItemPrice] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [editingPrice, setEditingPrice] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const isPriceTab = activeTab === 'product_master' || activeTab === 'subscription_master';
 
   // 【物理固定】看板とテーブルの紐付け。ここが生命線です。
   const tabs = [
@@ -29,6 +39,7 @@ export default function MasterManagement() {
     setItems([]); 
     setEditingId(null);
     setNewItemName('');
+    setNewItemPrice('');
     fetchData(activeTab);
   }, [activeTab]);
 
@@ -50,13 +61,24 @@ export default function MasterManagement() {
     // 現在のタブを「その瞬間」に固定してDBへ投げる
     const targetTable = activeTab;
     const maxOrder = items.length > 0 ? Math.max(...items.map(i => i.display_order || 0)) : 0;
+    if (isPriceTab && (newItemPrice.trim() === '' || Number(newItemPrice) < 0)) {
+      alert('価格は0以上の数値を入力してください');
+      return;
+    }
+    const payload: { name: string; display_order: number; is_active: boolean; price?: number } = {
+      name,
+      display_order: maxOrder + 1,
+      is_active: true,
+    };
+    if (isPriceTab) payload.price = Number(newItemPrice || 0);
 
     const { error } = await supabase
       .from(targetTable)
-      .insert([{ name, display_order: maxOrder + 1, is_active: true }]);
+      .insert([payload]);
 
     if (!error) {
       setNewItemName('');
+      setNewItemPrice('');
       fetchData(targetTable);
       window.dispatchEvent(new Event('masters-updated'));
     } else {
@@ -75,17 +97,31 @@ export default function MasterManagement() {
     await supabase.from(activeTab).update({ display_order: current.display_order }).eq('id', target.id);
     
     fetchData(activeTab);
+    window.dispatchEvent(new Event('masters-updated'));
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('完全に消去しますか？')) return;
     const { error } = await supabase.from(activeTab).delete().eq('id', id);
-    if (!error) fetchData(activeTab);
+    if (!error) {
+      fetchData(activeTab);
+      window.dispatchEvent(new Event('masters-updated'));
+    }
   };
 
   const handleUpdate = async (id: string) => {
-    const { error } = await supabase.from(activeTab).update({ name: editingName }).eq('id', id);
-    if (!error) { setEditingId(null); fetchData(activeTab); }
+    if (isPriceTab && (editingPrice.trim() === '' || Number(editingPrice) < 0)) {
+      alert('価格は0以上の数値を入力してください');
+      return;
+    }
+    const patch: { name: string; price?: number } = { name: editingName };
+    if (isPriceTab) patch.price = Number(editingPrice || 0);
+    const { error } = await supabase.from(activeTab).update(patch).eq('id', id);
+    if (!error) {
+      setEditingId(null);
+      fetchData(activeTab);
+      window.dispatchEvent(new Event('masters-updated'));
+    }
   };
 
   return (
@@ -120,6 +156,17 @@ export default function MasterManagement() {
             placeholder={`${tabs.find(t => t.id === activeTab)?.label}に新規追加`}
             className="flex-1 p-3 rounded-xl border-none outline-none shadow-sm"
           />
+          {isPriceTab && (
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={newItemPrice}
+              onChange={(e) => setNewItemPrice(e.target.value)}
+              placeholder="価格"
+              className="w-32 p-3 rounded-xl border-none outline-none shadow-sm"
+            />
+          )}
           <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-1 hover:bg-green-700">
             <Plus size={20} /> 追加
           </button>
@@ -138,15 +185,42 @@ export default function MasterManagement() {
                 {editingId === item.id ? (
                   <div className="flex-1 flex gap-2">
                     <input value={editingName} onChange={(e) => setEditingName(e.target.value)} className="flex-1 p-2 border-2 border-blue-400 rounded-lg outline-none" autoFocus />
+                    {isPriceTab && (
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={editingPrice}
+                        onChange={(e) => setEditingPrice(e.target.value)}
+                        className="w-32 p-2 border-2 border-blue-300 rounded-lg outline-none"
+                      />
+                    )}
                     <button type="button" onClick={() => handleUpdate(item.id)} className="text-green-600"><Check /></button>
                     <button type="button" onClick={() => setEditingId(null)} className="text-red-600"><X /></button>
                   </div>
                 ) : (
-                  <span className="font-bold text-gray-700">{item.name}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-gray-700">{item.name}</span>
+                    {isPriceTab && (
+                      <span className="text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5">
+                        ¥{Number(item.price || 0).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               <div className="flex gap-2">
-                <button type="button" onClick={() => { setEditingId(item.id); setEditingName(item.name); }} className="p-2 text-gray-400 hover:text-blue-600"><Edit2 size={16} /></button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingId(item.id);
+                    setEditingName(item.name);
+                    setEditingPrice(String(Number(item.price || 0)));
+                  }}
+                  className="p-2 text-gray-400 hover:text-blue-600"
+                >
+                  <Edit2 size={16} />
+                </button>
                 <button type="button" onClick={() => handleDelete(item.id)} className="p-2 text-gray-400 hover:text-red-600"><Trash2 size={16} /></button>
               </div>
             </div>

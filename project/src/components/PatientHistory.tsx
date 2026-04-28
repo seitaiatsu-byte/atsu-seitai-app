@@ -22,6 +22,7 @@ interface HistoryRecord {
   staff: string;
   memo: string;
   quantity?: number;
+  unitPrice?: number;
 }
 
 interface PatientHistoryProps {
@@ -87,6 +88,7 @@ export default function PatientHistory({ customer, onClose }: PatientHistoryProp
         type: 'product' as const,
         name: p.product_name || '不明',
         amount: Number(p.amount || 0),
+        unitPrice: Number(p.quantity || 0) > 0 ? Number(p.amount || 0) / Number(p.quantity || 1) : undefined,
         paymentMethod: formatPaymentMethodLabel(p.payment_method, merged),
         staff: p.staff_name || '不明',
         memo: p.memo || '',
@@ -306,6 +308,11 @@ export default function PatientHistory({ customer, onClose }: PatientHistoryProp
                         {record.name}
                         {record.quantity && (
                           <span className="text-sm text-gray-600 ml-2">x {record.quantity}</span>
+                        )}
+                        {record.type === 'product' && typeof record.unitPrice === 'number' && (
+                          <span className="text-sm text-gray-500 ml-2">
+                            （単価 ¥{Math.round(record.unitPrice).toLocaleString()}）
+                          </span>
                         )}
                       </div>
                     </div>
