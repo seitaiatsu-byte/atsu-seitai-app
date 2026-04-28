@@ -6,7 +6,6 @@ import { fetchAllCustomersByCreatedDesc, fetchCustomerCountExact } from '../lib/
 import { fetchExistingCustomerNameBirthKeySet } from '../lib/fetchNameBirthKeys';
 import { normalizeCsvHeaderLabel, resolveCsvColumnMap, normalizePhoneDigitsForDb } from '../lib/customerImportHelpers';
 import {
-  formatTableCell,
   getAgeYearsFromCustomer,
   getPhoneWithMemoFallback,
 } from '../lib/customerDisplayFields';
@@ -104,6 +103,7 @@ export default function CustomerImport() {
     allBlocked: boolean;
   } | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [rosterSearch, setRosterSearch] = useState('');
   const [dbTotalCount, setDbTotalCount] = useState<number | null>(null);
   const [loadingList, setLoadingList] = useState(false);
   const [listPage, setListPage] = useState(1);
@@ -123,6 +123,9 @@ export default function CustomerImport() {
     const max = Math.max(1, Math.ceil(customers.length / LIST_ROWS_PER_PAGE));
     setListPage((p) => (p > max ? max : p));
   }, [customers.length]);
+  useEffect(() => {
+    setListPage(1);
+  }, [rosterSearch]);
 
   const loadCustomers = async () => {
     setLoadingList(true);
@@ -138,11 +141,56 @@ export default function CustomerImport() {
     }
   };
 
-  const totalListPages = Math.max(1, Math.ceil(customers.length / LIST_ROWS_PER_PAGE));
+  const normalizeForSearch = (v: string | null | undefined) =>
+    String(v || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '');
+
+  const parseCustomerNo = (v: string | null | undefined) => {
+    const n = Number(String(v || '').trim());
+    return Number.isFinite(n) ? n : Number.NaN;
+  };
+
+  const rosterQuery = normalizeForSearch(rosterSearch);
+  const filteredCustomers = customers.filter((customer) => {
+    if (!rosterQuery) return true;
+    const asRow = customer as CustomerRowRecord;
+    const kana = getKanaForRoster(asRow);
+    const merged = [
+      normalizeForSearch(customer.name),
+      normalizeForSearch(kana),
+      normalizeForSearch(customer.customer_number),
+    ].join('\n');
+    return merged.includes(rosterQuery);
+  });
+
+  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+    const an = parseCustomerNo(a.customer_number);
+    const bn = parseCustomerNo(b.customer_number);
+    const aIsKawanishi = Number.isFinite(an) && an >= 1 && an <= 4999;
+    const bIsKawanishi = Number.isFinite(bn) && bn >= 1 && bn <= 4999;
+    if (aIsKawanishi && !bIsKawanishi) return -1;
+    if (!aIsKawanishi && bIsKawanishi) return 1;
+
+    const aIsTakatsuki = Number.isFinite(an) && an >= 5000;
+    const bIsTakatsuki = Number.isFinite(bn) && bn >= 5000;
+    if (aIsTakatsuki && !bIsTakatsuki) return -1;
+    if (!aIsTakatsuki && bIsTakatsuki) return 1;
+
+    if (aIsKawanishi && bIsKawanishi) return an - bn; // 川西は小さい番号順
+    if (aIsTakatsuki && bIsTakatsuki) return bn - an; // 高槻は大きい番号順
+
+    if (Number.isFinite(an) && Number.isFinite(bn)) return an - bn;
+    return (a.name || '').localeCompare(b.name || '', 'ja');
+  });
+
+  const totalListPages = Math.max(1, Math.ceil(sortedCustomers.length / LIST_ROWS_PER_PAGE));
   const effectiveListPage = Math.min(listPage, totalListPages);
   const listPageStart = (effectiveListPage - 1) * LIST_ROWS_PER_PAGE;
-  const displayedCustomers = customers.slice(listPageStart, listPageStart + LIST_ROWS_PER_PAGE);
-  const listRangeEnd = customers.length === 0 ? 0 : Math.min(listPageStart + displayedCustomers.length, customers.length);
+  const displayedCustomers = sortedCustomers.slice(listPageStart, listPageStart + LIST_ROWS_PER_PAGE);
+  const listRangeEnd =
+    sortedCustomers.length === 0 ? 0 : Math.min(listPageStart + displayedCustomers.length, sortedCustomers.length);
 
   const downloadTemplate = () => {
     const csv = 'customer_number,name,name_kana,gender,birth_date,phone_number,referral_source,prefecture,city,town,chief_complaint_1,chief_complaint_2,chief_complaint_3,email,memo\n1001,田中太郎,たなかたろう,男性,1980/01/01,09012345678,ホームページ,大阪府,高槻市,芥川町,腰痛,肩こり,,tanaka@example.com,\n5001,山田花子,やまだはなこ,女性,1990/05/15,08098765432,紹介,兵庫県,川西市,栄町,首の痛み,頭痛,姿勢改善,yamada@example.com,';
@@ -686,14 +734,25 @@ export default function CustomerImport() {
             )}
           </div>
         </div>
+        <div className="mb-4">
+          <input
+            type="text"
+            value={rosterSearch}
+            onChange={(e) => setRosterSearch(e.target.value)}
+            placeholder="検索（かな・番号・名前）"
+            className="w-full md:w-[420px] px-4 py-2.5 rounded-lg border border-blue-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-300"
+          />
+        </div>
 
         {loadingList ? (
           <div className="bg-white rounded-xl p-8 text-center">
             <div className="text-gray-500">読み込み中...</div>
           </div>
-        ) : customers.length === 0 ? (
+        ) : sortedCustomers.length === 0 ? (
           <div className="bg-white rounded-xl p-8 text-center">
-            <div className="text-gray-500">まだ顧客が登録されていません</div>
+            <div className="text-gray-500">
+              {customers.length === 0 ? 'まだ顧客が登録されていません' : '検索条件に一致する顧客がいません'}
+            </div>
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-inner border border-gray-200">
@@ -784,10 +843,10 @@ export default function CustomerImport() {
                 </tbody>
               </table>
             </div>
-            {customers.length > 0 && totalListPages > 1 && (
+            {sortedCustomers.length > 0 && totalListPages > 1 && (
               <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 bg-gray-50 text-sm">
                 <span className="text-gray-600">
-                  {listPageStart + 1}〜{listRangeEnd} 名を表示（読込 {customers.length} 名 / DB 登録{' '}
+                  {listPageStart + 1}〜{listRangeEnd} 名を表示（表示対象 {sortedCustomers.length} 名 / 読込 {customers.length} 名 / DB 登録{' '}
                   {dbTotalCount ?? customers.length} 名・{LIST_ROWS_PER_PAGE} 名/ページ）
                 </span>
                 <div className="flex items-center gap-2">
