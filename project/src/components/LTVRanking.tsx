@@ -43,12 +43,15 @@ interface SubscriptionRanking {
 
 function resolveCustomerName(
   customer: Record<string, unknown> | undefined,
-  customerId: string
+  customerId: string,
+  legacyNameByCustomerId?: Map<string, string>
 ): string {
   const n = String(customer?.name ?? '').trim();
   if (n) return n;
   const k = String(customer?.name_kana ?? customer?.kana ?? '').trim();
   if (k) return k;
+  const legacy = legacyNameByCustomerId?.get(customerId);
+  if (legacy) return legacy;
   return `ID:${customerId.slice(0, 8)}`;
 }
 
@@ -89,7 +92,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
 
     const { data: visits } = await supabase
       .from('visit_records')
-      .select('customer_id, amount, visit_date, clinic_name, maintenance_cost');
+      .select('customer_id, amount, visit_date, clinic_name, maintenance_cost, import_customer_name');
     const { data: products } = await supabase
       .from('product_sales')
       .select('customer_id, amount, quantity, sale_date, clinic_name');
@@ -116,6 +119,13 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
     });
 
     const customerMap = new Map<string, CustomerLTV>();
+    const legacyNameByCustomerId = new Map<string, string>();
+    vRows.forEach((v) => {
+      const id = String(v.customer_id || '').trim();
+      const legacyName = String(v.import_customer_name || '').trim();
+      if (!id || !legacyName) return;
+      if (!legacyNameByCustomerId.has(id)) legacyNameByCustomerId.set(id, legacyName);
+    });
 
     const bump = (customerId: string, amount: number, date: string, isVisit: boolean) => {
       const c = customerByKey.get(normalizeKey(customerId));
@@ -127,7 +137,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       } else {
         customerMap.set(customerId, {
           customer_id: customerId,
-          customer_name: resolveCustomerName(c, customerId),
+          customer_name: resolveCustomerName(c, customerId, legacyNameByCustomerId),
           customer_number: pickCustomerNumber(c),
           total_ltv: amount,
           visit_count: isVisit ? 1 : 0,
@@ -158,7 +168,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       else {
         maintenanceMap.set(v.customer_id, {
           customer_id: v.customer_id,
-          customer_name: resolveCustomerName(customer, v.customer_id),
+          customer_name: resolveCustomerName(customer, v.customer_id, legacyNameByCustomerId),
           customer_number: pickCustomerNumber(customer),
           total_cost: cost,
         });
@@ -182,7 +192,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       } else {
         productMap.set(p.customer_id, {
           customer_id: p.customer_id,
-          customer_name: resolveCustomerName(customer, p.customer_id),
+          customer_name: resolveCustomerName(customer, p.customer_id, legacyNameByCustomerId),
           customer_number: pickCustomerNumber(customer),
           total_quantity: quantity,
           total_amount: amount,
@@ -206,7 +216,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       } else {
         subMap.set(s.customer_id, {
           customer_id: s.customer_id,
-          customer_name: resolveCustomerName(customer, s.customer_id),
+          customer_name: resolveCustomerName(customer, s.customer_id, legacyNameByCustomerId),
           customer_number: pickCustomerNumber(customer),
           total_count: 1,
           total_amount: amount,
