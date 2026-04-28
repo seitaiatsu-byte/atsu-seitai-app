@@ -27,6 +27,7 @@ interface InactiveRow {
 const BDAY_VISIT_3M = 90;
 const BDAY_VISIT_6M = 180;
 const BDAY_VISIT_1Y = 365;
+const BDAY_VISIT_1Y6M = 548; // 約1年半（365 + 183）
 
 interface BirthdayRow {
   customer: Customer;
@@ -39,7 +40,7 @@ interface BirthdayRow {
 
 function birthdayRowCardClass(daysSinceLastVisit: number | null): string {
   if (daysSinceLastVisit == null) {
-    return 'bg-pink-50 border-pink-200';
+    return 'bg-gray-50 border-gray-200';
   }
   if (daysSinceLastVisit <= BDAY_VISIT_3M) {
     return 'bg-blue-50 border-blue-400';
@@ -50,7 +51,10 @@ function birthdayRowCardClass(daysSinceLastVisit: number | null): string {
   if (daysSinceLastVisit <= BDAY_VISIT_1Y) {
     return 'bg-yellow-50 border-yellow-300';
   }
-  return 'bg-pink-50 border-pink-200';
+  if (daysSinceLastVisit <= BDAY_VISIT_1Y6M) {
+    return 'bg-pink-50 border-pink-200';
+  }
+  return 'bg-gray-50 border-gray-200';
 }
 
 function lastVisitPerCustomer(visits: { customer_id: string; visit_date: string; amount?: number | null }[]) {
@@ -388,7 +392,11 @@ export default function InactivePatientAlerts() {
             </span>
             <span>
               <span className="inline-block w-2.5 h-2.5 rounded-sm bg-pink-100 border border-pink-200 align-middle" />{' '}
-              1年超 or 来院履歴なし
+              1年超〜1年半以内
+            </span>
+            <span>
+              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-gray-100 border border-gray-200 align-middle" />{' '}
+              1年半超 or 来院履歴なし
             </span>
           </p>
           {birthThis.length > 0 && (

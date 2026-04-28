@@ -37,6 +37,17 @@ interface SubscriptionRanking {
   total_amount: number;
 }
 
+function resolveCustomerName(
+  customer: { name?: string | null; name_kana?: string | null } | undefined,
+  customerId: string
+): string {
+  const n = (customer?.name || '').trim();
+  if (n) return n;
+  const k = (customer?.name_kana || '').trim();
+  if (k) return k;
+  return `ID:${customerId.slice(0, 8)}`;
+}
+
 export default function LTVRanking({ clinicScope }: LTVRankingProps) {
   const [rankings, setRankings] = useState<CustomerLTV[]>([]);
   const [maintenanceRankings, setMaintenanceRankings] = useState<MaintenanceRanking[]>([]);
@@ -77,7 +88,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
     pRows.forEach((x) => ids.add(x.customer_id));
     sRows.forEach((x) => ids.add(x.customer_id));
 
-    const { data: customers } = await supabase.from('customers').select('id, name, phone_number');
+    const { data: customers } = await supabase.from('customers').select('id, name, name_kana, phone_number');
     const nameById = new Map((customers || []).map((c) => [c.id, c]));
 
     const customerMap = new Map<string, CustomerLTV>();
@@ -92,7 +103,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       } else {
         customerMap.set(customerId, {
           customer_id: customerId,
-          customer_name: c?.name || '不明',
+          customer_name: resolveCustomerName(c, customerId),
           total_ltv: amount,
           visit_count: isVisit ? 1 : 0,
           last_activity_date: date,
@@ -122,7 +133,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       else {
         maintenanceMap.set(v.customer_id, {
           customer_id: v.customer_id,
-          customer_name: customer?.name || '不明',
+          customer_name: resolveCustomerName(customer, v.customer_id),
           total_cost: cost,
         });
       }
@@ -145,7 +156,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       } else {
         productMap.set(p.customer_id, {
           customer_id: p.customer_id,
-          customer_name: customer?.name || '不明',
+          customer_name: resolveCustomerName(customer, p.customer_id),
           total_quantity: quantity,
           total_amount: amount,
         });
@@ -168,7 +179,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       } else {
         subMap.set(s.customer_id, {
           customer_id: s.customer_id,
-          customer_name: customer?.name || '不明',
+          customer_name: resolveCustomerName(customer, s.customer_id),
           total_count: 1,
           total_amount: amount,
         });
