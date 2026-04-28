@@ -7,6 +7,7 @@ import type { ClinicScope } from './ClinicScopeToggle';
 interface CustomerLTV {
   customer_id: string;
   customer_name: string;
+  customer_number?: string;
   total_ltv: number;
   visit_count: number;
   last_activity_date: string;
@@ -20,12 +21,14 @@ interface LTVRankingProps {
 interface MaintenanceRanking {
   customer_id: string;
   customer_name: string;
+  customer_number?: string;
   total_cost: number;
 }
 
 interface ProductRanking {
   customer_id: string;
   customer_name: string;
+  customer_number?: string;
   total_quantity: number;
   total_amount: number;
 }
@@ -33,6 +36,7 @@ interface ProductRanking {
 interface SubscriptionRanking {
   customer_id: string;
   customer_name: string;
+  customer_number?: string;
   total_count: number;
   total_amount: number;
 }
@@ -46,6 +50,10 @@ function resolveCustomerName(
   const k = (customer?.name_kana || '').trim();
   if (k) return k;
   return `ID:${customerId.slice(0, 8)}`;
+}
+
+function normalizeKey(v: string | null | undefined): string {
+  return String(v || '').trim();
 }
 
 export default function LTVRanking({ clinicScope }: LTVRankingProps) {
@@ -88,13 +96,21 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
     pRows.forEach((x) => ids.add(x.customer_id));
     sRows.forEach((x) => ids.add(x.customer_id));
 
-    const { data: customers } = await supabase.from('customers').select('id, name, name_kana, phone_number');
-    const nameById = new Map((customers || []).map((c) => [c.id, c]));
+    const { data: customers } = await supabase
+      .from('customers')
+      .select('id, name, name_kana, customer_number, phone_number');
+    const customerByKey = new Map<string, (typeof customers extends (infer U)[] ? U : never)>();
+    (customers || []).forEach((c) => {
+      const idKey = normalizeKey(c.id);
+      if (idKey) customerByKey.set(idKey, c);
+      const numKey = normalizeKey(c.customer_number);
+      if (numKey) customerByKey.set(numKey, c);
+    });
 
     const customerMap = new Map<string, CustomerLTV>();
 
     const bump = (customerId: string, amount: number, date: string, isVisit: boolean) => {
-      const c = nameById.get(customerId);
+      const c = customerByKey.get(normalizeKey(customerId));
       const existing = customerMap.get(customerId);
       if (existing) {
         existing.total_ltv += amount;
@@ -104,6 +120,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
         customerMap.set(customerId, {
           customer_id: customerId,
           customer_name: resolveCustomerName(c, customerId),
+          customer_number: c?.customer_number || undefined,
           total_ltv: amount,
           visit_count: isVisit ? 1 : 0,
           last_activity_date: date,
@@ -127,13 +144,14 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
     vRows.forEach((v) => {
       const cost = Number(v.maintenance_cost || 0);
       if (cost <= 0) return;
-      const customer = nameById.get(v.customer_id);
+      const customer = customerByKey.get(normalizeKey(v.customer_id));
       const existing = maintenanceMap.get(v.customer_id);
       if (existing) existing.total_cost += cost;
       else {
         maintenanceMap.set(v.customer_id, {
           customer_id: v.customer_id,
           customer_name: resolveCustomerName(customer, v.customer_id),
+          customer_number: customer?.customer_number || undefined,
           total_cost: cost,
         });
       }
@@ -148,7 +166,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
     pRows.forEach((p) => {
       const amount = Number(p.amount || 0);
       const quantity = Number(p.quantity || 0);
-      const customer = nameById.get(p.customer_id);
+      const customer = customerByKey.get(normalizeKey(p.customer_id));
       const existing = productMap.get(p.customer_id);
       if (existing) {
         existing.total_amount += amount;
@@ -157,6 +175,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
         productMap.set(p.customer_id, {
           customer_id: p.customer_id,
           customer_name: resolveCustomerName(customer, p.customer_id),
+          customer_number: customer?.customer_number || undefined,
           total_quantity: quantity,
           total_amount: amount,
         });
@@ -171,7 +190,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
     const subMap = new Map<string, SubscriptionRanking>();
     sRows.forEach((s) => {
       const amount = Number(s.amount || 0);
-      const customer = nameById.get(s.customer_id);
+      const customer = customerByKey.get(normalizeKey(s.customer_id));
       const existing = subMap.get(s.customer_id);
       if (existing) {
         existing.total_amount += amount;
@@ -180,6 +199,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
         subMap.set(s.customer_id, {
           customer_id: s.customer_id,
           customer_name: resolveCustomerName(customer, s.customer_id),
+          customer_number: customer?.customer_number || undefined,
           total_count: 1,
           total_amount: amount,
         });
@@ -257,7 +277,10 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
                   <div className="col-span-3 flex items-center">
                     <div className="flex items-center gap-2">
                       <User size={18} className="text-gray-400" />
-                      <span className="font-bold text-gray-900">{customer.customer_name}</span>
+                      <div className="leading-tight">
+                        <div className="font-bold text-gray-900">{customer.customer_name}</div>
+                        <div className="text-xs text-gray-500">{customer.customer_number || '-'}</div>
+                      </div>
                     </div>
                   </div>
 
@@ -301,7 +324,10 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {maintenanceRankings.map((r, i) => (
               <div key={r.customer_id} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                <span className="text-sm font-bold text-gray-800">{i + 1}. {r.customer_name}</span>
+                <span className="text-sm font-bold text-gray-800">
+                  {i + 1}. {r.customer_name}
+                  <span className="text-xs text-gray-500 ml-1">({r.customer_number || '-'})</span>
+                </span>
                 <span className="text-sm font-bold text-amber-700">¥{Math.round(r.total_cost).toLocaleString()}</span>
               </div>
             ))}
@@ -313,7 +339,10 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {productRankings.map((r, i) => (
               <div key={r.customer_id} className="rounded-lg border px-3 py-2">
-                <div className="text-sm font-bold text-gray-800">{i + 1}. {r.customer_name}</div>
+                <div className="text-sm font-bold text-gray-800">
+                  {i + 1}. {r.customer_name}
+                  <span className="text-xs text-gray-500 ml-1">({r.customer_number || '-'})</span>
+                </div>
                 <div className="text-xs text-gray-600 mt-1">数量: {r.total_quantity}個</div>
                 <div className="text-sm font-bold text-orange-700">¥{Math.round(r.total_amount).toLocaleString()}</div>
               </div>
@@ -326,7 +355,10 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {subscriptionRankings.map((r, i) => (
               <div key={r.customer_id} className="rounded-lg border px-3 py-2">
-                <div className="text-sm font-bold text-gray-800">{i + 1}. {r.customer_name}</div>
+                <div className="text-sm font-bold text-gray-800">
+                  {i + 1}. {r.customer_name}
+                  <span className="text-xs text-gray-500 ml-1">({r.customer_number || '-'})</span>
+                </div>
                 <div className="text-xs text-gray-600 mt-1">件数: {r.total_count}件</div>
                 <div className="text-sm font-bold text-purple-700">¥{Math.round(r.total_amount).toLocaleString()}</div>
               </div>

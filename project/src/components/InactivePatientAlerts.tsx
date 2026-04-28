@@ -39,9 +39,7 @@ interface BirthdayRow {
 }
 
 function birthdayRowCardClass(daysSinceLastVisit: number | null): string {
-  if (daysSinceLastVisit == null) {
-    return 'bg-gray-50 border-gray-200';
-  }
+  if (daysSinceLastVisit == null) return 'bg-gray-50 border-gray-200';
   if (daysSinceLastVisit <= BDAY_VISIT_3M) {
     return 'bg-blue-50 border-blue-400';
   }
@@ -51,9 +49,7 @@ function birthdayRowCardClass(daysSinceLastVisit: number | null): string {
   if (daysSinceLastVisit <= BDAY_VISIT_1Y) {
     return 'bg-yellow-50 border-yellow-300';
   }
-  if (daysSinceLastVisit <= BDAY_VISIT_1Y6M) {
-    return 'bg-pink-50 border-pink-200';
-  }
+  if (daysSinceLastVisit <= BDAY_VISIT_1Y6M) return 'bg-pink-50 border-pink-200';
   return 'bg-gray-50 border-gray-200';
 }
 
@@ -167,6 +163,10 @@ export default function InactivePatientAlerts() {
       const daysSinceLastVisit = vi
         ? Math.floor((today.getTime() - new Date(vi.date).getTime()) / (1000 * 60 * 60 * 24))
         : null;
+      // 誕生日一覧は「最終来院が1年半以内」の患者のみ表示する
+      if (daysSinceLastVisit == null || daysSinceLastVisit > BDAY_VISIT_1Y6M) {
+        continue;
+      }
       if (bm === thisM) {
         thisMonthList.push({
           customer: c,
@@ -393,10 +393,6 @@ export default function InactivePatientAlerts() {
             <span>
               <span className="inline-block w-2.5 h-2.5 rounded-sm bg-pink-100 border border-pink-200 align-middle" />{' '}
               1年超〜1年半以内
-            </span>
-            <span>
-              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-gray-100 border border-gray-200 align-middle" />{' '}
-              1年半超 or 来院履歴なし
             </span>
           </p>
           {birthThis.length > 0 && (
