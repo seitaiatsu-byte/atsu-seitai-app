@@ -16,7 +16,7 @@ import {
   getMemoForRoster,
   type CustomerRowRecord,
 } from '../lib/customerRosterFieldResolve';
-import CustomerRosterEditModal from './CustomerRosterEditModal';
+import NewCustomerForm from './NewCustomerForm';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
@@ -593,14 +593,17 @@ export default function CustomerImport() {
 
   return (
     <div className="bg-white rounded-2xl shadow-xl p-6">
-      <CustomerRosterEditModal
-        customer={rosterEdit}
-        open={rosterEdit != null}
-        onClose={() => setRosterEdit(null)}
-        onSaved={() => {
-          void loadCustomers();
-        }}
-      />
+      {rosterEdit && (
+        <NewCustomerForm
+          mode="edit"
+          initialCustomer={rosterEdit}
+          onClose={() => setRosterEdit(null)}
+          onSuccess={() => {
+            setRosterEdit(null);
+            void loadCustomers();
+          }}
+        />
+      )}
       <div className="flex items-center gap-3 mb-6">
         <Upload className="text-teal-600" size={32} />
         <h2 className="text-2xl font-bold text-gray-800">顧客名簿インポート</h2>

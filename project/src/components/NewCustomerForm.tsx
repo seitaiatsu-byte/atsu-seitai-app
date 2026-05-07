@@ -6,6 +6,7 @@ import { CLINIC_FULL } from '../lib/clinic';
 import { ClinicNameDisplay } from './ClinicNameDisplay';
 import { fetchAllCustomerNumbers } from '../lib/fetchAllCustomers';
 import { normalizePhoneDigitsForDb } from '../lib/customerImportHelpers';
+import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type ReferralRow = Database['public']['Tables']['referral_source_master']['Row'];
@@ -14,9 +15,16 @@ type ChiefRow = Database['public']['Tables']['chief_complaint_master']['Row'];
 interface NewCustomerFormProps {
   onClose: () => void;
   onSuccess: (customer: Customer) => void;
+  mode?: 'create' | 'edit';
+  initialCustomer?: Customer | null;
 }
 
-export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormProps) {
+export default function NewCustomerForm({
+  onClose,
+  onSuccess,
+  mode = 'create',
+  initialCustomer = null,
+}: NewCustomerFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     name_kana: '',
@@ -86,6 +94,34 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
       if (nextClinic) setFormData((prev) => ({ ...prev, clinic_name: nextClinic }));
     }
   }, [formData.customer_number]);
+
+  useEffect(() => {
+    if (mode !== 'edit' || !initialCustomer) return;
+    const row = initialCustomer as Customer & Record<string, unknown>;
+    const birth = String(row.birth_date ?? row.birthday ?? '').trim();
+    setFormData((prev) => ({
+      ...prev,
+      name: String(row.name ?? '').trim(),
+      name_kana: String(row.name_kana ?? row.kana ?? '').trim(),
+      phone_number: String(row.phone_number ?? '').replace(/\D/g, ''),
+      customer_number: String(row.customer_number ?? '').replace(/\D/g, ''),
+      email: String(row.email ?? '').trim(),
+      address: String(row.address ?? '').trim(),
+      birth_date: birth,
+      gender: String(row.gender ?? '').trim(),
+      memo: String(row.memo ?? '').trim(),
+      clinic_name: String(row.clinic_name ?? '').trim(),
+      prefecture: String(row.prefecture ?? '').trim(),
+      city: String(row.city ?? '').trim(),
+      town: String(row.town ?? '').trim(),
+      referral_source: String(row.main_source ?? row.referral_source ?? '').trim(),
+      referral_source_2: String(row.referral_source_2 ?? '').trim(),
+      chief_complaint_1: String(row.chief_complaint_1 ?? row.complaint_1 ?? row.chief_complaint ?? '').trim(),
+      chief_complaint_2: String(row.chief_complaint_2 ?? row.complaint_2 ?? '').trim(),
+      chief_complaint_3: String(row.chief_complaint_3 ?? row.complaint_3 ?? '').trim(),
+    }));
+    setBirthInput(birth ? birth.replace(/-/g, '') : '');
+  }, [mode, initialCustomer]);
 
   useEffect(() => {
     const zip = formData.postal_code.replace(/\D/g, '');
@@ -163,14 +199,14 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitErrors([]);
-    if (!formData.name) {
-      alert('氏名は必須です');
+    const missing: string[] = [];
+    if (!formData.name.trim()) missing.push('氏名');
+    if (!formData.name_kana.trim()) missing.push('ふりがな');
+    if (missing.length) {
+      setSubmitErrors([`必須項目が未入力です: ${missing.join('、')}`]);
       return;
     }
-    if (!formData.name_kana) {
-      alert('ふりがなは必須です');
-      return;
-    }
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
     try {
@@ -180,7 +216,7 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
           : formData.birth_date;
       const birth = normalizedBirth || null;
 
-      if (birth) {
+      if (birth && mode === 'create') {
         const { data: dup } = await supabase
           .from('customers')
           .select('id')
@@ -197,32 +233,127 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
         }
       }
 
-    const parseErrorDetails = (error: {
-      message?: string;
-      details?: string;
-      hint?: string;
-      code?: string;
-    }) => {
-      const issues: string[] = [];
-      const raw = [error.message, error.details, error.hint].filter(Boolean).join(' | ');
-      const lower = raw.toLowerCase();
-      if (lower.includes('customer_number') && (lower.includes('unique') || error.code === '23505')) {
-        issues.push('顧客番号が重複しています（別の番号を指定するか空欄で再登録してください）');
+      const parseErrorDetails = (error: {
+        message?: string;
+        details?: string;
+        hint?: string;
+        code?: string;
+      }) => {
+        const issues: string[] = [];
+        const raw = [error.message, error.details, error.hint].filter(Boolean).join(' | ');
+        const lower = raw.toLowerCase();
+        if (lower.includes('customer_number') && (lower.includes('unique') || error.code === '23505')) {
+          issues.push('顧客番号が重複しています（別の番号を指定するか空欄で再登録してください）');
+        }
+        if (lower.includes('name_kana')) {
+          issues.push('ふりがな（name_kana）の形式または値を確認してください');
+        }
+        if (lower.includes('name')) {
+          issues.push('氏名（name）の形式または値を確認してください');
+        }
+        if (lower.includes('birth') || lower.includes('date')) {
+          issues.push('生年月日の形式が不正です（YYYY-MM-DD または 8桁入力）');
+        }
+        if (lower.includes('referral') || lower.includes('main_source')) {
+          issues.push('流入経路まわりの列（referral_source / main_source / referral_source_id）を確認してください');
+        }
+        if (lower.includes('referral_source_id') && (lower.includes('foreign') || lower.includes('fkey'))) {
+          issues.push('流入経路マスタと整合する id か確認してください');
+        }
+        if (lower.includes('chief_complaint') || lower.includes('complaint_')) {
+          issues.push('主訴まわりの列（chief_complaint_* / complaint_*）を確認してください');
+        }
+        if (issues.length === 0) {
+          issues.push(raw || '不明なエラー');
+        }
+        return issues;
+      };
+
+      const buildPayload = (resolvedCustomerNumber: string): Database['public']['Tables']['customers']['Insert'] => {
+        const autoClinic = resolveClinicNameByNumber(resolvedCustomerNumber);
+        const payload: Database['public']['Tables']['customers']['Insert'] = {
+          name: formData.name.trim(),
+          name_kana: formData.name_kana.trim(),
+        };
+        if (resolvedCustomerNumber) payload.customer_number = resolvedCustomerNumber;
+        const phoneNorm = normalizePhoneDigitsForDb(formData.phone_number);
+        if (phoneNorm) payload.phone_number = phoneNorm;
+        if (formData.email.trim()) payload.email = formData.email.trim();
+        if (formData.address.trim()) payload.address = formData.address.trim();
+        if (birth) {
+          payload.birth_date = birth;
+          payload.birthday = birth;
+        }
+        if (formData.gender.trim()) payload.gender = formData.gender.trim();
+        if (formData.memo.trim()) payload.memo = formData.memo.trim();
+        if (autoClinic) payload.clinic_name = autoClinic;
+        else if (formData.clinic_name.trim()) payload.clinic_name = formData.clinic_name.trim();
+        if (formData.prefecture.trim()) payload.prefecture = formData.prefecture.trim();
+        if (formData.city.trim()) payload.city = formData.city.trim();
+        if (formData.town.trim()) payload.town = formData.town.trim();
+        const ref1Name = formData.referral_source.trim();
+        if (ref1Name) {
+          payload.referral_source = ref1Name;
+          payload.main_source = ref1Name;
+          const m1 = referralSources.find((s) => s.name === ref1Name);
+          if (m1?.id != null && isUuidString(String(m1.id))) {
+            payload.referral_source_id = String(m1.id);
+          }
+        }
+        const ref2Name = formData.referral_source_2.trim();
+        if (ref2Name) payload.referral_source_2 = ref2Name;
+        const cc1 = formData.chief_complaint_1.trim();
+        if (cc1) {
+          payload.chief_complaint_1 = cc1;
+          payload.complaint_1 = cc1;
+          payload.chief_complaint = cc1;
+        }
+        const cc2 = formData.chief_complaint_2.trim();
+        if (cc2) {
+          payload.chief_complaint_2 = cc2;
+          payload.complaint_2 = cc2;
+        }
+        const cc3 = formData.chief_complaint_3.trim();
+        if (cc3) {
+          payload.chief_complaint_3 = cc3;
+          payload.complaint_3 = cc3;
+        }
+        return payload;
+      };
+
+      if (mode === 'edit' && initialCustomer) {
+        const base = buildPayload(formData.customer_number.trim());
+        let workingUpdate = { ...base } as Database['public']['Tables']['customers']['Update'];
+        for (let sanitizeRetry = 0; sanitizeRetry < 15; sanitizeRetry++) {
+          const res = await supabase.from('customers').update(workingUpdate).eq('id', initialCustomer.id).select().single();
+          if (!res.error && res.data) {
+            window.dispatchEvent(new Event('customers-updated'));
+            alert('顧客情報を更新しました');
+            onSuccess(res.data);
+            return;
+          }
+          const error = res.error;
+          if (!error) break;
+          const msg = error.message || '';
+          const lowerMsg = msg.toLowerCase();
+          if (error.code === '23503' && lowerMsg.includes('referral') && 'referral_source_id' in workingUpdate) {
+            delete workingUpdate.referral_source_id;
+            continue;
+          }
+          const missingCol = extractMissingColumnFromError(msg);
+          if (missingCol && missingCol in workingUpdate) {
+            delete (workingUpdate as Record<string, unknown>)[missingCol];
+            continue;
+          }
+          console.error('顧客更新に失敗:', error);
+          setSubmitErrors(parseErrorDetails(error));
+          alert('顧客更新に失敗しました（画面下部に原因を表示中）');
+          return;
+        }
+        setSubmitErrors(['更新に失敗しました。列の差異があるため、Supabase の migration を適用してください。']);
+        alert('顧客更新に失敗しました（画面下部に原因を表示中）');
+        return;
       }
-      if (lower.includes('name_kana')) {
-        issues.push('ふりがな（name_kana）の形式または値を確認してください');
-      }
-      if (lower.includes('name')) {
-        issues.push('氏名（name）の形式または値を確認してください');
-      }
-      if (lower.includes('birth') || lower.includes('date')) {
-        issues.push('生年月日の形式が不正です（YYYY-MM-DD または 8桁入力）');
-      }
-      if (issues.length === 0) {
-        issues.push(raw || '不明なエラー');
-      }
-      return issues;
-    };
 
       // 顧客番号未入力時は最大+1を発行。重複時は再採番して最大3回リトライ。
       for (let retry = 0; retry < 3; retry++) {
@@ -230,33 +361,7 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
         if (!customerNumber) {
           customerNumber = await resolveAutoCustomerNumber();
         }
-        const autoClinic = resolveClinicNameByNumber(customerNumber);
-
-      // optional徹底: 空欄はpayloadに含めない
-      const payload: Database['public']['Tables']['customers']['Insert'] = {
-        name: formData.name.trim(),
-        name_kana: formData.name_kana.trim(),
-      };
-      if (customerNumber) payload.customer_number = customerNumber;
-      const phoneNorm = normalizePhoneDigitsForDb(formData.phone_number);
-      if (phoneNorm) payload.phone_number = phoneNorm;
-      if (formData.email.trim()) payload.email = formData.email.trim();
-      if (formData.address.trim()) payload.address = formData.address.trim();
-      if (birth) {
-        payload.birth_date = birth;
-        payload.birthday = birth;
-      }
-      if (formData.gender.trim()) payload.gender = formData.gender.trim();
-      if (formData.memo.trim()) payload.memo = formData.memo.trim();
-      if (autoClinic) payload.clinic_name = autoClinic;
-      if (formData.prefecture.trim()) payload.prefecture = formData.prefecture.trim();
-      if (formData.city.trim()) payload.city = formData.city.trim();
-      if (formData.town.trim()) payload.town = formData.town.trim();
-      if (formData.referral_source.trim()) payload.referral_source = formData.referral_source.trim();
-      if (formData.referral_source_2.trim()) payload.referral_source_2 = formData.referral_source_2.trim();
-      if (formData.chief_complaint_1.trim()) payload.chief_complaint_1 = formData.chief_complaint_1.trim();
-      if (formData.chief_complaint_2.trim()) payload.chief_complaint_2 = formData.chief_complaint_2.trim();
-      if (formData.chief_complaint_3.trim()) payload.chief_complaint_3 = formData.chief_complaint_3.trim();
+        const payload = buildPayload(customerNumber);
       // age列が存在しない環境でも登録できるよう、常時送信しない
 
         // スキーマキャッシュとフロント差異があっても通せるよう、
@@ -265,7 +370,7 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
         let data: Customer | null = null;
         let error: { message?: string; details?: string; hint?: string; code?: string } | null = null;
 
-        for (let sanitizeRetry = 0; sanitizeRetry < 6; sanitizeRetry++) {
+        for (let sanitizeRetry = 0; sanitizeRetry < 15; sanitizeRetry++) {
           const res = await supabase.from('customers').insert([workingPayload]).select().single();
           if (!res.error) {
             data = res.data;
@@ -274,9 +379,19 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
           }
 
           error = res.error;
-          const notFoundCol = /'([^']+)'\s+column/i.exec(res.error.message || '');
-          if (notFoundCol?.[1]) {
-            const key = notFoundCol[1] as keyof Database['public']['Tables']['customers']['Insert'];
+          const msg = res.error.message || '';
+          const lowerMsg = msg.toLowerCase();
+          if (
+            res.error.code === '23503' &&
+            lowerMsg.includes('referral') &&
+            'referral_source_id' in workingPayload
+          ) {
+            delete workingPayload.referral_source_id;
+            continue;
+          }
+          const missing = extractMissingColumnFromError(msg);
+          if (missing) {
+            const key = missing as keyof Database['public']['Tables']['customers']['Insert'];
             if (key in workingPayload) {
               delete workingPayload[key];
               continue;
@@ -319,7 +434,7 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-800">新規顧客登録</h2>
+          <h2 className="text-2xl font-bold text-gray-800">{mode === 'edit' ? '顧客情報の修正' : '新規顧客登録'}</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -388,7 +503,6 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
                 placeholder="山田 太郎"
-                required
               />
             </div>
 
@@ -402,7 +516,6 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
                 onChange={(e) => setFormData({ ...formData, name_kana: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
                 placeholder="やまだ たろう"
-                required
               />
             </div>
 
@@ -494,7 +607,9 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
 
           {submitErrors.length > 0 && (
             <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
-              <div className="text-sm font-bold text-red-800 mb-2">登録失敗の原因</div>
+              <div className="text-sm font-bold text-red-800 mb-2">
+                {mode === 'edit' ? '更新できない理由' : '登録できない理由'}
+              </div>
               <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
                 {submitErrors.map((msg, idx) => (
                   <li key={`${msg}-${idx}`}>{msg}</li>
@@ -575,8 +690,8 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none"
               >
                 <option value="">選択してください</option>
-                {referralSources.map((source) => (
-                  <option key={source.id} value={source.name}>
+                {referralSources.map((source, idx) => (
+                  <option key={`r1-${source.id}-${idx}`} value={source.name}>
                     {source.name}
                   </option>
                 ))}
@@ -591,8 +706,8 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none"
               >
                 <option value="">選択してください</option>
-                {referralSources.map((source) => (
-                  <option key={source.id} value={source.name}>
+                {referralSources.map((source, idx) => (
+                  <option key={`r2-${source.id}-${idx}`} value={source.name}>
                     {source.name}
                   </option>
                 ))}
@@ -677,11 +792,12 @@ export default function NewCustomerForm({ onClose, onSuccess }: NewCustomerFormP
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="flex-1 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white py-3 px-6 rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`flex-1 flex items-center justify-center gap-2 text-white py-3 px-6 rounded-xl font-bold transition-colors ${
+                isSubmitting ? 'bg-blue-400 cursor-wait' : 'bg-blue-500 hover:bg-blue-600'
+              }`}
             >
               <Save size={20} />
-              {isSubmitting ? '登録中...' : '登録'}
+              {isSubmitting ? (mode === 'edit' ? '更新中...' : '登録中...') : mode === 'edit' ? '更新する' : '登録'}
             </button>
           </div>
         </form>

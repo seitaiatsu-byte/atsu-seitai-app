@@ -21,6 +21,8 @@ import PageHeader from './components/PageHeader';
 import ClinicScopeToggle, { type ClinicScope } from './components/ClinicScopeToggle';
 import NewCustomerForm from './components/NewCustomerForm';
 
+const __GIT_SHA__ = 'build-20260425';
+
 function App() {
   const [currentTab, setCurrentTab] = useState<'home' | 'reports' | 'alerts' | 'chart' | 'settings'>('home');
   const [showVisitForm, setShowVisitForm] = useState(false);
@@ -211,6 +213,7 @@ function App() {
             <span className="text-xs font-bold mt-1">設定</span>
           </button>
         </div>
+        <div className="absolute right-2 -top-5 text-[10px] text-gray-400 font-mono">{__GIT_SHA__}</div>
       </nav>
     </div>
   );
