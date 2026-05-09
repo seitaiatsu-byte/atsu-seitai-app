@@ -143,9 +143,11 @@ export default function CustomerImport() {
 
   const normalizeForSearch = (v: string | null | undefined) =>
     String(v || '')
+      .normalize('NFKC')
       .trim()
       .toLowerCase()
       .replace(/\s+/g, '');
+  const toHiragana = (v: string) => v.replace(/[\u30a1-\u30f6]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0x60));
 
   const parseCustomerNo = (v: string | null | undefined) => {
     const n = Number(String(v || '').trim());
@@ -157,12 +159,17 @@ export default function CustomerImport() {
     if (!rosterQuery) return true;
     const asRow = customer as CustomerRowRecord;
     const kana = getKanaForRoster(asRow);
-    const merged = [
-      normalizeForSearch(customer.name),
-      normalizeForSearch(kana),
-      normalizeForSearch(customer.customer_number),
-    ].join('\n');
-    return merged.includes(rosterQuery);
+    const nameNorm = normalizeForSearch(customer.name);
+    const kanaNorm = normalizeForSearch(kana);
+    const numberNorm = normalizeForSearch(customer.customer_number);
+    const qHira = toHiragana(rosterQuery);
+    return (
+      nameNorm.includes(rosterQuery) ||
+      kanaNorm.includes(rosterQuery) ||
+      numberNorm.includes(rosterQuery) ||
+      toHiragana(nameNorm).includes(qHira) ||
+      toHiragana(kanaNorm).includes(qHira)
+    );
   });
 
   const sortedCustomers = [...filteredCustomers].sort((a, b) => {

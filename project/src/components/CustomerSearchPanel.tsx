@@ -72,13 +72,17 @@ export default function CustomerSearchPanel({
 
   const normalize = (v: string) =>
     v
+      .normalize('NFKC')
       .trim()
       .toLowerCase()
-      .replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0));
+      .replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0))
+      .replace(/\s+/g, '');
+  const toHiragana = (v: string) => v.replace(/[\u30a1-\u30f6]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0x60));
 
   const searchCustomers = useCallback((q: string) => {
     setIsSearching(true);
     const nq = normalize(q);
+    const nqHira = toHiragana(nq);
     const stripped = nq.replace(/\s/g, '');
     const digits = stripped.replace(/\D/g, '');
     const isPureNumeric = stripped.length > 0 && /^\d+$/.test(stripped);
@@ -88,7 +92,9 @@ export default function CustomerSearchPanel({
 
     for (const c of allCustomers) {
       const name = normalize(c.name || '');
-      const kana = normalize(c.name_kana || '');
+      const kana = normalize(c.name_kana || c.kana || '');
+      const nameHira = toHiragana(name);
+      const kanaHira = toHiragana(kana);
       const numberRaw = normalize(c.customer_number || '');
       const numberDigits = numberRaw.replace(/\D/g, '');
 
@@ -97,6 +103,7 @@ export default function CustomerSearchPanel({
       if (digits.length > 0) {
         if (numberDigits === digits) tier = 0;
         else if (numberDigits.startsWith(digits)) tier = 1;
+        else if (numberDigits.includes(digits)) tier = 2;
       }
 
       if (!isPureNumeric) {
@@ -104,7 +111,7 @@ export default function CustomerSearchPanel({
           if (numberRaw === nq) tier = 0;
           else if (numberRaw.startsWith(nq)) tier = 2;
         }
-        if (name.includes(nq) || kana.includes(nq)) {
+        if (name.includes(nq) || kana.includes(nq) || nameHira.includes(nqHira) || kanaHira.includes(nqHira)) {
           tier = tier === null ? 10 : Math.min(tier, 10);
         }
       }
