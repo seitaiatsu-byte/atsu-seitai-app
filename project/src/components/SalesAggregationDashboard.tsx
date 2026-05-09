@@ -42,6 +42,13 @@ const toYmd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(
 const toYm = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 const JP_WEEK = ['日', '月', '火', '水', '木', '金', '土'] as const;
 
+function normalizeYm(ym: string): string {
+  const s = String(ym || '').trim();
+  const m = /^(\d{4})-(\d{2})$/.exec(s);
+  if (m) return `${m[1]}-${m[2]}`;
+  return toYm(new Date());
+}
+
 function classifySalesType(label: string): 'transfer' | 'single' | 'coupon' | 'subscription' | 'product' {
   const s = label.replace(/\s+/g, '').toLowerCase();
   if (!s) return 'single';
@@ -71,7 +78,7 @@ function weekdayKind(ymd: string): 'sun' | 'sat' | 'weekday' {
 }
 
 function buildRowsForMonth(ym: string): Row[] {
-  const [y, m] = ym.split('-').map((x) => parseInt(x, 10));
+  const [y, m] = normalizeYm(ym).split('-').map((x) => parseInt(x, 10));
   const monthStart = new Date(y, (m || 1) - 1, 1);
   const monthEnd = new Date(y, (m || 1), 0);
   const out: Row[] = [];
@@ -102,15 +109,20 @@ export default function SalesAggregationDashboard() {
   const [loading, setLoading] = useState(false);
   const [activeAnalysis, setActiveAnalysis] = useState<string>('sales');
   const [reloadTick, setReloadTick] = useState(0);
+  const [sourceCount, setSourceCount] = useState({ visits: 0, products: 0, subs: 0 });
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const baseRows = buildRowsForMonth(month);
+        const ym = normalizeYm(month);
+        if (ym !== month) setMonth(ym);
+        const baseRows = buildRowsForMonth(ym);
         const indexByDate = new Map(baseRows.map((r, idx) => [r.date, idx]));
-        const from = `${month}-01`;
-        const to = toYmd(new Date(parseInt(month.slice(0, 4), 10), parseInt(month.slice(5, 7), 10), 0));
+        const from = `${ym}-01`;
+        const y = parseInt(ym.slice(0, 4), 10);
+        const m = parseInt(ym.slice(5, 7), 10);
+        const to = toYmd(new Date(y, m, 0));
 
         const [{ data: visits }, { data: products }, { data: subs }, { data: methods }, { data: details }] = await Promise.all([
           supabase
@@ -133,6 +145,11 @@ export default function SalesAggregationDashboard() {
         ]);
 
         const detailMap = mergeIdNameMaps(methods as { id: string; name: string }[], details as { id: string; name: string }[]);
+        setSourceCount({
+          visits: (visits || []).length,
+          products: (products || []).length,
+          subs: (subs || []).length,
+        });
 
         for (const v of visits || []) {
           if (!clinicMatchesRecord(clinicFilter, v.clinic_name)) continue;
@@ -267,13 +284,18 @@ export default function SalesAggregationDashboard() {
             <h3 className="text-lg font-black text-gray-800">
               {clinicFilter === 'kawanishi' ? '川西あつ整体院' : clinicFilter === 'takatsuki' ? '高槻あつ整体院' : '全院'} 売上日別集計表
             </h3>
-            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="px-3 py-2 border rounded-lg" />
+            <input type="month" value={normalizeYm(month)} onChange={(e) => setMonth(normalizeYm(e.target.value))} className="px-3 py-2 border rounded-lg" />
             <select value={clinicFilter} onChange={(e) => setClinicFilter(e.target.value as ClinicFilter)} className="px-3 py-2 border rounded-lg">
               <option value="kawanishi">川西あつ整体院</option>
               <option value="takatsuki">高槻あつ整体院</option>
               <option value="all">全院</option>
             </select>
             {loading && <span className="text-sm text-gray-500">集計中...</span>}
+            {!loading && (
+              <span className="text-xs text-gray-600">
+                読込件数: 来院 {sourceCount.visits} / 物販 {sourceCount.products} / サブスク {sourceCount.subs}
+              </span>
+            )}
           </div>
 
           <div className="overflow-x-auto border-2 border-green-200 rounded-xl">
