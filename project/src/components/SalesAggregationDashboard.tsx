@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, FileText, TrendingUp, Repeat, Megaphone, Clock3, Activity, Grid3X3, Map, DollarSign } from 'lucide-react';
+import { BarChart3, FileText, TrendingUp, Repeat, Megaphone, Clock3, Activity, Grid3X3, Map as MapIcon, DollarSign } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { clinicMatchesRecord } from '../lib/clinic';
 import { bucketStoredPaymentMethod, formatPaymentDetailLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
@@ -34,7 +34,7 @@ const ANALYSIS_ITEMS: AnalysisItem[] = [
   { key: 'unit-time', title: '時間単価', subtitle: '時間あたりの売上効率', icon: Clock3 },
   { key: 'utilization', title: '稼働率', subtitle: '予約枠の稼働状況', icon: BarChart3 },
   { key: 'cross', title: 'クロス集計', subtitle: '多角的な売上LTV分析', icon: Grid3X3 },
-  { key: 'area', title: 'エリア分析', subtitle: 'エリア別LTV分析・地域カテゴリ', icon: Map },
+  { key: 'area', title: 'エリア分析', subtitle: 'エリア別LTV分析・地域カテゴリ', icon: MapIcon },
 ];
 
 const yen = (v: number) => `${Math.round(v).toLocaleString()}`;
