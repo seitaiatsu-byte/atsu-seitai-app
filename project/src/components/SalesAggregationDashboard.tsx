@@ -97,40 +97,6 @@ function coerceAmount(raw: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-async function fetchAllRowsPaged(
-  table: 'visit_records' | 'product_sales' | 'subscription_records',
-  orderColumn: string,
-  maxRows: number
-): Promise<{ rows: Record<string, unknown>[]; error: string | null; truncated: boolean }> {
-  const out: Record<string, unknown>[] = [];
-  const PAGE = 2500;
-  let offset = 0;
-  let lastChunkWasFull = false;
-  while (out.length < maxRows) {
-    const space = maxRows - out.length;
-    const limit = Math.min(PAGE, space);
-    const { data, error } = await supabase
-      .from(table)
-      .select('*')
-      .order(orderColumn, { ascending: true })
-      .range(offset, offset + limit - 1);
-    if (error) {
-      return { rows: out, error: error.message, truncated: out.length >= maxRows && lastChunkWasFull };
-    }
-    const chunk = (data as Record<string, unknown>[]) || [];
-    if (!chunk.length) break;
-    out.push(...chunk);
-    lastChunkWasFull = chunk.length >= limit;
-    offset += chunk.length;
-    if (chunk.length < limit) break;
-  }
-  return {
-    rows: out,
-    error: null,
-    truncated: out.length >= maxRows && lastChunkWasFull,
-  };
-}
-
 function buildRowsForMonth(ym: string): Row[] {
   const [y, m] = normalizeYm(ym).split('-').map((x) => parseInt(x, 10));
   const monthStart = new Date(y, (m || 1) - 1, 1);
@@ -179,23 +145,32 @@ export default function SalesAggregationDashboard() {
         const indexByDate = new Map(baseRows.map((r, idx) => [r.date, idx]));
         const monthPrefix = `${ym}-`;
 
+        const MAX_ROWS = 80000;
         const [visRes, prodRes, subRes, methodsRes, detailsRes] = await Promise.all([
-          fetchAllRowsPaged('visit_records', 'id', 80000),
-          fetchAllRowsPaged('product_sales', 'id', 80000),
-          fetchAllRowsPaged('subscription_records', 'id', 80000),
+          supabase.from('visit_records').select('*').order('created_at', { ascending: false }).limit(MAX_ROWS),
+          supabase.from('product_sales').select('*').order('created_at', { ascending: false }).limit(MAX_ROWS),
+          supabase.from('subscription_records').select('*').order('created_at', { ascending: false }).limit(MAX_ROWS),
           supabase.from('payment_method_master').select('id,name'),
           supabase.from('payment_detail_master').select('id,name'),
         ]);
 
-        const visits = visRes.rows;
-        const products = prodRes.rows;
-        const subs = subRes.rows;
+        const visits = (visRes.data as Record<string, unknown>[] | null) || [];
+        const products = (prodRes.data as Record<string, unknown>[] | null) || [];
+        const subs = (subRes.data as Record<string, unknown>[] | null) || [];
         const methods = methodsRes.data;
         const details = detailsRes.data;
 
-        const errMsg = [visRes.error, prodRes.error, subRes.error].filter(Boolean).join(' | ');
+        const errMsg = [
+          visRes.error?.message,
+          prodRes.error?.message,
+          subRes.error?.message,
+          methodsRes.error?.message,
+          detailsRes.error?.message,
+        ]
+          .filter(Boolean)
+          .join(' | ');
         if (errMsg) setLoadError(errMsg);
-        setTruncated(Boolean(visRes.truncated || prodRes.truncated || subRes.truncated));
+        setTruncated(visits.length >= MAX_ROWS || products.length >= MAX_ROWS || subs.length >= MAX_ROWS);
         setRawFetched({ visits: visits.length, products: products.length, subs: subs.length });
 
         const detailMap = mergeIdNameMaps(methods as { id: string; name: string }[], details as { id: string; name: string }[]);
