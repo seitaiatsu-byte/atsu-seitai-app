@@ -4,12 +4,22 @@ export type BusinessRulesState = {
   inactiveDaysThreshold: number;
   excludeKeywords: string[];
   churnLapsedDays: number;
+  dailyMaxSlots: number;
+  monthlyAdSpend: number;
+  adSourceKeywords: string[];
+  menuDurationRules: string;
+  defaultTreatmentMinutes: number;
 };
 
 const defaults: BusinessRulesState = {
   inactiveDaysThreshold: 30,
   excludeKeywords: ['BE', '初回', '体験'],
   churnLapsedDays: 90,
+  dailyMaxSlots: 20,
+  monthlyAdSpend: 0,
+  adSourceKeywords: ['広告', 'インスタ', 'instagram', 'meta', 'google', 'line'],
+  menuDurationRules: '',
+  defaultTreatmentMinutes: 60,
 };
 
 export async function fetchBusinessRules(): Promise<BusinessRulesState> {
@@ -20,16 +30,31 @@ export async function fetchBusinessRules(): Promise<BusinessRulesState> {
 
   const inactive = parseInt(map.inactive_days_threshold || `${defaults.inactiveDaysThreshold}`, 10);
   const churn = parseInt(map.churn_lapsed_days || `${defaults.churnLapsedDays}`, 10);
+  const dailyMaxSlots = parseInt(map.daily_max_slots || `${defaults.dailyMaxSlots}`, 10);
+  const monthlyAdSpend = parseFloat(map.monthly_ad_spend || `${defaults.monthlyAdSpend}`);
+  const defaultTreatmentMinutes = parseInt(map.default_treatment_minutes || `${defaults.defaultTreatmentMinutes}`, 10);
   const rawKw = map.exclude_keywords;
   const excludeKeywords = (typeof rawKw === 'string' ? rawKw : defaults.excludeKeywords.join(','))
     .split(',')
     .map((k) => k.trim())
     .filter(Boolean);
+  const rawAdKw = map.ad_source_keywords;
+  const adSourceKeywords = (typeof rawAdKw === 'string' ? rawAdKw : defaults.adSourceKeywords.join(','))
+    .split(',')
+    .map((k) => k.trim())
+    .filter(Boolean);
+  const menuDurationRules = typeof map.menu_duration_rules === 'string' ? map.menu_duration_rules : defaults.menuDurationRules;
 
   return {
     inactiveDaysThreshold: Number.isFinite(inactive) ? inactive : defaults.inactiveDaysThreshold,
     excludeKeywords: excludeKeywords.length ? excludeKeywords : defaults.excludeKeywords,
     churnLapsedDays: Number.isFinite(churn) ? churn : defaults.churnLapsedDays,
+    dailyMaxSlots: Number.isFinite(dailyMaxSlots) && dailyMaxSlots > 0 ? dailyMaxSlots : defaults.dailyMaxSlots,
+    monthlyAdSpend: Number.isFinite(monthlyAdSpend) && monthlyAdSpend >= 0 ? monthlyAdSpend : defaults.monthlyAdSpend,
+    adSourceKeywords: adSourceKeywords.length ? adSourceKeywords : defaults.adSourceKeywords,
+    menuDurationRules,
+    defaultTreatmentMinutes:
+      Number.isFinite(defaultTreatmentMinutes) && defaultTreatmentMinutes > 0 ? defaultTreatmentMinutes : defaults.defaultTreatmentMinutes,
   };
 }
 

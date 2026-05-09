@@ -15,6 +15,11 @@ export default function BusinessRulesConfig() {
   const [inactiveDays, setInactiveDays] = useState('30');
   const [excludeKeywords, setExcludeKeywords] = useState('BE,初回,体験');
   const [churnLapsedDays, setChurnLapsedDays] = useState('90');
+  const [dailyMaxSlots, setDailyMaxSlots] = useState('20');
+  const [monthlyAdSpend, setMonthlyAdSpend] = useState('0');
+  const [adSourceKeywords, setAdSourceKeywords] = useState('広告,インスタ,instagram,meta,google,line');
+  const [menuDurationRules, setMenuDurationRules] = useState('');
+  const [defaultTreatmentMinutes, setDefaultTreatmentMinutes] = useState('60');
   const [alertFollow, setAlertFollow] = useState<AlertFollowConfig>(DEFAULT_ALERT_FOLLOW);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,10 +39,20 @@ export default function BusinessRulesConfig() {
       const inactiveRule = data.find((r: BusinessRule) => r.rule_key === 'inactive_days_threshold');
       const excludeRule = data.find((r: BusinessRule) => r.rule_key === 'exclude_keywords');
       const churnRule = data.find((r: BusinessRule) => r.rule_key === 'churn_lapsed_days');
+      const maxSlotsRule = data.find((r: BusinessRule) => r.rule_key === 'daily_max_slots');
+      const adSpendRule = data.find((r: BusinessRule) => r.rule_key === 'monthly_ad_spend');
+      const adKeywordsRule = data.find((r: BusinessRule) => r.rule_key === 'ad_source_keywords');
+      const menuDurationRule = data.find((r: BusinessRule) => r.rule_key === 'menu_duration_rules');
+      const defaultMinutesRule = data.find((r: BusinessRule) => r.rule_key === 'default_treatment_minutes');
 
       if (inactiveRule) setInactiveDays(inactiveRule.rule_value);
       if (excludeRule) setExcludeKeywords(excludeRule.rule_value);
       if (churnRule) setChurnLapsedDays(churnRule.rule_value);
+      if (maxSlotsRule) setDailyMaxSlots(maxSlotsRule.rule_value);
+      if (adSpendRule) setMonthlyAdSpend(adSpendRule.rule_value);
+      if (adKeywordsRule) setAdSourceKeywords(adKeywordsRule.rule_value);
+      if (menuDurationRule) setMenuDurationRules(menuDurationRule.rule_value);
+      if (defaultMinutesRule) setDefaultTreatmentMinutes(defaultMinutesRule.rule_value);
     }
 
     try {
@@ -76,6 +91,51 @@ export default function BusinessRulesConfig() {
         rule_key: 'churn_lapsed_days',
         rule_value: churnLapsedDays,
         description: '離患判定の経過日数（最終活動からの日数・分析用デフォルト90日）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'daily_max_slots',
+        rule_value: dailyMaxSlots,
+        description: '稼働率計算に使う1日の最大予約枠数',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'monthly_ad_spend',
+        rule_value: monthlyAdSpend,
+        description: '広告分析で使う月間広告費',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'ad_source_keywords',
+        rule_value: adSourceKeywords,
+        description: '広告経由判定キーワード（顧客流入に含む語、カンマ区切り）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'menu_duration_rules',
+        rule_value: menuDurationRules,
+        description: '分単価用メニュー時間設定（1行1件: キーワード:分）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'default_treatment_minutes',
+        rule_value: defaultTreatmentMinutes,
+        description: '分単価計算の既定施術時間（分）',
       },
       { onConflict: 'rule_key' }
     );
@@ -151,6 +211,68 @@ export default function BusinessRulesConfig() {
               min={1}
             />
             <span className="text-lg font-bold text-gray-700">日</span>
+          </div>
+        </div>
+
+        <div className="bg-green-50 border-l-4 border-green-500 p-5 rounded-lg">
+          <h3 className="font-bold text-green-900 text-lg mb-4">稼働率（最大枠数）</h3>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              value={dailyMaxSlots}
+              onChange={(e) => setDailyMaxSlots(e.target.value)}
+              className="w-32 px-4 py-3 border-2 border-gray-300 rounded-lg text-lg font-bold text-center"
+              min={1}
+            />
+            <span className="text-lg font-bold text-gray-700">枠 / 日</span>
+          </div>
+        </div>
+
+        <div className="bg-rose-50 border-l-4 border-rose-500 p-5 rounded-lg space-y-4">
+          <h3 className="font-bold text-rose-900 text-lg">広告分析（ROAS / CPA）</h3>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">月間広告費（円）</label>
+            <input
+              type="number"
+              value={monthlyAdSpend}
+              onChange={(e) => setMonthlyAdSpend(e.target.value)}
+              className="w-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-lg font-bold"
+              min={0}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">広告判定キーワード（流入の文字列照合、カンマ区切り）</label>
+            <input
+              type="text"
+              value={adSourceKeywords}
+              onChange={(e) => setAdSourceKeywords(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+              placeholder="広告,インスタ,instagram,meta,google,line"
+            />
+          </div>
+        </div>
+
+        <div className="bg-cyan-50 border-l-4 border-cyan-500 p-5 rounded-lg space-y-4">
+          <h3 className="font-bold text-cyan-900 text-lg">分単価（施術時間設定）</h3>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">既定施術時間（分）</label>
+            <input
+              type="number"
+              value={defaultTreatmentMinutes}
+              onChange={(e) => setDefaultTreatmentMinutes(e.target.value)}
+              className="w-32 px-4 py-3 border-2 border-gray-300 rounded-lg text-lg font-bold text-center"
+              min={1}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">メニュー別時間（1行1件: キーワード:分）</label>
+            <textarea
+              value={menuDurationRules}
+              onChange={(e) => setMenuDurationRules(e.target.value)}
+              rows={5}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg font-mono text-sm"
+              placeholder={'初回:60\n鍼:40\n骨盤矯正:30'}
+            />
           </div>
         </div>
 

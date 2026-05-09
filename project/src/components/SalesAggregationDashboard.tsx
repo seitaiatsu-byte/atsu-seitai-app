@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 import { clinicMatchesRecord } from '../lib/clinic';
 import { bucketStoredPaymentMethod, formatPaymentDetailLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
 import { parseLocalVisitDateToYmd } from '../lib/visitDateParse';
+import { fetchBusinessRules } from '../lib/businessRules';
+import { repeatRateSecond, repeatRateSixth, type CustomerForRepeat } from '../lib/repeatMetrics';
 
 type ClinicFilter = 'kawanishi' | 'takatsuki' | 'all';
 type PageTab = 'sales' | 'analysis';
@@ -23,6 +25,7 @@ type Row = {
 };
 
 type AnalysisItem = { key: string; title: string; subtitle: string; icon: typeof BarChart3 };
+type LapsedCustomerLite = { id: string; name: string; days: number };
 
 const ANALYSIS_ITEMS: AnalysisItem[] = [
   { key: 'sales', title: '売上集計', subtitle: '日別・月別・年別の売上分析', icon: DollarSign },
@@ -64,6 +67,32 @@ function csvEscape(v: string | number): string {
     return `"${s.replace(/"/g, '""')}"`;
   }
   return s;
+}
+
+function normalizeText(raw: unknown): string {
+  return String(raw ?? '').trim().toLowerCase();
+}
+
+function daysBetween(fromYmd: string, to: Date): number {
+  const from = new Date(`${fromYmd}T00:00:00`);
+  if (Number.isNaN(from.getTime())) return 999999;
+  return Math.max(0, Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
+function parseDurationRules(raw: string): { keyword: string; minutes: number }[] {
+  return String(raw || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const idx = line.indexOf(':');
+      if (idx <= 0) return null;
+      const keyword = line.slice(0, idx).trim();
+      const minutes = parseInt(line.slice(idx + 1).trim(), 10);
+      if (!keyword || !Number.isFinite(minutes) || minutes <= 0) return null;
+      return { keyword: keyword.toLowerCase(), minutes };
+    })
+    .filter((x): x is { keyword: string; minutes: number } => Boolean(x));
 }
 
 function normalizeYm(ym: string): string {
@@ -156,6 +185,23 @@ export default function SalesAggregationDashboard() {
   const [rawFetched, setRawFetched] = useState({ visits: 0, products: 0, subs: 0 });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [activeMemberCount, setActiveMemberCount] = useState(0);
+  const [lapsedRiskCount, setLapsedRiskCount] = useState(0);
+  const [churnCount, setChurnCount] = useState(0);
+  const [lapsedRiskList, setLapsedRiskList] = useState<LapsedCustomerLite[]>([]);
+  const [repeat2Rate, setRepeat2Rate] = useState(0);
+  const [repeat6Rate, setRepeat6Rate] = useState(0);
+  const [utilizationRate, setUtilizationRate] = useState(0);
+  const [actualSlotsUsed, setActualSlotsUsed] = useState(0);
+  const [maxSlotsTotal, setMaxSlotsTotal] = useState(0);
+  const [yenPerMinute, setYenPerMinute] = useState(0);
+  const [cpa, setCpa] = useState(0);
+  const [roas, setRoas] = useState(0);
+  const [adSpend, setAdSpend] = useState(0);
+  const [adNewCustomers, setAdNewCustomers] = useState(0);
+  const [adRevenue, setAdRevenue] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -286,6 +332,151 @@ export default function SalesAggregationDashboard() {
       }
     };
     void load();
+  }, [month, clinicFilter, reloadTick]);
+
+  useEffect(() => {
+    const loadAnalysis = async () => {
+      setAnalysisLoading(true);
+      setAnalysisError(null);
+      try {
+        const rules = await fetchBusinessRules();
+        const ym = normalizeYm(month);
+        const [y, m] = ym.split('-').map((x) => parseInt(x, 10));
+        const monthStart = `${y}-${pad2(m)}-01`;
+        const monthEnd = `${y}-${pad2(m)}-${pad2(new Date(y, m, 0).getDate())}`;
+        const daysInMonth = new Date(y, m, 0).getDate();
+        const mustExcludeKeywords = Array.from(new Set([...rules.excludeKeywords, '初']));
+        const adKeywords = rules.adSourceKeywords.map((x) => x.toLowerCase());
+        const durationRules = parseDurationRules(rules.menuDurationRules);
+
+        const [customersRes, visitsRes, productRes, subsRes] = await Promise.all([
+          supabase.from('customers').select('id,name,clinic_name,referral_source,main_source,created_at'),
+          supabase.from('visit_records').select('customer_id,visit_date,menu_name,amount,clinic_name'),
+          supabase.from('product_sales').select('customer_id,sale_date,amount,clinic_name'),
+          supabase.from('subscription_records').select('customer_id,start_date,amount,clinic_name'),
+        ]);
+        const err = [customersRes.error?.message, visitsRes.error?.message, productRes.error?.message, subsRes.error?.message]
+          .filter(Boolean)
+          .join(' | ');
+        if (err) throw new Error(err);
+
+        const customers = (customersRes.data as Record<string, unknown>[] | null) || [];
+        const visits = ((visitsRes.data as Record<string, unknown>[] | null) || []).filter((v) =>
+          clinicMatchesRecord(clinicFilter, v.clinic_name)
+        );
+        const products = ((productRes.data as Record<string, unknown>[] | null) || []).filter((p) =>
+          clinicMatchesRecord(clinicFilter, p.clinic_name)
+        );
+        const subs = ((subsRes.data as Record<string, unknown>[] | null) || []).filter((s) => clinicMatchesRecord(clinicFilter, s.clinic_name));
+
+        const customerMap = new Map<string, Record<string, unknown>>();
+        for (const c of customers) {
+          if (!clinicMatchesRecord(clinicFilter, c.clinic_name)) continue;
+          customerMap.set(String(c.id), c);
+        }
+        const customerIds = new Set(customerMap.keys());
+
+        const visitsInScope = visits.filter((v) => customerIds.has(String(v.customer_id)));
+        const productsInScope = products.filter((v) => customerIds.has(String(v.customer_id)));
+        const subsInScope = subs.filter((v) => customerIds.has(String(v.customer_id)));
+
+        const byCustomerVisit = new Map<string, { visit_date: string; menu_name?: string | null }[]>();
+        const latestVisitYmd = new Map<string, string>();
+        for (const v of visitsInScope) {
+          const cid = String(v.customer_id);
+          const day = coerceRecordDayYmd(v.visit_date);
+          if (!day) continue;
+          if (!byCustomerVisit.has(cid)) byCustomerVisit.set(cid, []);
+          byCustomerVisit.get(cid)!.push({ visit_date: day, menu_name: String(v.menu_name ?? '') });
+          const prev = latestVisitYmd.get(cid);
+          if (!prev || day > prev) latestVisitYmd.set(cid, day);
+        }
+
+        const today = new Date();
+        let active = 0;
+        let risk = 0;
+        let churn = 0;
+        const riskList: LapsedCustomerLite[] = [];
+        for (const [cid, cust] of customerMap.entries()) {
+          const last = latestVisitYmd.get(cid);
+          if (!last) continue;
+          const d = daysBetween(last, today);
+          if (d < rules.inactiveDaysThreshold) active++;
+          if (d >= rules.inactiveDaysThreshold) {
+            risk++;
+            riskList.push({ id: cid, name: String(cust.name ?? '不明'), days: d });
+          }
+          if (d >= rules.churnLapsedDays) churn++;
+        }
+        riskList.sort((a, b) => b.days - a.days);
+        setActiveMemberCount(active);
+        setLapsedRiskCount(risk);
+        setChurnCount(churn);
+        setLapsedRiskList(riskList.slice(0, 20));
+
+        const repeatCustomers: CustomerForRepeat[] = [];
+        byCustomerVisit.forEach((list, id) => repeatCustomers.push({ id, visits: list }));
+        setRepeat2Rate(repeatRateSecond(repeatCustomers, mustExcludeKeywords));
+        setRepeat6Rate(repeatRateSixth(repeatCustomers, mustExcludeKeywords));
+
+        const monthVisits = visitsInScope.filter((v) => {
+          const day = coerceRecordDayYmd(v.visit_date);
+          return !!day && day >= monthStart && day <= monthEnd;
+        });
+        const slotsUsed = monthVisits.length;
+        const maxSlots = Math.max(1, rules.dailyMaxSlots) * daysInMonth;
+        setActualSlotsUsed(slotsUsed);
+        setMaxSlotsTotal(maxSlots);
+        setUtilizationRate(Math.round((slotsUsed / maxSlots) * 1000) / 10);
+
+        let minuteRevenue = 0;
+        let minuteTotal = 0;
+        for (const v of monthVisits) {
+          const menuLabel = normalizeText(v.menu_name);
+          const amount = coerceAmount(v.amount);
+          if (amount <= 0) continue;
+          let minutes = rules.defaultTreatmentMinutes;
+          const hit = durationRules.find((r) => menuLabel.includes(r.keyword));
+          if (hit) minutes = hit.minutes;
+          minuteRevenue += amount;
+          minuteTotal += Math.max(1, minutes);
+        }
+        setYenPerMinute(minuteTotal > 0 ? Math.round((minuteRevenue / minuteTotal) * 10) / 10 : 0);
+
+        const adCustomerIds = new Set<string>();
+        for (const [cid, c] of customerMap.entries()) {
+          const src = `${normalizeText(c.referral_source)} ${normalizeText(c.main_source)}`;
+          if (adKeywords.some((kw) => kw && src.includes(kw))) adCustomerIds.add(cid);
+        }
+        const adMonthNew = [...adCustomerIds].filter((cid) => {
+          const c = customerMap.get(cid);
+          const created = coerceRecordDayYmd(c?.created_at);
+          return !!created && created >= monthStart && created <= monthEnd;
+        }).length;
+        let adMonthRevenue = 0;
+        for (const v of monthVisits) if (adCustomerIds.has(String(v.customer_id))) adMonthRevenue += coerceAmount(v.amount);
+        for (const p of productsInScope) {
+          const day = coerceRecordDayYmd(p.sale_date);
+          if (day && day >= monthStart && day <= monthEnd && adCustomerIds.has(String(p.customer_id))) adMonthRevenue += coerceAmount(p.amount);
+        }
+        for (const s of subsInScope) {
+          const day = coerceRecordDayYmd(s.start_date);
+          if (day && day >= monthStart && day <= monthEnd && adCustomerIds.has(String(s.customer_id))) adMonthRevenue += coerceAmount(s.amount);
+        }
+
+        const spend = Math.max(0, rules.monthlyAdSpend);
+        setAdSpend(spend);
+        setAdNewCustomers(adMonthNew);
+        setAdRevenue(Math.round(adMonthRevenue));
+        setCpa(adMonthNew > 0 ? Math.round(spend / adMonthNew) : 0);
+        setRoas(spend > 0 ? Math.round((adMonthRevenue / spend) * 1000) / 10 : 0);
+      } catch (e) {
+        setAnalysisError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setAnalysisLoading(false);
+      }
+    };
+    void loadAnalysis();
   }, [month, clinicFilter, reloadTick]);
 
   useEffect(() => {
@@ -575,12 +766,92 @@ export default function SalesAggregationDashboard() {
               );
             })}
           </div>
-          <div className="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50 p-5">
-            <div className="text-sm text-blue-800 font-bold mb-1">{activeMeta.title}</div>
-            <div className="text-sm text-blue-700">
-              この画面はプレースホルダーです。次のステップで「{activeMeta.title}」の詳細分析コンテンツを実装できます。
+          {activeAnalysis === 'sales' ? (
+            <div className="space-y-4">
+              {analysisError && (
+                <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{analysisError}</div>
+              )}
+              {analysisLoading ? (
+                <div className="rounded-xl border border-gray-200 p-4 text-sm text-gray-500">分析データを集計中...</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="rounded-xl bg-emerald-500 text-white p-4">
+                      <div className="text-xs">アクティブ会員数</div>
+                      <div className="text-3xl font-black">{activeMemberCount}</div>
+                    </div>
+                    <div className="rounded-xl bg-amber-500 text-white p-4">
+                      <div className="text-xs">離脱予備軍</div>
+                      <div className="text-3xl font-black">{lapsedRiskCount}</div>
+                    </div>
+                    <div className="rounded-xl bg-rose-500 text-white p-4">
+                      <div className="text-xs">離脱（設定日以上）</div>
+                      <div className="text-3xl font-black">{churnCount}</div>
+                    </div>
+                    <div className="rounded-xl bg-sky-600 text-white p-4">
+                      <div className="text-xs">稼働率</div>
+                      <div className="text-3xl font-black">{utilizationRate}%</div>
+                      <div className="text-[11px] opacity-90">
+                        {actualSlotsUsed} / {maxSlotsTotal} 枠
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="rounded-xl bg-green-50 border border-green-200 p-4">
+                      <div className="text-xs text-green-800 font-bold">2回目リピート率</div>
+                      <div className="text-2xl font-black text-green-700">{repeat2Rate}%</div>
+                    </div>
+                    <div className="rounded-xl bg-cyan-50 border border-cyan-200 p-4">
+                      <div className="text-xs text-cyan-800 font-bold">6回目到達率</div>
+                      <div className="text-2xl font-black text-cyan-700">{repeat6Rate}%</div>
+                    </div>
+                    <div className="rounded-xl bg-indigo-50 border border-indigo-200 p-4">
+                      <div className="text-xs text-indigo-800 font-bold">分単価（平均）</div>
+                      <div className="text-2xl font-black text-indigo-700">¥{yenPerMinute.toLocaleString()}/分</div>
+                    </div>
+                    <div className="rounded-xl bg-fuchsia-50 border border-fuchsia-200 p-4">
+                      <div className="text-xs text-fuchsia-800 font-bold">ROAS / CPA</div>
+                      <div className="text-sm font-bold text-fuchsia-700">ROAS {roas}%</div>
+                      <div className="text-sm font-bold text-fuchsia-700">CPA ¥{Math.round(cpa).toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 p-4">
+                    <div className="font-bold text-gray-800 mb-2">広告分析（{monthLabel}）</div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                      <div className="rounded bg-gray-50 p-2">広告費: ¥{Math.round(adSpend).toLocaleString()}</div>
+                      <div className="rounded bg-gray-50 p-2">広告経由新規: {adNewCustomers}人</div>
+                      <div className="rounded bg-gray-50 p-2">広告経由売上: ¥{Math.round(adRevenue).toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 p-4">
+                    <div className="font-bold text-gray-800 mb-2">離脱予備軍リスト（最終来院ベース）</div>
+                    {lapsedRiskList.length === 0 ? (
+                      <div className="text-sm text-gray-500">該当なし</div>
+                    ) : (
+                      <div className="max-h-56 overflow-y-auto space-y-1">
+                        {lapsedRiskList.map((x) => (
+                          <div key={x.id} className="flex justify-between text-sm border-b border-gray-100 py-1">
+                            <span>{x.name}</span>
+                            <span className="font-bold text-amber-700">{x.days}日</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50 p-5">
+              <div className="text-sm text-blue-800 font-bold mb-1">{activeMeta.title}</div>
+              <div className="text-sm text-blue-700">
+                この画面はプレースホルダーです。次のステップで「{activeMeta.title}」の詳細分析コンテンツを実装できます。
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
