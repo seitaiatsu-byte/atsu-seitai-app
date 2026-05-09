@@ -67,13 +67,22 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
   }, []);
 
   const loadRecentRecords = useCallback(async () => {
-    const { data } = await supabase
-      .from('visit_records')
-      .select('*, customers(id, name, customer_number)')
-      .order('visit_date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(150);
-    if (data) setRecentRecords(data);
+    const PAGE = 500;
+    let from = 0;
+    const all: any[] = [];
+    while (true) {
+      const { data, error } = await supabase
+        .from('visit_records')
+        .select('*, customers(id, name, customer_number)')
+        .order('visit_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (error || !data?.length) break;
+      all.push(...data);
+      if (data.length < PAGE) break;
+      from += data.length;
+    }
+    setRecentRecords(all);
   }, []);
 
   useEffect(() => {
