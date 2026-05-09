@@ -125,15 +125,15 @@ export default function SalesAggregationDashboard() {
         const [{ data: visits }, { data: products }, { data: subs }, { data: methods }, { data: details }] = await Promise.all([
           supabase
             .from('visit_records')
-            .select('visit_date, amount, payment_method, payment_detail_id, import_kind_text, memo, menu_name, clinic_name')
+            .select('*')
             .limit(20000),
           supabase
             .from('product_sales')
-            .select('sale_date, amount, payment_method, clinic_name, product_name')
+            .select('*')
             .limit(20000),
           supabase
             .from('subscription_records')
-            .select('start_date, amount, payment_method, clinic_name, subscription_name')
+            .select('*')
             .limit(20000),
           supabase.from('payment_method_master').select('id,name'),
           supabase.from('payment_detail_master').select('id,name'),
@@ -144,7 +144,7 @@ export default function SalesAggregationDashboard() {
         let matchedProducts = 0;
         let matchedSubs = 0;
 
-        for (const v of visits || []) {
+        for (const v of (visits as Record<string, unknown>[] | null) || []) {
           if (!clinicMatchesRecord(clinicFilter, v.clinic_name)) continue;
           const day = parseLocalVisitDateToYmd(String(v.visit_date ?? ''));
           if (!day || !day.startsWith(monthPrefix)) continue;
@@ -156,7 +156,12 @@ export default function SalesAggregationDashboard() {
           if (!Number.isFinite(amount) || amount === 0) continue;
 
           const methodBucket = bucketStoredPaymentMethod(v.payment_method, detailMap);
-          const detailLabel = formatPaymentDetailLabel(v.payment_detail_id, detailMap, v.import_kind_text, v.memo);
+          const detailLabel = formatPaymentDetailLabel(
+            (v.payment_detail_id as string | null | undefined) ?? null,
+            detailMap,
+            (v.import_kind_text as string | null | undefined) ?? null,
+            (v.memo as string | null | undefined) ?? null
+          );
           const paymentLabel = String(v.payment_method ?? '');
           const mixedLabel = `${detailLabel} ${paymentLabel} ${v.menu_name ?? ''} ${v.memo ?? ''} ${v.import_kind_text ?? ''}`;
           const kind = classifySalesType(mixedLabel);
@@ -179,7 +184,7 @@ export default function SalesAggregationDashboard() {
           row.dayTotal += amount;
         }
 
-        for (const p of products || []) {
+        for (const p of (products as Record<string, unknown>[] | null) || []) {
           if (!clinicMatchesRecord(clinicFilter, p.clinic_name)) continue;
           const day = parseLocalVisitDateToYmd(String(p.sale_date ?? ''));
           if (!day || !day.startsWith(monthPrefix)) continue;
@@ -195,7 +200,7 @@ export default function SalesAggregationDashboard() {
           row.dayTotal += amount;
         }
 
-        for (const s of subs || []) {
+        for (const s of (subs as Record<string, unknown>[] | null) || []) {
           if (!clinicMatchesRecord(clinicFilter, s.clinic_name)) continue;
           const day = parseLocalVisitDateToYmd(String(s.start_date ?? ''));
           if (!day || !day.startsWith(monthPrefix)) continue;
