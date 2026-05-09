@@ -78,6 +78,59 @@ function weekdayKind(ymd: string): 'sun' | 'sat' | 'weekday' {
   return 'weekday';
 }
 
+/** DB の日付が ISO / スラッシュ / 日付+時刻 どれでも YYYY-MM-DD に寄せる */
+function coerceRecordDayYmd(raw: unknown): string | null {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const head = s.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(head)) {
+    return parseLocalVisitDateToYmd(head);
+  }
+  return parseLocalVisitDateToYmd(s);
+}
+
+function coerceAmount(raw: unknown): number {
+  if (raw == null) return 0;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  const n = parseFloat(String(raw).replace(/,/g, '').trim());
+  return Number.isFinite(n) ? n : 0;
+}
+
+async function fetchAllRowsPaged(
+  table: 'visit_records' | 'product_sales' | 'subscription_records',
+  orderColumn: string,
+  maxRows: number
+): Promise<{ rows: Record<string, unknown>[]; error: string | null; truncated: boolean }> {
+  const out: Record<string, unknown>[] = [];
+  const PAGE = 2500;
+  let offset = 0;
+  let lastChunkWasFull = false;
+  while (out.length < maxRows) {
+    const space = maxRows - out.length;
+    const limit = Math.min(PAGE, space);
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .order(orderColumn, { ascending: true })
+      .range(offset, offset + limit - 1);
+    if (error) {
+      return { rows: out, error: error.message, truncated: out.length >= maxRows && lastChunkWasFull };
+    }
+    const chunk = (data as Record<string, unknown>[]) || [];
+    if (!chunk.length) break;
+    out.push(...chunk);
+    lastChunkWasFull = chunk.length >= limit;
+    offset += chunk.length;
+    if (chunk.length < limit) break;
+  }
+  return {
+    rows: out,
+    error: null,
+    truncated: out.length >= maxRows && lastChunkWasFull,
+  };
+}
+
 function buildRowsForMonth(ym: string): Row[] {
   const [y, m] = normalizeYm(ym).split('-').map((x) => parseInt(x, 10));
   const monthStart = new Date(y, (m || 1) - 1, 1);
@@ -111,10 +164,14 @@ export default function SalesAggregationDashboard() {
   const [activeAnalysis, setActiveAnalysis] = useState<string>('sales');
   const [reloadTick, setReloadTick] = useState(0);
   const [sourceCount, setSourceCount] = useState({ visits: 0, products: 0, subs: 0 });
+  const [rawFetched, setRawFetched] = useState({ visits: 0, products: 0, subs: 0 });
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [truncated, setTruncated] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setLoadError(null);
       try {
         const ym = normalizeYm(month);
         if (ym !== month) setMonth(ym);
@@ -122,38 +179,40 @@ export default function SalesAggregationDashboard() {
         const indexByDate = new Map(baseRows.map((r, idx) => [r.date, idx]));
         const monthPrefix = `${ym}-`;
 
-        const [{ data: visits }, { data: products }, { data: subs }, { data: methods }, { data: details }] = await Promise.all([
-          supabase
-            .from('visit_records')
-            .select('*')
-            .limit(20000),
-          supabase
-            .from('product_sales')
-            .select('*')
-            .limit(20000),
-          supabase
-            .from('subscription_records')
-            .select('*')
-            .limit(20000),
+        const [visRes, prodRes, subRes, methodsRes, detailsRes] = await Promise.all([
+          fetchAllRowsPaged('visit_records', 'id', 80000),
+          fetchAllRowsPaged('product_sales', 'id', 80000),
+          fetchAllRowsPaged('subscription_records', 'id', 80000),
           supabase.from('payment_method_master').select('id,name'),
           supabase.from('payment_detail_master').select('id,name'),
         ]);
+
+        const visits = visRes.rows;
+        const products = prodRes.rows;
+        const subs = subRes.rows;
+        const methods = methodsRes.data;
+        const details = detailsRes.data;
+
+        const errMsg = [visRes.error, prodRes.error, subRes.error].filter(Boolean).join(' | ');
+        if (errMsg) setLoadError(errMsg);
+        setTruncated(Boolean(visRes.truncated || prodRes.truncated || subRes.truncated));
+        setRawFetched({ visits: visits.length, products: products.length, subs: subs.length });
 
         const detailMap = mergeIdNameMaps(methods as { id: string; name: string }[], details as { id: string; name: string }[]);
         let matchedVisits = 0;
         let matchedProducts = 0;
         let matchedSubs = 0;
 
-        for (const v of (visits as Record<string, unknown>[] | null) || []) {
+        for (const v of visits) {
           if (!clinicMatchesRecord(clinicFilter, v.clinic_name)) continue;
-          const day = parseLocalVisitDateToYmd(String(v.visit_date ?? ''));
+          const day = coerceRecordDayYmd(v.visit_date);
           if (!day || !day.startsWith(monthPrefix)) continue;
           matchedVisits += 1;
           const idx = indexByDate.get(day);
           if (idx == null) continue;
           const row = baseRows[idx];
-          const amount = Number(v.amount || 0);
-          if (!Number.isFinite(amount) || amount === 0) continue;
+          const amount = coerceAmount(v.amount);
+          if (amount === 0) continue;
 
           const methodBucket = bucketStoredPaymentMethod(v.payment_method, detailMap);
           const detailLabel = formatPaymentDetailLabel(
@@ -184,32 +243,32 @@ export default function SalesAggregationDashboard() {
           row.dayTotal += amount;
         }
 
-        for (const p of (products as Record<string, unknown>[] | null) || []) {
+        for (const p of products) {
           if (!clinicMatchesRecord(clinicFilter, p.clinic_name)) continue;
-          const day = parseLocalVisitDateToYmd(String(p.sale_date ?? ''));
+          const day = coerceRecordDayYmd(p.sale_date);
           if (!day || !day.startsWith(monthPrefix)) continue;
           matchedProducts += 1;
           const idx = indexByDate.get(day);
           if (idx == null) continue;
           const row = baseRows[idx];
-          const amount = Number(p.amount || 0);
-          if (!Number.isFinite(amount) || amount === 0) continue;
+          const amount = coerceAmount(p.amount);
+          if (amount === 0) continue;
           const methodBucket = bucketStoredPaymentMethod(p.payment_method, detailMap);
           if (methodBucket === 'cash') row.cashProduct += amount;
           else row.cardProduct += amount;
           row.dayTotal += amount;
         }
 
-        for (const s of (subs as Record<string, unknown>[] | null) || []) {
+        for (const s of subs) {
           if (!clinicMatchesRecord(clinicFilter, s.clinic_name)) continue;
-          const day = parseLocalVisitDateToYmd(String(s.start_date ?? ''));
+          const day = coerceRecordDayYmd(s.start_date);
           if (!day || !day.startsWith(monthPrefix)) continue;
           matchedSubs += 1;
           const idx = indexByDate.get(day);
           if (idx == null) continue;
           const row = baseRows[idx];
-          const amount = Number(s.amount || 0);
-          if (!Number.isFinite(amount) || amount === 0) continue;
+          const amount = coerceAmount(s.amount);
+          if (amount === 0) continue;
           const methodBucket = bucketStoredPaymentMethod(s.payment_method, detailMap);
           if (methodBucket === 'cash') row.cashSubscription += amount;
           else row.cardSubscription += amount;
@@ -222,6 +281,8 @@ export default function SalesAggregationDashboard() {
           products: matchedProducts,
           subs: matchedSubs,
         });
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : String(e));
       } finally {
         setLoading(false);
       }
@@ -305,10 +366,28 @@ export default function SalesAggregationDashboard() {
             {loading && <span className="text-sm text-gray-500">集計中...</span>}
             {!loading && (
               <span className="text-xs text-gray-600">
-                読込件数: 来院 {sourceCount.visits} / 物販 {sourceCount.products} / サブスク {sourceCount.subs}
+                月内集計件数: 来院 {sourceCount.visits} / 物販 {sourceCount.products} / サブスク {sourceCount.subs}
+                <span className="text-gray-400 ml-2">
+                  （DB取得: 来院 {rawFetched.visits} / 物販 {rawFetched.products} / サブスク {rawFetched.subs}）
+                </span>
               </span>
             )}
           </div>
+
+          {loadError && (
+            <div className="rounded-lg border-2 border-red-300 bg-red-50 p-3 text-sm text-red-800">
+              <div className="font-bold mb-1">データ取得エラー</div>
+              <div className="break-all">{loadError}</div>
+              <div className="text-xs mt-2 text-red-700">
+                Supabase の RLS またはテーブル権限を確認してください。来院入力は見えても、この画面だけ拒否されている場合があります。
+              </div>
+            </div>
+          )}
+          {truncated && !loadError && (
+            <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
+              取得件数が上限に達しました。古いデータが集計から漏れる可能性があります（要相談で上限を上げます）。
+            </div>
+          )}
 
           <div className="overflow-x-auto border-2 border-green-200 rounded-xl">
             <table className="min-w-[1360px] w-full text-sm">
