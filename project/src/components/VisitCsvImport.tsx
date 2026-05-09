@@ -123,6 +123,29 @@ type ValidatedRow = {
   insert: Omit<VisitInsert, 'visit_number'>;
 };
 
+async function fetchAllCustomersForImport(): Promise<{
+  rows: CustomerRow[];
+  errorMessage: string | null;
+}> {
+  const PAGE = 1000;
+  let from = 0;
+  const out: CustomerRow[] = [];
+  while (true) {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('id, customer_number, name')
+      .order('created_at', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) return { rows: out, errorMessage: toErrorMessage(error) };
+    const chunk = (data as CustomerRow[] | null) || [];
+    if (!chunk.length) break;
+    out.push(...chunk);
+    if (chunk.length < PAGE) break;
+    from += chunk.length;
+  }
+  return { rows: out, errorMessage: null };
+}
+
 export default function VisitCsvImport() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
@@ -198,15 +221,13 @@ export default function VisitCsvImport() {
       }
 
       setProgressText('顧客と支払マスタを読み込み中...');
-      const { data: customers, error: customerError } = await supabase
-        .from('customers')
-        .select('id, customer_number, name');
-      if (customerError) {
+      const { rows: customers, errorMessage: customerErrorMessage } = await fetchAllCustomersForImport();
+      if (customerErrorMessage) {
         setResult({
           success: 0,
           skipped: 0,
           mismatchCount: 0,
-          messages: [`顧客一覧の取得に失敗しました: ${toErrorMessage(customerError)}`],
+          messages: [`顧客一覧の取得に失敗しました: ${customerErrorMessage}`],
           allBlocked: true,
         });
         setProgressText('');
@@ -216,7 +237,7 @@ export default function VisitCsvImport() {
       }
       const customerMap = new Map<string, CustomerRow>();
       const customerById = new Map<string, CustomerRow>();
-      (customers || []).forEach((c) => {
+      customers.forEach((c) => {
         customerById.set(c.id, c as CustomerRow);
         for (const key of customerNumberCandidates(c.customer_number || '')) {
           customerMap.set(key, c as CustomerRow);
