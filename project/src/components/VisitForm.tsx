@@ -6,6 +6,7 @@ import { CLINIC_OPTIONS, type ClinicFullName } from '../lib/clinic';
 import { buildIdToNameMap } from '../lib/paymentDisplay';
 import { getTodayLocalYmd } from '../lib/visitDateParse';
 import VisitRecordDateAccordion from './VisitRecordDateAccordion';
+import { recalcBeEquivalentCountsForCustomers } from '../lib/beEquivalentRecalc';
 
 export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
@@ -196,6 +197,8 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
       // 3. 全画像URLをDBに書き込んで「完結」
       const { error: updateError } = await supabase.from('visit_records').update({ media_urls: uploadedUrls }).eq('id', visitId);
       if (updateError) throw new Error(`URL保存失敗: ${updateError.message}`);
+
+      await recalcBeEquivalentCountsForCustomers([selectedCustomer.id]);
 
       alert(editingId ? '内容と画像を修正しました' : '来院記録と画像を登録しました');
       resetForm();
@@ -427,6 +430,7 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
                       alert(`削除失敗: ${error.message}`);
                       return;
                     }
+                    await recalcBeEquivalentCountsForCustomers([v.customer_id]);
                     void loadRecentRecords();
                     window.dispatchEvent(new Event('records-updated'));
                   }}

@@ -23,6 +23,7 @@ import {
   readCsvFileAsString,
   resolveVisitDataRowsForImport,
 } from '../lib/visitCsvFileRead';
+import { recalcBeEquivalentCountsForCustomers } from '../lib/beEquivalentRecalc';
 
 type VisitInsert = Database['public']['Tables']['visit_records']['Insert'];
 type CustomerRow = Pick<
@@ -570,6 +571,7 @@ export default function VisitCsvImport() {
         mismatchDetail: mismatchDetail.length > 0 ? mismatchDetail : undefined,
         usedMemoFallbackForKind,
       });
+      await recalcBeEquivalentCountsForCustomers(insertDistIds);
       if (success > 0) window.dispatchEvent(new Event('records-updated'));
       setProgressText('');
     } catch (err) {
