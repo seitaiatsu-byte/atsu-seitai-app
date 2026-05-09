@@ -37,8 +37,9 @@ const ANALYSIS_ITEMS: AnalysisItem[] = [
 ];
 
 const yen = (v: number) => `${Math.round(v).toLocaleString()}`;
-const toYmd = (d: Date) => d.toISOString().slice(0, 10);
-const toYm = (d: Date) => d.toISOString().slice(0, 7);
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const toYmd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const toYm = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 const JP_WEEK = ['日', '月', '火', '水', '木', '金', '土'] as const;
 
 function classifySalesType(label: string): 'transfer' | 'single' | 'coupon' | 'subscription' | 'product' {
@@ -95,7 +96,7 @@ function buildRowsForMonth(ym: string): Row[] {
 
 export default function SalesAggregationDashboard() {
   const [tab, setTab] = useState<PageTab>('sales');
-  const [clinicFilter, setClinicFilter] = useState<ClinicFilter>('kawanishi');
+  const [clinicFilter, setClinicFilter] = useState<ClinicFilter>('all');
   const [month, setMonth] = useState<string>(toYm(new Date()));
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
