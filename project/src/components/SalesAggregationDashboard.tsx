@@ -42,6 +42,29 @@ const pad2 = (n: number) => String(n).padStart(2, '0');
 const toYmd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const toYm = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 const JP_WEEK = ['日', '月', '火', '水', '木', '金', '土'] as const;
+const CSV_HEADER = [
+  '日付',
+  '現金_振込',
+  '現金_都度払い',
+  '現金_回数券',
+  '現金_サブスク',
+  '現金_物販売上',
+  '現金_計',
+  'クレジットカード等_都度払い',
+  'クレジットカード等_回数券',
+  'クレジットカード等_サブスク',
+  'クレジットカード等_物販売上',
+  'クレジットカード等_計',
+  '日計',
+] as const;
+
+function csvEscape(v: string | number): string {
+  const s = String(v ?? '');
+  if (s.includes('"') || s.includes(',') || s.includes('\n')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
 
 function normalizeYm(ym: string): string {
   const s = String(ym || '').trim();
@@ -304,6 +327,79 @@ export default function SalesAggregationDashboard() {
   }, [rows]);
 
   const activeMeta = ANALYSIS_ITEMS.find((x) => x.key === activeAnalysis) || ANALYSIS_ITEMS[0];
+  const monthLabel = normalizeYm(month);
+
+  const downloadCsv = () => {
+    const lines: string[] = [];
+    lines.push(CSV_HEADER.join(','));
+
+    for (const r of rows) {
+      const cashTotal = r.cashTransfer + r.cashSingle + r.cashCoupon + r.cashSubscription + r.cashProduct;
+      const cardTotal = r.cardSingle + r.cardCoupon + r.cardSubscription + r.cardProduct;
+      const cols = [
+        formatDateWithWeekday(r.date),
+        Math.round(r.cashTransfer),
+        Math.round(r.cashSingle),
+        Math.round(r.cashCoupon),
+        Math.round(r.cashSubscription),
+        Math.round(r.cashProduct),
+        Math.round(cashTotal),
+        Math.round(r.cardSingle),
+        Math.round(r.cardCoupon),
+        Math.round(r.cardSubscription),
+        Math.round(r.cardProduct),
+        Math.round(cardTotal),
+        Math.round(r.dayTotal),
+      ];
+      lines.push(cols.map(csvEscape).join(','));
+    }
+
+    const totalRow = [
+      '合計',
+      Math.round(totals.cashTransfer),
+      Math.round(totals.cashSingle),
+      Math.round(totals.cashCoupon),
+      Math.round(totals.cashSubscription),
+      Math.round(totals.cashProduct),
+      Math.round(totals.cashTransfer + totals.cashSingle + totals.cashCoupon + totals.cashSubscription + totals.cashProduct),
+      Math.round(totals.cardSingle),
+      Math.round(totals.cardCoupon),
+      Math.round(totals.cardSubscription),
+      Math.round(totals.cardProduct),
+      Math.round(totals.cardSingle + totals.cardCoupon + totals.cardSubscription + totals.cardProduct),
+      Math.round(totals.dayTotal),
+    ];
+    lines.push(totalRow.map(csvEscape).join(','));
+
+    const transferRow = [
+      '振込',
+      Math.round(totals.cashTransfer),
+      '-',
+      '-',
+      '-',
+      '-',
+      Math.round(totals.cashTransfer),
+      '-',
+      '-',
+      '-',
+      '-',
+      '-',
+      Math.round(totals.cashTransfer),
+    ];
+    lines.push(transferRow.map(csvEscape).join(','));
+
+    const csv = `\uFEFF${lines.join('\n')}`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const clinicLabel = clinicFilter === 'kawanishi' ? 'kawanishi' : clinicFilter === 'takatsuki' ? 'takatsuki' : 'all';
+    link.href = url;
+    link.setAttribute('download', `sales_aggregation_${clinicLabel}_${monthLabel}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-4">
@@ -347,6 +443,13 @@ export default function SalesAggregationDashboard() {
                 </span>
               </span>
             )}
+            <button
+              type="button"
+              onClick={downloadCsv}
+              className="ml-auto px-3 py-2 rounded-lg border border-emerald-400 bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700"
+            >
+              CSVダウンロード
+            </button>
           </div>
 
           {loadError && (
