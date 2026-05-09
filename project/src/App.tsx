@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, Settings as SettingsIcon, BarChart3, AlertCircle, FileText } from 'lucide-react';
+import { Home, Settings as SettingsIcon, BarChart3, AlertCircle, FileText, DollarSign } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
 import HomeButtons from './components/HomeButtons';
 import VisitForm from './components/VisitForm';
@@ -20,11 +20,12 @@ import VisitRecordColumnSettings from './components/VisitRecordColumnSettings';
 import PageHeader from './components/PageHeader';
 import ClinicScopeToggle, { type ClinicScope } from './components/ClinicScopeToggle';
 import NewCustomerForm from './components/NewCustomerForm';
+import SalesAggregationDashboard from './components/SalesAggregationDashboard';
 
 const __GIT_SHA__ = 'build-20260425';
 
 function App() {
-  const [currentTab, setCurrentTab] = useState<'home' | 'reports' | 'alerts' | 'chart' | 'settings'>('home');
+  const [currentTab, setCurrentTab] = useState<'home' | 'reports' | 'analysis' | 'alerts' | 'chart' | 'settings'>('home');
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
   const [showSubscriptionForm, setShowSubscriptionForm] = useState(false);
@@ -105,6 +106,13 @@ function App() {
           <LTVRanking clinicScope={reportsClinic} />
           <RegionalAnalysis clinicScope={reportsClinic} />
           <DetailedAnalytics clinicScope={reportsClinic} />
+        </div>
+      )}
+
+      {currentTab === 'analysis' && (
+        <div className="max-w-7xl mx-auto p-4 space-y-6">
+          <PageHeader title="売上集計・分析" onBack={goHome} />
+          <SalesAggregationDashboard />
         </div>
       )}
 
@@ -191,6 +199,16 @@ function App() {
           >
             <AlertCircle size={24} />
             <span className="text-xs font-bold mt-1">アラート</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentTab('analysis')}
+            className={`flex-1 py-3 flex flex-col items-center justify-center transition-colors ${
+              currentTab === 'analysis' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <DollarSign size={24} />
+            <span className="text-xs font-bold mt-1">集計分析</span>
           </button>
           <button
             type="button"

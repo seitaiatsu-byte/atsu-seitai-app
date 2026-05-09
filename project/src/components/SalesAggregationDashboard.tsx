@@ -1,0 +1,396 @@
+import { useEffect, useMemo, useState } from 'react';
+import { BarChart3, FileText, TrendingUp, Repeat, Megaphone, Clock3, Activity, Grid3X3, Map, DollarSign } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { clinicMatchesRecord } from '../lib/clinic';
+import { bucketStoredPaymentMethod, formatPaymentDetailLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
+
+type ClinicFilter = 'kawanishi' | 'takatsuki' | 'all';
+type PageTab = 'sales' | 'analysis';
+
+type Row = {
+  date: string;
+  cashTransfer: number;
+  cashSingle: number;
+  cashCoupon: number;
+  cashSubscription: number;
+  cashProduct: number;
+  cardSingle: number;
+  cardCoupon: number;
+  cardSubscription: number;
+  cardProduct: number;
+  dayTotal: number;
+};
+
+type AnalysisItem = { key: string; title: string; subtitle: string; icon: typeof BarChart3 };
+
+const ANALYSIS_ITEMS: AnalysisItem[] = [
+  { key: 'sales', title: '売上集計', subtitle: '日別・月別・年別の売上分析', icon: DollarSign },
+  { key: 'slips', title: '伝票一覧', subtitle: '施術伝票の一覧と詳細', icon: FileText },
+  { key: 'ltv', title: 'LTV分析', subtitle: '顧客生涯価値の分析', icon: TrendingUp },
+  { key: 'repeat', title: 'リピート分析', subtitle: '新規・リピート比率の推移', icon: Repeat },
+  { key: 'new-vs-existing', title: '新規/既存分析', subtitle: '新規・既存患者の比率推移', icon: Activity },
+  { key: 'roas', title: 'ROAS分析', subtitle: '広告費用対効果の分析', icon: Megaphone },
+  { key: 'unit-time', title: '時間単価', subtitle: '時間あたりの売上効率', icon: Clock3 },
+  { key: 'utilization', title: '稼働率', subtitle: '予約枠の稼働状況', icon: BarChart3 },
+  { key: 'cross', title: 'クロス集計', subtitle: '多角的な売上LTV分析', icon: Grid3X3 },
+  { key: 'area', title: 'エリア分析', subtitle: 'エリア別LTV分析・地域カテゴリ', icon: Map },
+];
+
+const yen = (v: number) => `${Math.round(v).toLocaleString()}`;
+const toYmd = (d: Date) => d.toISOString().slice(0, 10);
+const toYm = (d: Date) => d.toISOString().slice(0, 7);
+const JP_WEEK = ['日', '月', '火', '水', '木', '金', '土'] as const;
+
+function classifySalesType(label: string): 'transfer' | 'single' | 'coupon' | 'subscription' | 'product' {
+  const s = label.replace(/\s+/g, '').toLowerCase();
+  if (!s) return 'single';
+  if (s.includes('振込') || s.includes('bank') || s.includes('transfer')) return 'transfer';
+  if (s.includes('回数券') || s.includes('回数') || s.includes('チケット')) return 'coupon';
+  if (s.includes('サブスク') || s.includes('定期') || s.includes('subscription')) return 'subscription';
+  if (s.includes('物販') || s.includes('商品') || s.includes('プロテイン')) return 'product';
+  return 'single';
+}
+
+function formatDateWithWeekday(ymd: string): string {
+  const d = new Date(`${ymd}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return ymd;
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${y}/${m}/${day}(${JP_WEEK[d.getDay()]})`;
+}
+
+function weekdayKind(ymd: string): 'sun' | 'sat' | 'weekday' {
+  const d = new Date(`${ymd}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return 'weekday';
+  const w = d.getDay();
+  if (w === 0) return 'sun';
+  if (w === 6) return 'sat';
+  return 'weekday';
+}
+
+function buildRowsForMonth(ym: string): Row[] {
+  const [y, m] = ym.split('-').map((x) => parseInt(x, 10));
+  const monthStart = new Date(y, (m || 1) - 1, 1);
+  const monthEnd = new Date(y, (m || 1), 0);
+  const out: Row[] = [];
+  for (let day = 1; day <= monthEnd.getDate(); day++) {
+    const d = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
+    out.push({
+      date: toYmd(d),
+      cashTransfer: 0,
+      cashSingle: 0,
+      cashCoupon: 0,
+      cashSubscription: 0,
+      cashProduct: 0,
+      cardSingle: 0,
+      cardCoupon: 0,
+      cardSubscription: 0,
+      cardProduct: 0,
+      dayTotal: 0,
+    });
+  }
+  return out;
+}
+
+export default function SalesAggregationDashboard() {
+  const [tab, setTab] = useState<PageTab>('sales');
+  const [clinicFilter, setClinicFilter] = useState<ClinicFilter>('kawanishi');
+  const [month, setMonth] = useState<string>(toYm(new Date()));
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [activeAnalysis, setActiveAnalysis] = useState<string>('sales');
+  const [reloadTick, setReloadTick] = useState(0);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const baseRows = buildRowsForMonth(month);
+        const indexByDate = new Map(baseRows.map((r, idx) => [r.date, idx]));
+        const from = `${month}-01`;
+        const to = toYmd(new Date(parseInt(month.slice(0, 4), 10), parseInt(month.slice(5, 7), 10), 0));
+
+        const [{ data: visits }, { data: products }, { data: subs }, { data: methods }, { data: details }] = await Promise.all([
+          supabase
+            .from('visit_records')
+            .select('visit_date, amount, payment_method, payment_detail_id, import_kind_text, memo, menu_name, clinic_name')
+            .gte('visit_date', from)
+            .lte('visit_date', to),
+          supabase
+            .from('product_sales')
+            .select('sale_date, amount, payment_method, clinic_name, product_name')
+            .gte('sale_date', from)
+            .lte('sale_date', to),
+          supabase
+            .from('subscription_records')
+            .select('start_date, amount, payment_method, clinic_name, subscription_name')
+            .gte('start_date', from)
+            .lte('start_date', to),
+          supabase.from('payment_method_master').select('id,name'),
+          supabase.from('payment_detail_master').select('id,name'),
+        ]);
+
+        const detailMap = mergeIdNameMaps(methods as { id: string; name: string }[], details as { id: string; name: string }[]);
+
+        for (const v of visits || []) {
+          if (!clinicMatchesRecord(clinicFilter, v.clinic_name)) continue;
+          const idx = indexByDate.get(v.visit_date);
+          if (idx == null) continue;
+          const row = baseRows[idx];
+          const amount = Number(v.amount || 0);
+          if (!Number.isFinite(amount) || amount === 0) continue;
+
+          const methodBucket = bucketStoredPaymentMethod(v.payment_method, detailMap);
+          const detailLabel = formatPaymentDetailLabel(v.payment_detail_id, detailMap, v.import_kind_text, v.memo);
+          const paymentLabel = String(v.payment_method ?? '');
+          const mixedLabel = `${detailLabel} ${paymentLabel} ${v.menu_name ?? ''} ${v.memo ?? ''} ${v.import_kind_text ?? ''}`;
+          const kind = classifySalesType(mixedLabel);
+
+          if (kind === 'transfer') {
+            // 振込は集計表の現金側「振込」に統一
+            row.cashTransfer += amount;
+          } else if (methodBucket === 'cash') {
+            if (kind === 'transfer') row.cashTransfer += amount;
+            else if (kind === 'coupon') row.cashCoupon += amount;
+            else if (kind === 'subscription') row.cashSubscription += amount;
+            else if (kind === 'product') row.cashProduct += amount;
+            else row.cashSingle += amount;
+          } else {
+            if (kind === 'coupon') row.cardCoupon += amount;
+            else if (kind === 'subscription') row.cardSubscription += amount;
+            else if (kind === 'product') row.cardProduct += amount;
+            else row.cardSingle += amount;
+          }
+          row.dayTotal += amount;
+        }
+
+        for (const p of products || []) {
+          if (!clinicMatchesRecord(clinicFilter, p.clinic_name)) continue;
+          const idx = indexByDate.get(p.sale_date);
+          if (idx == null) continue;
+          const row = baseRows[idx];
+          const amount = Number(p.amount || 0);
+          if (!Number.isFinite(amount) || amount === 0) continue;
+          const methodBucket = bucketStoredPaymentMethod(p.payment_method, detailMap);
+          if (methodBucket === 'cash') row.cashProduct += amount;
+          else row.cardProduct += amount;
+          row.dayTotal += amount;
+        }
+
+        for (const s of subs || []) {
+          if (!clinicMatchesRecord(clinicFilter, s.clinic_name)) continue;
+          const idx = indexByDate.get(s.start_date);
+          if (idx == null) continue;
+          const row = baseRows[idx];
+          const amount = Number(s.amount || 0);
+          if (!Number.isFinite(amount) || amount === 0) continue;
+          const methodBucket = bucketStoredPaymentMethod(s.payment_method, detailMap);
+          if (methodBucket === 'cash') row.cashSubscription += amount;
+          else row.cardSubscription += amount;
+          row.dayTotal += amount;
+        }
+
+        setRows(baseRows);
+      } finally {
+        setLoading(false);
+      }
+    };
+    void load();
+  }, [month, clinicFilter, reloadTick]);
+
+  useEffect(() => {
+    const reload = () => {
+      setReloadTick((n) => n + 1);
+    };
+    window.addEventListener('records-updated', reload);
+    return () => window.removeEventListener('records-updated', reload);
+  }, []);
+
+  const totals = useMemo(() => {
+    return rows.reduce(
+      (acc, r) => {
+        acc.cashTransfer += r.cashTransfer;
+        acc.cashSingle += r.cashSingle;
+        acc.cashCoupon += r.cashCoupon;
+        acc.cashSubscription += r.cashSubscription;
+        acc.cashProduct += r.cashProduct;
+        acc.cardSingle += r.cardSingle;
+        acc.cardCoupon += r.cardCoupon;
+        acc.cardSubscription += r.cardSubscription;
+        acc.cardProduct += r.cardProduct;
+        acc.dayTotal += r.dayTotal;
+        return acc;
+      },
+      {
+        cashTransfer: 0,
+        cashSingle: 0,
+        cashCoupon: 0,
+        cashSubscription: 0,
+        cashProduct: 0,
+        cardSingle: 0,
+        cardCoupon: 0,
+        cardSubscription: 0,
+        cardProduct: 0,
+        dayTotal: 0,
+      }
+    );
+  }, [rows]);
+
+  const activeMeta = ANALYSIS_ITEMS.find((x) => x.key === activeAnalysis) || ANALYSIS_ITEMS[0];
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-2xl shadow p-4 space-y-3">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setTab('sales')}
+            className={`px-4 py-2 rounded-lg font-bold ${tab === 'sales' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+          >
+            売上集計
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('analysis')}
+            className={`px-4 py-2 rounded-lg font-bold ${tab === 'analysis' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+          >
+            分析メニュー
+          </button>
+        </div>
+      </div>
+
+      {tab === 'sales' ? (
+        <div className="bg-white rounded-2xl shadow p-4 space-y-4">
+          <div className="rounded-xl border border-green-200 bg-green-50 p-3 flex flex-wrap items-center gap-3">
+            <h3 className="text-lg font-black text-gray-800">
+              {clinicFilter === 'kawanishi' ? '川西あつ整体院' : clinicFilter === 'takatsuki' ? '高槻あつ整体院' : '全院'} 売上日別集計表
+            </h3>
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="px-3 py-2 border rounded-lg" />
+            <select value={clinicFilter} onChange={(e) => setClinicFilter(e.target.value as ClinicFilter)} className="px-3 py-2 border rounded-lg">
+              <option value="kawanishi">川西あつ整体院</option>
+              <option value="takatsuki">高槻あつ整体院</option>
+              <option value="all">全院</option>
+            </select>
+            {loading && <span className="text-sm text-gray-500">集計中...</span>}
+          </div>
+
+          <div className="overflow-x-auto border-2 border-green-200 rounded-xl">
+            <table className="min-w-[1360px] w-full text-sm">
+              <thead>
+                <tr className="bg-green-200 text-gray-800">
+                  <th rowSpan={2} className="border px-2 py-2 min-w-[120px]">日付</th>
+                  <th colSpan={6} className="border px-2 py-2">現金</th>
+                  <th colSpan={5} className="border px-2 py-2">クレジットカード（squareベース）、現金以外</th>
+                  <th rowSpan={2} className="border px-2 py-2 bg-amber-50">日計</th>
+                </tr>
+                <tr className="bg-green-50 text-gray-700">
+                  <th className="border px-2 py-1">振込</th>
+                  <th className="border px-2 py-1">都度払い</th>
+                  <th className="border px-2 py-1">回数券</th>
+                  <th className="border px-2 py-1">サブスク</th>
+                  <th className="border px-2 py-1">物販売上</th>
+                  <th className="border px-2 py-1">計</th>
+                  <th className="border px-2 py-1">都度払い</th>
+                  <th className="border px-2 py-1">回数券</th>
+                  <th className="border px-2 py-1">サブスク</th>
+                  <th className="border px-2 py-1">物販売上</th>
+                  <th className="border px-2 py-1">計</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const cashTotal = r.cashTransfer + r.cashSingle + r.cashCoupon + r.cashSubscription + r.cashProduct;
+                  const cardTotal = r.cardSingle + r.cardCoupon + r.cardSubscription + r.cardProduct;
+                  const wk = weekdayKind(r.date);
+                  const dateTextClass = wk === 'sun' ? 'text-red-600' : wk === 'sat' ? 'text-blue-600' : 'text-gray-800';
+                  return (
+                    <tr key={r.date} className="odd:bg-[#f5fff5] even:bg-white">
+                      <td className={`border px-2 py-1 font-mono whitespace-nowrap ${dateTextClass}`}>{formatDateWithWeekday(r.date)}</td>
+                      <td className="border px-2 py-1 text-right">{yen(r.cashTransfer)}</td>
+                      <td className="border px-2 py-1 text-right">{yen(r.cashSingle)}</td>
+                      <td className="border px-2 py-1 text-right">{yen(r.cashCoupon)}</td>
+                      <td className="border px-2 py-1 text-right">{yen(r.cashSubscription)}</td>
+                      <td className="border px-2 py-1 text-right">{yen(r.cashProduct)}</td>
+                      <td className="border px-2 py-1 text-right font-bold">{yen(cashTotal)}</td>
+                      <td className="border px-2 py-1 text-right">{yen(r.cardSingle)}</td>
+                      <td className="border px-2 py-1 text-right">{yen(r.cardCoupon)}</td>
+                      <td className="border px-2 py-1 text-right">{yen(r.cardSubscription)}</td>
+                      <td className="border px-2 py-1 text-right">{yen(r.cardProduct)}</td>
+                      <td className="border px-2 py-1 text-right font-bold">{yen(cardTotal)}</td>
+                      <td className="border px-2 py-1 text-right font-bold bg-amber-50 text-blue-700">{yen(r.dayTotal)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="bg-[#eef4ff] font-bold">
+                  <td className="border px-2 py-2">合計</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cashTransfer)}</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cashSingle)}</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cashCoupon)}</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cashSubscription)}</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cashProduct)}</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cashTransfer + totals.cashSingle + totals.cashCoupon + totals.cashSubscription + totals.cashProduct)}</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cardSingle)}</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cardCoupon)}</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cardSubscription)}</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cardProduct)}</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cardSingle + totals.cardCoupon + totals.cardSubscription + totals.cardProduct)}</td>
+                  <td className="border px-2 py-2 text-right bg-amber-100 text-blue-700">{yen(totals.dayTotal)}</td>
+                </tr>
+                <tr className="bg-[#f7fbff] font-bold text-blue-900">
+                  <td className="border px-2 py-2">振込</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cashTransfer)}</td>
+                  <td className="border px-2 py-2 text-right">-</td>
+                  <td className="border px-2 py-2 text-right">-</td>
+                  <td className="border px-2 py-2 text-right">-</td>
+                  <td className="border px-2 py-2 text-right">-</td>
+                  <td className="border px-2 py-2 text-right">{yen(totals.cashTransfer)}</td>
+                  <td className="border px-2 py-2 text-right">-</td>
+                  <td className="border px-2 py-2 text-right">-</td>
+                  <td className="border px-2 py-2 text-right">-</td>
+                  <td className="border px-2 py-2 text-right">-</td>
+                  <td className="border px-2 py-2 text-right">-</td>
+                  <td className="border px-2 py-2 text-right bg-amber-50 text-blue-700">{yen(totals.cashTransfer)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow p-4 space-y-4">
+          <h3 className="text-lg font-bold text-gray-800">分析ダッシュボード（メニュー）</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {ANALYSIS_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const active = activeAnalysis === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setActiveAnalysis(item.key)}
+                  className={`text-left rounded-xl border-2 p-4 transition ${active ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300 bg-white'}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <Icon className={active ? 'text-blue-600' : 'text-gray-500'} size={24} />
+                    <div>
+                      <div className="font-bold text-gray-900">{item.title}</div>
+                      <div className="text-sm text-gray-600">{item.subtitle}</div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div className="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50 p-5">
+            <div className="text-sm text-blue-800 font-bold mb-1">{activeMeta.title}</div>
+            <div className="text-sm text-blue-700">
+              この画面はプレースホルダーです。次のステップで「{activeMeta.title}」の詳細分析コンテンツを実装できます。
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
