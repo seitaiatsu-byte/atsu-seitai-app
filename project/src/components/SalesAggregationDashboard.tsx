@@ -365,26 +365,26 @@ export default function SalesAggregationDashboard() {
           )}
 
           <div className="overflow-x-auto border-2 border-green-200 rounded-xl">
-            <table className="min-w-[1360px] w-full text-sm">
+            <table className="w-full table-fixed text-xs md:text-sm">
               <thead>
                 <tr className="bg-green-200 text-gray-800">
-                  <th rowSpan={2} className="border px-2 py-2 min-w-[120px]">日付</th>
-                  <th colSpan={6} className="border px-2 py-2">現金</th>
-                  <th colSpan={5} className="border px-2 py-2">クレジットカード（squareベース）、現金以外</th>
-                  <th rowSpan={2} className="border px-2 py-2 bg-amber-50">日計</th>
+                  <th rowSpan={2} className="border px-1 py-2 w-[140px]">日付</th>
+                  <th colSpan={6} className="border px-1 py-2">現金</th>
+                  <th colSpan={5} className="border px-1 py-2">クレジットカード（squareベース）、現金以外</th>
+                  <th rowSpan={2} className="border px-1 py-2 bg-amber-50">日計</th>
                 </tr>
                 <tr className="bg-green-50 text-gray-700">
-                  <th className="border px-2 py-1">振込</th>
-                  <th className="border px-2 py-1">都度払い</th>
-                  <th className="border px-2 py-1">回数券</th>
-                  <th className="border px-2 py-1">サブスク</th>
-                  <th className="border px-2 py-1">物販売上</th>
-                  <th className="border px-2 py-1">計</th>
-                  <th className="border px-2 py-1">都度払い</th>
-                  <th className="border px-2 py-1">回数券</th>
-                  <th className="border px-2 py-1">サブスク</th>
-                  <th className="border px-2 py-1">物販売上</th>
-                  <th className="border px-2 py-1">計</th>
+                  <th className="border px-1 py-1">振込</th>
+                  <th className="border px-1 py-1">都度払い</th>
+                  <th className="border px-1 py-1">回数券</th>
+                  <th className="border px-1 py-1">サブスク</th>
+                  <th className="border px-1 py-1">物販売上</th>
+                  <th className="border px-1 py-1">計</th>
+                  <th className="border px-1 py-1">都度払い</th>
+                  <th className="border px-1 py-1">回数券</th>
+                  <th className="border px-1 py-1">サブスク</th>
+                  <th className="border px-1 py-1">物販売上</th>
+                  <th className="border px-1 py-1">計</th>
                 </tr>
               </thead>
               <tbody>
@@ -395,53 +395,53 @@ export default function SalesAggregationDashboard() {
                   const dateTextClass = wk === 'sun' ? 'text-red-600' : wk === 'sat' ? 'text-blue-600' : 'text-gray-800';
                   return (
                     <tr key={r.date} className="odd:bg-[#f5fff5] even:bg-white">
-                      <td className={`border px-2 py-1 font-mono whitespace-nowrap ${dateTextClass}`}>{formatDateWithWeekday(r.date)}</td>
-                      <td className="border px-2 py-1 text-right">{yen(r.cashTransfer)}</td>
-                      <td className="border px-2 py-1 text-right">{yen(r.cashSingle)}</td>
-                      <td className="border px-2 py-1 text-right">{yen(r.cashCoupon)}</td>
-                      <td className="border px-2 py-1 text-right">{yen(r.cashSubscription)}</td>
-                      <td className="border px-2 py-1 text-right">{yen(r.cashProduct)}</td>
-                      <td className="border px-2 py-1 text-right font-bold">{yen(cashTotal)}</td>
-                      <td className="border px-2 py-1 text-right">{yen(r.cardSingle)}</td>
-                      <td className="border px-2 py-1 text-right">{yen(r.cardCoupon)}</td>
-                      <td className="border px-2 py-1 text-right">{yen(r.cardSubscription)}</td>
-                      <td className="border px-2 py-1 text-right">{yen(r.cardProduct)}</td>
-                      <td className="border px-2 py-1 text-right font-bold">{yen(cardTotal)}</td>
-                      <td className="border px-2 py-1 text-right font-bold bg-amber-50 text-blue-700">{yen(r.dayTotal)}</td>
+                      <td className={`border px-1 py-1 font-mono whitespace-nowrap ${dateTextClass}`}>{formatDateWithWeekday(r.date)}</td>
+                      <td className="border px-1 py-1 text-right">{yen(r.cashTransfer)}</td>
+                      <td className="border px-1 py-1 text-right">{yen(r.cashSingle)}</td>
+                      <td className="border px-1 py-1 text-right">{yen(r.cashCoupon)}</td>
+                      <td className="border px-1 py-1 text-right">{yen(r.cashSubscription)}</td>
+                      <td className="border px-1 py-1 text-right">{yen(r.cashProduct)}</td>
+                      <td className="border px-1 py-1 text-right font-bold">{yen(cashTotal)}</td>
+                      <td className="border px-1 py-1 text-right">{yen(r.cardSingle)}</td>
+                      <td className="border px-1 py-1 text-right">{yen(r.cardCoupon)}</td>
+                      <td className="border px-1 py-1 text-right">{yen(r.cardSubscription)}</td>
+                      <td className="border px-1 py-1 text-right">{yen(r.cardProduct)}</td>
+                      <td className="border px-1 py-1 text-right font-bold">{yen(cardTotal)}</td>
+                      <td className="border px-1 py-1 text-right font-bold bg-amber-50 text-blue-700">{yen(r.dayTotal)}</td>
                     </tr>
                   );
                 })}
               </tbody>
               <tfoot>
                 <tr className="bg-[#eef4ff] font-bold">
-                  <td className="border px-2 py-2">合計</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cashTransfer)}</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cashSingle)}</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cashCoupon)}</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cashSubscription)}</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cashProduct)}</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cashTransfer + totals.cashSingle + totals.cashCoupon + totals.cashSubscription + totals.cashProduct)}</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cardSingle)}</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cardCoupon)}</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cardSubscription)}</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cardProduct)}</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cardSingle + totals.cardCoupon + totals.cardSubscription + totals.cardProduct)}</td>
-                  <td className="border px-2 py-2 text-right bg-amber-100 text-blue-700">{yen(totals.dayTotal)}</td>
+                  <td className="border px-1 py-2">合計</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashTransfer)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashSingle)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashCoupon)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashSubscription)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashProduct)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashTransfer + totals.cashSingle + totals.cashCoupon + totals.cashSubscription + totals.cashProduct)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cardSingle)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cardCoupon)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cardSubscription)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cardProduct)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cardSingle + totals.cardCoupon + totals.cardSubscription + totals.cardProduct)}</td>
+                  <td className="border px-1 py-2 text-right bg-amber-100 text-blue-700">{yen(totals.dayTotal)}</td>
                 </tr>
                 <tr className="bg-[#f7fbff] font-bold text-blue-900">
-                  <td className="border px-2 py-2">振込</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cashTransfer)}</td>
-                  <td className="border px-2 py-2 text-right">-</td>
-                  <td className="border px-2 py-2 text-right">-</td>
-                  <td className="border px-2 py-2 text-right">-</td>
-                  <td className="border px-2 py-2 text-right">-</td>
-                  <td className="border px-2 py-2 text-right">{yen(totals.cashTransfer)}</td>
-                  <td className="border px-2 py-2 text-right">-</td>
-                  <td className="border px-2 py-2 text-right">-</td>
-                  <td className="border px-2 py-2 text-right">-</td>
-                  <td className="border px-2 py-2 text-right">-</td>
-                  <td className="border px-2 py-2 text-right">-</td>
-                  <td className="border px-2 py-2 text-right bg-amber-50 text-blue-700">{yen(totals.cashTransfer)}</td>
+                  <td className="border px-1 py-2">振込</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashTransfer)}</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashTransfer)}</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right bg-amber-50 text-blue-700">{yen(totals.cashTransfer)}</td>
                 </tr>
               </tfoot>
             </table>
