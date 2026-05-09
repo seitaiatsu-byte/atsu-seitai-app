@@ -3,6 +3,7 @@ import { BarChart3, FileText, TrendingUp, Repeat, Megaphone, Clock3, Activity, G
 import { supabase } from '../lib/supabase';
 import { clinicMatchesRecord } from '../lib/clinic';
 import { bucketStoredPaymentMethod, formatPaymentDetailLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
+import { parseLocalVisitDateToYmd } from '../lib/visitDateParse';
 
 type ClinicFilter = 'kawanishi' | 'takatsuki' | 'all';
 type PageTab = 'sales' | 'analysis';
@@ -119,41 +120,36 @@ export default function SalesAggregationDashboard() {
         if (ym !== month) setMonth(ym);
         const baseRows = buildRowsForMonth(ym);
         const indexByDate = new Map(baseRows.map((r, idx) => [r.date, idx]));
-        const from = `${ym}-01`;
-        const y = parseInt(ym.slice(0, 4), 10);
-        const m = parseInt(ym.slice(5, 7), 10);
-        const to = toYmd(new Date(y, m, 0));
+        const monthPrefix = `${ym}-`;
 
         const [{ data: visits }, { data: products }, { data: subs }, { data: methods }, { data: details }] = await Promise.all([
           supabase
             .from('visit_records')
             .select('visit_date, amount, payment_method, payment_detail_id, import_kind_text, memo, menu_name, clinic_name')
-            .gte('visit_date', from)
-            .lte('visit_date', to),
+            .limit(20000),
           supabase
             .from('product_sales')
             .select('sale_date, amount, payment_method, clinic_name, product_name')
-            .gte('sale_date', from)
-            .lte('sale_date', to),
+            .limit(20000),
           supabase
             .from('subscription_records')
             .select('start_date, amount, payment_method, clinic_name, subscription_name')
-            .gte('start_date', from)
-            .lte('start_date', to),
+            .limit(20000),
           supabase.from('payment_method_master').select('id,name'),
           supabase.from('payment_detail_master').select('id,name'),
         ]);
 
         const detailMap = mergeIdNameMaps(methods as { id: string; name: string }[], details as { id: string; name: string }[]);
-        setSourceCount({
-          visits: (visits || []).length,
-          products: (products || []).length,
-          subs: (subs || []).length,
-        });
+        let matchedVisits = 0;
+        let matchedProducts = 0;
+        let matchedSubs = 0;
 
         for (const v of visits || []) {
           if (!clinicMatchesRecord(clinicFilter, v.clinic_name)) continue;
-          const idx = indexByDate.get(v.visit_date);
+          const day = parseLocalVisitDateToYmd(String(v.visit_date ?? ''));
+          if (!day || !day.startsWith(monthPrefix)) continue;
+          matchedVisits += 1;
+          const idx = indexByDate.get(day);
           if (idx == null) continue;
           const row = baseRows[idx];
           const amount = Number(v.amount || 0);
@@ -185,7 +181,10 @@ export default function SalesAggregationDashboard() {
 
         for (const p of products || []) {
           if (!clinicMatchesRecord(clinicFilter, p.clinic_name)) continue;
-          const idx = indexByDate.get(p.sale_date);
+          const day = parseLocalVisitDateToYmd(String(p.sale_date ?? ''));
+          if (!day || !day.startsWith(monthPrefix)) continue;
+          matchedProducts += 1;
+          const idx = indexByDate.get(day);
           if (idx == null) continue;
           const row = baseRows[idx];
           const amount = Number(p.amount || 0);
@@ -198,7 +197,10 @@ export default function SalesAggregationDashboard() {
 
         for (const s of subs || []) {
           if (!clinicMatchesRecord(clinicFilter, s.clinic_name)) continue;
-          const idx = indexByDate.get(s.start_date);
+          const day = parseLocalVisitDateToYmd(String(s.start_date ?? ''));
+          if (!day || !day.startsWith(monthPrefix)) continue;
+          matchedSubs += 1;
+          const idx = indexByDate.get(day);
           if (idx == null) continue;
           const row = baseRows[idx];
           const amount = Number(s.amount || 0);
@@ -210,6 +212,11 @@ export default function SalesAggregationDashboard() {
         }
 
         setRows(baseRows);
+        setSourceCount({
+          visits: matchedVisits,
+          products: matchedProducts,
+          subs: matchedSubs,
+        });
       } finally {
         setLoading(false);
       }
