@@ -52,16 +52,31 @@ const takatsukiClinic = '高槻あつ整体院';
 
 const toDigits = (v: string) => v.replace(/\D/g, '');
 
-/** 顧客番号の照合用キー（全角→半角、末尾 .0 除去、ゼロ埋め吸収） */
-const normalizeCustomerNumberKey = (v: string): string => {
-  const s = String(v ?? '')
+/** 顧客番号の照合候補（全角・ゼロ埋め・小数表示・記号混在を吸収） */
+const customerNumberCandidates = (v: string): string[] => {
+  const base = String(v ?? '')
+    .normalize('NFKC')
     .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
     .trim()
+    .replace(/[, ]/g, '')
+    .replace(/^'+/, '')
     .replace(/\.0+$/, '');
-  const digits = toDigits(s);
-  if (!digits) return '';
-  const normalized = digits.replace(/^0+/, '');
-  return normalized || '0';
+  const out = new Set<string>();
+  const digits = toDigits(base);
+  if (digits) {
+    out.add(digits);
+    const noZero = digits.replace(/^0+/, '');
+    if (noZero) out.add(noZero);
+  }
+  if (/^\d+(\.\d+)?$/.test(base)) {
+    const i = String(Math.trunc(Number(base)));
+    if (Number.isFinite(Number(base)) && i !== 'NaN') {
+      out.add(i);
+      out.add(i.replace(/^0+/, '') || '0');
+    }
+  }
+  if (base) out.add(base);
+  return [...out].filter(Boolean);
 };
 
 const parseAmount = (raw: string): number | null => {
@@ -203,8 +218,9 @@ export default function VisitCsvImport() {
       const customerById = new Map<string, CustomerRow>();
       (customers || []).forEach((c) => {
         customerById.set(c.id, c as CustomerRow);
-        const num = normalizeCustomerNumberKey(c.customer_number || '');
-        if (num) customerMap.set(num, c as CustomerRow);
+        for (const key of customerNumberCandidates(c.customer_number || '')) {
+          customerMap.set(key, c as CustomerRow);
+        }
       });
 
       // インポート照合は is_active を見ない。非表示にした行だけ DB に残ると、true 絞りだと「事前精算」等が配列に載らず正しく解決できない。
@@ -254,15 +270,15 @@ export default function VisitCsvImport() {
             continue;
           }
         } else {
-          const number = normalizeCustomerNumberKey(c2);
-          if (!number) {
+          const candidates = customerNumberCandidates(c2);
+          if (!candidates.length) {
             skippedDetail.push(`行${line}: 2列目の顧客番号が解釈できない— スキップ`);
             continue;
           }
-          customer = customerMap.get(number);
+          customer = candidates.map((k) => customerMap.get(k)).find(Boolean);
           if (!customer) {
             skippedDetail.push(
-              `行${line}: 顧客番号 ${number} は未登録（先に顧客登録/インポート）— スキップ`
+              `行${line}: 顧客番号 ${c2} は未登録（先に顧客登録/インポート）— スキップ`
             );
             continue;
           }
@@ -296,7 +312,7 @@ export default function VisitCsvImport() {
         const memo = (row[idx.memo] || '').trim() || null;
 
         const numberDigits =
-          normalizeCustomerNumberKey(c2) || normalizeCustomerNumberKey(customer.customer_number || '5000');
+          customerNumberCandidates(c2)[0] || customerNumberCandidates(customer.customer_number || '5000')[0];
         const clinic = pickClinicByCustomerNumber(numberDigits);
         if (!clinic) {
           skippedDetail.push(
