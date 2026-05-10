@@ -16,8 +16,12 @@ import {
   getMemoForRoster,
   type CustomerRowRecord,
 } from '../lib/customerRosterFieldResolve';
+import { extractMissingColumnFromError } from '../lib/supabaseColumnErrors';
 import NewCustomerForm from './NewCustomerForm';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
+
+/** name / name_kana / customer_number は誤検知でも除外しない */
+const PROTECTED_CUSTOMER_COLUMNS = new Set(['name', 'name_kana', 'customer_number']);
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 
@@ -70,6 +74,8 @@ function buildCustomerUpdateFromImport(
     name: d.name as string,
     name_kana: d.name_kana as string | null,
   };
+  // 別名 kana 列にも書いておく（NewCustomerForm/RosterEditModal と整合）
+  if (d.name_kana) (u as Record<string, unknown>).kana = d.name_kana as string;
   if (present.gender) u.gender = d.gender as string | null;
   if (present.birth) {
     u.birth_date = d.birth_date as string | null;
@@ -94,14 +100,121 @@ function buildCustomerUpdateFromImport(
   return u;
 }
 
+type ImportResult = {
+  /** 新規 + 上書き更新の合計（実際にDBに反映できた件数） */
+  success: number;
+  /** 新規登録の件数 */
+  inserted: number;
+  /** 既存顧客番号と一致したため上書き更新した件数（=「ダブり警告」対象） */
+  updated: number;
+  /** 取り込みできなかった件数（致命的エラーまたはCSV内重複等） */
+  error: number;
+  /** 警告のみで取り込みは続行された件数（DB既存と氏名+生年月日が一致など） */
+  warned: number;
+  /** 致命的エラー（このとき allBlocked=true） */
+  errorMessages: string[];
+  /** 警告（取り込みは続行） */
+  warningMessages: string[];
+  /** 任意の補足情報 */
+  infoMessages: string[];
+  allBlocked: boolean;
+};
+
+async function insertCustomersWithSanitize(
+  rows: Record<string, unknown>[],
+  startNo: number
+): Promise<{ ok: true; droppedColumns: string[] } | { ok: false; message: string }> {
+  let working = rows.map((r) => ({ ...r }));
+  const dropped: string[] = [];
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const { error } = await supabase
+      .from('customers')
+      .insert(working as Database['public']['Tables']['customers']['Insert'][]);
+    if (!error) return { ok: true, droppedColumns: dropped };
+    const msg = error.message || '';
+    const lower = msg.toLowerCase();
+    if (error.code === '23503' && lower.includes('referral')) {
+      working = working.map((r) => {
+        const next = { ...r };
+        delete next.referral_source_id;
+        return next;
+      });
+      if (!dropped.includes('referral_source_id')) dropped.push('referral_source_id');
+      continue;
+    }
+    const missing = extractMissingColumnFromError(msg);
+    if (missing && !PROTECTED_CUSTOMER_COLUMNS.has(missing)) {
+      working = working.map((r) => {
+        const next = { ...r };
+        delete next[missing];
+        return next;
+      });
+      if (!dropped.includes(missing)) dropped.push(missing);
+      continue;
+    }
+    return {
+      ok: false,
+      message: `新規登録に失敗（${startNo}件目〜）。修正後に再アップロード: ${msg}`,
+    };
+  }
+  return {
+    ok: false,
+    message: '列の差異が解消できず新規登録できません。Supabase の customers 拡張マイグレーションを適用してください。',
+  };
+}
+
+async function updateCustomersWithSanitize(
+  items: { id: string; data: Record<string, unknown> }[],
+  startNo: number
+): Promise<{ ok: true; droppedColumns: string[] } | { ok: false; message: string }> {
+  let working = items.map((it) => ({ id: it.id, data: { ...it.data } }));
+  const dropped: string[] = [];
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const results = await Promise.all(
+      working.map((u) =>
+        supabase
+          .from('customers')
+          .update(u.data as Database['public']['Tables']['customers']['Update'])
+          .eq('id', u.id)
+      )
+    );
+    const failed = results.find((r) => r.error);
+    if (!failed?.error) return { ok: true, droppedColumns: dropped };
+    const msg = failed.error.message || '';
+    const lower = msg.toLowerCase();
+    if (failed.error.code === '23503' && lower.includes('referral')) {
+      working = working.map((u) => {
+        const next = { id: u.id, data: { ...u.data } };
+        delete next.data.referral_source_id;
+        return next;
+      });
+      if (!dropped.includes('referral_source_id')) dropped.push('referral_source_id');
+      continue;
+    }
+    const missing = extractMissingColumnFromError(msg);
+    if (missing && !PROTECTED_CUSTOMER_COLUMNS.has(missing)) {
+      working = working.map((u) => {
+        const next = { id: u.id, data: { ...u.data } };
+        delete next.data[missing];
+        return next;
+      });
+      if (!dropped.includes(missing)) dropped.push(missing);
+      continue;
+    }
+    return {
+      ok: false,
+      message: `既存顧客の更新に失敗（${startNo}件目付近）: ${msg}`,
+    };
+  }
+  return {
+    ok: false,
+    message: '列の差異が解消できず更新できません。Supabase の customers 拡張マイグレーションを適用してください。',
+  };
+}
+
 export default function CustomerImport() {
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{
-    success: number;
-    error: number;
-    messages: string[];
-    allBlocked: boolean;
-  } | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [rosterSearch, setRosterSearch] = useState('');
   const [dbTotalCount, setDbTotalCount] = useState<number | null>(null);
@@ -240,6 +353,18 @@ export default function CustomerImport() {
     });
   };
 
+  const buildFatalResult = (messages: string[]): ImportResult => ({
+    success: 0,
+    inserted: 0,
+    updated: 0,
+    error: messages.length,
+    warned: 0,
+    errorMessages: messages,
+    warningMessages: [],
+    infoMessages: [],
+    allBlocked: true,
+  });
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -252,7 +377,7 @@ export default function CustomerImport() {
       const rows = parseCSV(text);
 
       if (rows.length === 0) {
-        setResult({ success: 0, error: 0, messages: ['ファイルが空です'], allBlocked: true });
+        setResult(buildFatalResult(['ファイルが空です']));
         setImporting(false);
         return;
       }
@@ -283,34 +408,19 @@ export default function CustomerImport() {
       const memoIndex = col['memo'] ?? -1;
 
       if (customerNumberIndex === -1) {
-        setResult({
-          success: 0,
-          error: 0,
-          messages: ['エラー: 「customer_number」または「顧客番号」列が必須です'],
-          allBlocked: true,
-        });
+        setResult(buildFatalResult(['エラー: 「customer_number」または「顧客番号」列が必須です']));
         setImporting(false);
         return;
       }
 
       if (nameIndex === -1) {
-        setResult({
-          success: 0,
-          error: 0,
-          messages: ['エラー: 「name」または「氏名」列が見つかりません'],
-          allBlocked: true,
-        });
+        setResult(buildFatalResult(['エラー: 「name」または「氏名」列が見つかりません']));
         setImporting(false);
         return;
       }
 
       if (kanaIndex === -1) {
-        setResult({
-          success: 0,
-          error: 0,
-          messages: ['エラー: 「name_kana」または「ふりがな」列が見つかりません'],
-          allBlocked: true,
-        });
+        setResult(buildFatalResult(['エラー: 「name_kana」または「ふりがな」列が見つかりません']));
         setImporting(false);
         return;
       }
@@ -379,6 +489,8 @@ export default function CustomerImport() {
           customer_number: customerNumber,
           name,
           name_kana: nameKana,
+          // 別名 kana 列（環境差異の救済）
+          kana: nameKana || null,
           gender: genderIndex !== -1 ? row[genderIndex]?.trim() || null : null,
           birth_date: birthDate,
           birthday: birthDate,
@@ -444,18 +556,15 @@ export default function CustomerImport() {
           existingNameBirth = await fetchExistingCustomerNameBirthKeySet();
         } catch (e) {
           const m = e instanceof Error ? e.message : String(e);
-          setResult({
-            success: 0,
-            error: 0,
-            messages: [`名簿照合用データの取得に失敗: ${m}`],
-            allBlocked: true,
-          });
+          setResult(buildFatalResult([`名簿照合用データの取得に失敗: ${m}`]));
           setImporting(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
           return;
         }
       }
 
+      const warningMessages: string[] = [];
+      const skippedLineSet = new Set<number>();
       const idByCustomerNumber = new Map<string, string>();
       if (candidates.length > 0) {
         const uniqueNums = [...new Set(candidates.map((c) => String(c.customerData.customer_number)))];
@@ -464,6 +573,7 @@ export default function CustomerImport() {
           .select('id, customer_number')
           .in('customer_number', uniqueNums);
         if (numQErr) {
+          // 致命的: 既存照合できないと安全な取り込みができない
           moreErrors.push(`顧客番号の一括照合に失敗: ${numQErr.message}`);
         } else {
           for (const r of numberHits || []) {
@@ -471,6 +581,7 @@ export default function CustomerImport() {
           }
         }
 
+        // DB に「別の顧客番号で同氏名・生年月日」が既に居る行は警告＋スキップ（他の行は通す）
         for (const c of candidates) {
           const num = String(c.customerData.customer_number);
           if (idByCustomerNumber.has(num)) continue;
@@ -478,9 +589,10 @@ export default function CustomerImport() {
           if (b && c.customerData.name) {
             const k = `${String(c.customerData.name).trim()}\t${b}`;
             if (existingNameBirth.has(k)) {
-              moreErrors.push(
-                `行${c.line}: 同じ氏名（${c.name}）・生年月日の顧客が既に名簿に存在します（別の顧客番号で登録済み）`
+              warningMessages.push(
+                `行${c.line}: 同じ氏名（${c.name}）・生年月日の顧客が既に別の顧客番号で名簿に存在します。重複登録を避けるため、この行はスキップしました。`
               );
+              skippedLineSet.add(c.line);
             }
           }
         }
@@ -490,8 +602,13 @@ export default function CustomerImport() {
       if (allErr.length > 0) {
         setResult({
           success: 0,
+          inserted: 0,
+          updated: 0,
           error: allErr.length,
-          messages: allErr,
+          warned: warningMessages.length,
+          errorMessages: allErr,
+          warningMessages,
+          infoMessages: [],
           allBlocked: true,
         });
         setImporting(false);
@@ -500,12 +617,7 @@ export default function CustomerImport() {
       }
 
       if (candidates.length === 0) {
-        setResult({
-          success: 0,
-          error: 0,
-          messages: ['有効なデータ行がありません'],
-          allBlocked: true,
-        });
+        setResult(buildFatalResult(['有効なデータ行がありません']));
         setImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
@@ -514,73 +626,93 @@ export default function CustomerImport() {
       const toInsert: Cand[] = [];
       const toUpdate: { line: number; id: string; customerData: Record<string, unknown> }[] = [];
       for (const c of candidates) {
+        if (skippedLineSet.has(c.line)) continue;
         const num = String(c.customerData.customer_number);
         const id = idByCustomerNumber.get(num);
         if (id) toUpdate.push({ line: c.line, id, customerData: c.customerData });
         else toInsert.push(c);
       }
 
+      const droppedColumns = new Set<string>();
       const chunkSize = 200;
       for (let start = 0; start < toInsert.length; start += chunkSize) {
         const chunk = toInsert.slice(start, start + chunkSize);
-        const { error: insErr } = await supabase
-          .from('customers')
-          .insert(
-            chunk.map(
-              (c) => c.customerData as Database['public']['Tables']['customers']['Insert']
-            )
-          );
-        if (insErr) {
+        const res = await insertCustomersWithSanitize(
+          chunk.map((c) => c.customerData),
+          start + 1
+        );
+        if (!res.ok) {
           setResult({
             success: 0,
+            inserted: 0,
+            updated: 0,
             error: toInsert.length,
-            messages: [
-              `新規登録に失敗（${start + 1}件目〜一括挿入）。修正後に再アップロード: ${insErr.message}`,
-            ],
+            warned: warningMessages.length,
+            errorMessages: [res.message],
+            warningMessages,
+            infoMessages: [],
             allBlocked: true,
           });
           setImporting(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
           return;
         }
+        for (const c of res.droppedColumns) droppedColumns.add(c);
       }
 
       for (let start = 0; start < toUpdate.length; start += chunkSize) {
         const chunk = toUpdate.slice(start, start + chunkSize);
-        const results = await Promise.all(
-          chunk.map((u) =>
-            supabase
-              .from('customers')
-              .update(buildCustomerUpdateFromImport(u.customerData, present))
-              .eq('id', u.id)
-          )
+        const res = await updateCustomersWithSanitize(
+          chunk.map((u) => ({ id: u.id, data: buildCustomerUpdateFromImport(u.customerData, present) })),
+          start + 1
         );
-        const fail = results.find((r) => r.error);
-        if (fail?.error) {
+        if (!res.ok) {
           setResult({
             success: 0,
+            inserted: 0,
+            updated: 0,
             error: toUpdate.length,
-            messages: [
-              `既存顧客の更新に失敗（${start + 1}件目付近）: ${fail.error.message}`,
-            ],
+            warned: warningMessages.length,
+            errorMessages: [res.message],
+            warningMessages,
+            infoMessages: [],
             allBlocked: true,
           });
           setImporting(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
           return;
         }
+        for (const c of res.droppedColumns) droppedColumns.add(c);
       }
 
-      const info: string[] = [];
+      // 上書き更新は「ダブり」扱いで警告として明示
       if (toUpdate.length > 0) {
-        info.push(
-          `同じ顧客番号の行は上書き更新されました（${toUpdate.length}件）。新規: ${toInsert.length}件。`
+        warningMessages.unshift(
+          `${toUpdate.length}件は同じ顧客番号が既に名簿にあったため上書き更新しました。意図しない上書きが含まれていないか確認してください。`
+        );
+        for (const u of toUpdate) {
+          warningMessages.push(
+            `行${u.line}: 顧客番号 ${String(u.customerData.customer_number)} は既存と一致 → 上書き更新（重複警告）`
+          );
+        }
+      }
+
+      const infoMessages: string[] = [];
+      if (droppedColumns.size > 0) {
+        infoMessages.push(
+          `DB に存在しなかった列を自動的に除外して取り込みました: ${[...droppedColumns].join(', ')}（必要なら customers のマイグレーションを適用してください）`
         );
       }
+
       setResult({
         success: toInsert.length + toUpdate.length,
+        inserted: toInsert.length,
+        updated: toUpdate.length,
         error: 0,
-        messages: info,
+        warned: warningMessages.length,
+        errorMessages: [],
+        warningMessages,
+        infoMessages,
         allBlocked: false,
       });
 
@@ -589,7 +721,7 @@ export default function CustomerImport() {
 
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
-      setResult({ success: 0, error: 0, messages: [`ファイル読み込みエラー: ${msg}`], allBlocked: true });
+      setResult(buildFatalResult([`ファイル読み込みエラー: ${msg}`]));
     }
 
     setImporting(false);
@@ -636,8 +768,13 @@ export default function CustomerImport() {
                 <div>• <span className="font-bold text-purple-600">電話番号:</span> ハイフンなし（例: 09012345678）</div>
                 <div>• <span className="font-bold text-teal-600">コピペルール:</span> Excelからそのままコピペ可能（タブ区切り対応）</div>
                 <div>• 列名は日本語でも英語でも自動認識します</div>
-                <div>• 1行でもエラー（同一CSV内の顧客番号重複・氏名+生年月日重複［新規のみ］）があると、全行とも処理されません</div>
-                <div>• <span className="font-bold">既存の顧客番号</span>の行は再取込で上書き更新（CSVに列がある項目のみ）されます</div>
+                <div>• <span className="font-bold text-red-700">エラー（全行ブロック）:</span> 必須欠落・CSV内の顧客番号重複・CSV内の氏名+生年月日重複</div>
+                <div>
+                  • <span className="font-bold text-amber-800">警告（重複ダブり・取り込みは続行）:</span>{' '}
+                  既存の顧客番号と一致 → <span className="font-bold">上書き更新</span> /
+                  別の顧客番号で同氏名・生年月日が登録済 → <span className="font-bold">スキップ</span>
+                </div>
+                <div>• 取り込み後の結果欄に「新規」「上書き更新」「警告」「エラー」の内訳が表示されます</div>
               </div>
             </div>
           </div>
@@ -677,37 +814,89 @@ export default function CustomerImport() {
       {result && (
         <div
           className={`border-2 rounded-lg p-6 ${
-            result.allBlocked || result.error > 0 ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'
+            result.allBlocked || result.error > 0
+              ? 'bg-red-50 border-red-300'
+              : result.warningMessages.length > 0
+                ? 'bg-amber-50 border-amber-300'
+                : 'bg-green-50 border-green-300'
           }`}
         >
           <div className="flex items-center gap-3 mb-4">
             {result.error === 0 && !result.allBlocked ? (
-              <CheckCircle className="text-green-600" size={32} />
+              <CheckCircle
+                className={result.warningMessages.length > 0 ? 'text-amber-600' : 'text-green-600'}
+                size={32}
+              />
             ) : (
               <AlertCircle className="text-red-600" size={32} />
             )}
             <div>
-              <div className="text-xl font-bold text-gray-800">インポート完了</div>
-              <div className="text-sm text-gray-600 mt-1">
-                成功: <span className="font-bold text-green-600">{result.success}件</span>
+              <div className="text-xl font-bold text-gray-800">
+                {result.allBlocked ? 'インポートできませんでした' : 'インポート完了'}
+              </div>
+              <div className="text-sm text-gray-700 mt-1 space-x-4">
+                <span>
+                  成功計: <span className="font-bold text-green-700">{result.success}件</span>
+                </span>
+                <span>
+                  新規: <span className="font-bold text-blue-700">{result.inserted}件</span>
+                </span>
+                <span>
+                  上書き更新: <span className="font-bold text-amber-700">{result.updated}件</span>
+                </span>
+                {result.warningMessages.length > 0 && (
+                  <span>
+                    警告: <span className="font-bold text-amber-800">{result.warningMessages.length}件</span>
+                  </span>
+                )}
                 {result.error > 0 && (
-                  <span className="ml-4">
+                  <span>
                     エラー/中止: <span className="font-bold text-red-800">{result.error}件</span>
-                    <span className="text-xs text-red-700 block mt-1">
-                      1件でもエラーがあれば全行登録をしません。Excelを修正して再アップロードしてください。
-                    </span>
                   </span>
                 )}
               </div>
+              {result.error > 0 && (
+                <div className="text-xs text-red-700 mt-1">
+                  CSV内の重複や必須欠落などのエラーがあると全行登録しません。Excel を修正して再アップロードしてください。
+                </div>
+              )}
             </div>
           </div>
 
-          {result.messages.length > 0 && (
+          {result.errorMessages.length > 0 && (
             <div className="mt-4">
-              <div className="font-bold text-red-800 mb-2">詳細: ({result.messages.length}件のメッセージ)</div>
+              <div className="font-bold text-red-800 mb-2">エラー（{result.errorMessages.length}件）</div>
               <div className="bg-white rounded-lg p-3 max-h-64 overflow-y-auto space-y-1 text-sm border border-red-200">
-                {result.messages.map((msg, idx) => (
-                  <div key={idx} className="text-red-800 py-1 border-b border-red-100 last:border-0">
+                {result.errorMessages.map((msg, idx) => (
+                  <div key={`err-${idx}`} className="text-red-800 py-1 border-b border-red-100 last:border-0">
+                    {msg}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {result.warningMessages.length > 0 && (
+            <div className="mt-4">
+              <div className="font-bold text-amber-900 mb-2">
+                重複・上書きの警告（{result.warningMessages.length}件）
+              </div>
+              <div className="bg-white rounded-lg p-3 max-h-64 overflow-y-auto space-y-1 text-sm border border-amber-300">
+                {result.warningMessages.map((msg, idx) => (
+                  <div key={`warn-${idx}`} className="text-amber-900 py-1 border-b border-amber-100 last:border-0">
+                    {msg}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {result.infoMessages.length > 0 && (
+            <div className="mt-4">
+              <div className="font-bold text-gray-700 mb-2">補足</div>
+              <div className="bg-white rounded-lg p-3 max-h-48 overflow-y-auto space-y-1 text-sm border border-gray-200">
+                {result.infoMessages.map((msg, idx) => (
+                  <div key={`info-${idx}`} className="text-gray-700 py-1 border-b border-gray-100 last:border-0">
                     {msg}
                   </div>
                 ))}

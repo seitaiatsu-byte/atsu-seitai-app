@@ -271,10 +271,13 @@ export default function NewCustomerForm({
 
       const buildPayload = (resolvedCustomerNumber: string): Database['public']['Tables']['customers']['Insert'] => {
         const autoClinic = resolveClinicNameByNumber(resolvedCustomerNumber);
+        const kanaTrimmed = formData.name_kana.trim();
         const payload: Database['public']['Tables']['customers']['Insert'] = {
           name: formData.name.trim(),
-          name_kana: formData.name_kana.trim(),
+          name_kana: kanaTrimmed,
         };
+        // 別名列 kana にも併記（CustomerRosterEditModal と同じ運用にして表記揺れに強くする）
+        if (kanaTrimmed) payload.kana = kanaTrimmed;
         if (resolvedCustomerNumber) payload.customer_number = resolvedCustomerNumber;
         const phoneNorm = normalizePhoneDigitsForDb(formData.phone_number);
         if (phoneNorm) payload.phone_number = phoneNorm;
@@ -321,6 +324,9 @@ export default function NewCustomerForm({
         return payload;
       };
 
+      // name / name_kana / customer_number は誤検知で除外しない（ふりがな未保存事故の予防）
+      const PROTECTED_COLUMNS = new Set(['name', 'name_kana', 'customer_number']);
+
       if (mode === 'edit' && initialCustomer) {
         const base = buildPayload(formData.customer_number.trim());
         let workingUpdate = { ...base } as Database['public']['Tables']['customers']['Update'];
@@ -341,9 +347,17 @@ export default function NewCustomerForm({
             continue;
           }
           const missingCol = extractMissingColumnFromError(msg);
-          if (missingCol && missingCol in workingUpdate) {
+          if (missingCol && !PROTECTED_COLUMNS.has(missingCol) && missingCol in workingUpdate) {
             delete (workingUpdate as Record<string, unknown>)[missingCol];
             continue;
+          }
+          if (missingCol && PROTECTED_COLUMNS.has(missingCol)) {
+            console.error('保護列が除外対象になりました:', missingCol, error);
+            setSubmitErrors([
+              `保存に必要な列（${missingCol}）がスキーマで見つからない応答でした。Supabase の Database → Reload Schema を試すか、customers テーブルのマイグレーションを再適用してください。`,
+            ]);
+            alert('顧客更新に失敗しました（画面下部に原因を表示中）');
+            return;
           }
           console.error('顧客更新に失敗:', error);
           setSubmitErrors(parseErrorDetails(error));
@@ -390,12 +404,20 @@ export default function NewCustomerForm({
             continue;
           }
           const missing = extractMissingColumnFromError(msg);
-          if (missing) {
+          if (missing && !PROTECTED_COLUMNS.has(missing)) {
             const key = missing as keyof Database['public']['Tables']['customers']['Insert'];
             if (key in workingPayload) {
               delete workingPayload[key];
               continue;
             }
+          }
+          if (missing && PROTECTED_COLUMNS.has(missing)) {
+            console.error('保護列が除外対象になりました:', missing, res.error);
+            error = {
+              ...res.error,
+              message: `保存に必要な列（${missing}）がスキーマで見つからない応答でした。Reload Schema や customers のマイグレーション再適用を試してください。`,
+            };
+            break;
           }
           break;
         }
