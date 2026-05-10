@@ -17,6 +17,7 @@ import {
   type CustomerRowRecord,
 } from '../lib/customerRosterFieldResolve';
 import { extractMissingColumnFromError } from '../lib/supabaseColumnErrors';
+import { toErrorMessage } from '../lib/toErrorMessage';
 import NewCustomerForm from './NewCustomerForm';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
 
@@ -154,7 +155,7 @@ async function insertCustomersWithSanitize(
     }
     return {
       ok: false,
-      message: `新規登録に失敗（${startNo}件目〜）。修正後に再アップロード: ${msg}`,
+      message: `新規登録に失敗（${startNo}件目〜）。修正後に再アップロード: ${toErrorMessage(error)}`,
     };
   }
   return {
@@ -203,7 +204,7 @@ async function updateCustomersWithSanitize(
     }
     return {
       ok: false,
-      message: `既存顧客の更新に失敗（${startNo}件目付近）: ${msg}`,
+      message: `既存顧客の更新に失敗（${startNo}件目付近）: ${toErrorMessage(failed.error)}`,
     };
   }
   return {
@@ -550,16 +551,18 @@ export default function CustomerImport() {
         }
       }
 
+      // 既存氏名・生年月日の照合用データ取得は「補助機能」。失敗してもインポート全体は止めず、
+      // 重複チェックだけスキップして警告として記録する（致命扱いにしないため取り込みを続行）。
       let existingNameBirth: Set<string> = new Set();
+      let nameBirthLookupFailed = false;
+      let nameBirthLookupErrorText = '';
       if (candidates.length > 0) {
         try {
           existingNameBirth = await fetchExistingCustomerNameBirthKeySet();
         } catch (e) {
-          const m = e instanceof Error ? e.message : String(e);
-          setResult(buildFatalResult([`名簿照合用データの取得に失敗: ${m}`]));
-          setImporting(false);
-          if (fileInputRef.current) fileInputRef.current.value = '';
-          return;
+          console.error('既存氏名・生年月日の取得に失敗（重複チェックをスキップ）:', e);
+          nameBirthLookupFailed = true;
+          nameBirthLookupErrorText = toErrorMessage(e);
         }
       }
 
@@ -574,7 +577,7 @@ export default function CustomerImport() {
           .in('customer_number', uniqueNums);
         if (numQErr) {
           // 致命的: 既存照合できないと安全な取り込みができない
-          moreErrors.push(`顧客番号の一括照合に失敗: ${numQErr.message}`);
+          moreErrors.push(`顧客番号の一括照合に失敗: ${toErrorMessage(numQErr)}`);
         } else {
           for (const r of numberHits || []) {
             if (r.customer_number) idByCustomerNumber.set(String(r.customer_number), r.id);
@@ -582,20 +585,28 @@ export default function CustomerImport() {
         }
 
         // DB に「別の顧客番号で同氏名・生年月日」が既に居る行は警告＋スキップ（他の行は通す）
-        for (const c of candidates) {
-          const num = String(c.customerData.customer_number);
-          if (idByCustomerNumber.has(num)) continue;
-          const b = c.customerData.birth_date;
-          if (b && c.customerData.name) {
-            const k = `${String(c.customerData.name).trim()}\t${b}`;
-            if (existingNameBirth.has(k)) {
-              warningMessages.push(
-                `行${c.line}: 同じ氏名（${c.name}）・生年月日の顧客が既に別の顧客番号で名簿に存在します。重複登録を避けるため、この行はスキップしました。`
-              );
-              skippedLineSet.add(c.line);
+        if (!nameBirthLookupFailed) {
+          for (const c of candidates) {
+            const num = String(c.customerData.customer_number);
+            if (idByCustomerNumber.has(num)) continue;
+            const b = c.customerData.birth_date;
+            if (b && c.customerData.name) {
+              const k = `${String(c.customerData.name).trim()}\t${b}`;
+              if (existingNameBirth.has(k)) {
+                warningMessages.push(
+                  `行${c.line}: 同じ氏名（${c.name}）・生年月日の顧客が既に別の顧客番号で名簿に存在します。重複登録を避けるため、この行はスキップしました。`
+                );
+                skippedLineSet.add(c.line);
+              }
             }
           }
         }
+      }
+
+      if (nameBirthLookupFailed) {
+        warningMessages.unshift(
+          `氏名+生年月日の重複チェックは取得失敗のためスキップしました（取り込みは続行）。原因: ${nameBirthLookupErrorText}`
+        );
       }
 
       const allErr = [...rowErrors, ...moreErrors];

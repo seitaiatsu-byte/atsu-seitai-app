@@ -353,8 +353,11 @@ export default function NewCustomerForm({
           }
           if (missingCol && PROTECTED_COLUMNS.has(missingCol)) {
             console.error('保護列が除外対象になりました:', missingCol, error);
+            const rawDetail = [error.message, error.details, error.hint].filter(Boolean).join(' | ');
             setSubmitErrors([
-              `保存に必要な列（${missingCol}）がスキーマで見つからない応答でした。Supabase の Database → Reload Schema を試すか、customers テーブルのマイグレーションを再適用してください。`,
+              `保存に必要な列（${missingCol}）に対する書き込みが拒否されました。`,
+              `元のエラー: ${rawDetail || '(詳細不明)'}`,
+              'スキーマキャッシュが古い場合は Supabase Dashboard の Database → API → Reload schema を実行してください。',
             ]);
             alert('顧客更新に失敗しました（画面下部に原因を表示中）');
             return;
@@ -413,9 +416,10 @@ export default function NewCustomerForm({
           }
           if (missing && PROTECTED_COLUMNS.has(missing)) {
             console.error('保護列が除外対象になりました:', missing, res.error);
+            const rawDetail = [res.error.message, res.error.details, res.error.hint].filter(Boolean).join(' | ');
             error = {
               ...res.error,
-              message: `保存に必要な列（${missing}）がスキーマで見つからない応答でした。Reload Schema や customers のマイグレーション再適用を試してください。`,
+              message: `保存に必要な列（${missing}）に対する書き込みが拒否されました。元のエラー: ${rawDetail || '(詳細不明)'} / Reload schema や customers のマイグレーション再適用も試してください。`,
             };
             break;
           }
