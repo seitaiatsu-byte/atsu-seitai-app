@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, Download, CheckCircle, AlertCircle, FileText, Users, Pencil } from 'lucide-react';
+import { Upload, Download, CheckCircle, AlertCircle, FileText, Users, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { fetchAllCustomersByCreatedDesc, fetchCustomerCountExact } from '../lib/fetchAllCustomers';
@@ -222,7 +222,64 @@ export default function CustomerImport() {
   const [loadingList, setLoadingList] = useState(false);
   const [listPage, setListPage] = useState(1);
   const [rosterEdit, setRosterEdit] = useState<Customer | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /** 顧客削除（関連レコードの件数を見せて確認 → ON DELETE CASCADE で来院/物販/サブスクも一括削除） */
+  const handleDeleteCustomer = async (customer: Customer) => {
+    if (deletingId) return;
+
+    // 紐づく履歴件数を取得（権限が無くてもエラーにせず 0 件扱い）
+    const safeCount = async (
+      table: 'visit_records' | 'product_sales' | 'subscription_records'
+    ): Promise<number> => {
+      try {
+        const { count } = await supabase
+          .from(table)
+          .select('*', { count: 'exact', head: true })
+          .eq('customer_id', customer.id);
+        return count ?? 0;
+      } catch {
+        return 0;
+      }
+    };
+    const [visits, products, subs] = await Promise.all([
+      safeCount('visit_records'),
+      safeCount('product_sales'),
+      safeCount('subscription_records'),
+    ]);
+
+    const lines = [
+      `この顧客を削除します。元に戻せません。`,
+      ``,
+      `氏名: ${customer.name}`,
+      `顧客番号: ${customer.customer_number ?? '（未設定）'}`,
+      ``,
+      `紐づく履歴も同時に削除されます:`,
+      `  来院記録: ${visits} 件`,
+      `  物販記録: ${products} 件`,
+      `  サブスク記録: ${subs} 件`,
+      ``,
+      `本当に削除しますか？`,
+    ];
+    if (!window.confirm(lines.join('\n'))) return;
+
+    setDeletingId(customer.id);
+    try {
+      const { error } = await supabase.from('customers').delete().eq('id', customer.id);
+      if (error) {
+        alert(`削除に失敗しました: ${toErrorMessage(error)}`);
+        return;
+      }
+      window.dispatchEvent(new Event('customers-updated'));
+      window.dispatchEvent(new Event('records-updated'));
+      await loadCustomers();
+    } catch (e) {
+      alert(`削除中にエラー: ${toErrorMessage(e)}`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     loadCustomers();
@@ -980,7 +1037,7 @@ export default function CustomerImport() {
                     <th className="px-4 py-3 text-left text-sm font-bold max-w-[120px]">主訴1</th>
                     <th className="px-4 py-3 text-left text-sm font-bold">院</th>
                     <th className="px-4 py-3 text-left text-sm font-bold max-w-[100px]">メモ</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold sticky right-0 bg-gradient-to-r from-indigo-500 to-indigo-600 min-w-[88px]">
+                    <th className="px-4 py-3 text-left text-sm font-bold sticky right-0 bg-gradient-to-r from-indigo-500 to-indigo-600 min-w-[170px]">
                       操作
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-bold">登録日</th>
@@ -1035,14 +1092,30 @@ export default function CustomerImport() {
                         })()}
                       </td>
                       <td className="px-4 py-3 sticky right-0 bg-inherit">
-                        <button
-                          type="button"
-                          onClick={() => setRosterEdit(customer)}
-                          className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-bold text-indigo-700 border border-indigo-300 rounded-lg bg-white hover:bg-indigo-50"
-                        >
-                          <Pencil size={14} />
-                          修正
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setRosterEdit(customer)}
+                            className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-bold text-indigo-700 border border-indigo-300 rounded-lg bg-white hover:bg-indigo-50"
+                          >
+                            <Pencil size={14} />
+                            修正
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteCustomer(customer)}
+                            disabled={deletingId === customer.id}
+                            title="この顧客を削除（紐づく来院・物販・サブスクも一括削除）"
+                            className={`inline-flex items-center gap-1 px-2 py-1.5 text-xs font-bold border rounded-lg transition-colors ${
+                              deletingId === customer.id
+                                ? 'text-gray-400 border-gray-200 bg-gray-50 cursor-wait'
+                                : 'text-red-700 border-red-300 bg-white hover:bg-red-50'
+                            }`}
+                          >
+                            <Trash2 size={14} />
+                            {deletingId === customer.id ? '削除中…' : '削除'}
+                          </button>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500">
                         {new Date(customer.created_at).toLocaleDateString('ja-JP')}
