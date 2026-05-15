@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react';
 import { TrendingUp, User, DollarSign, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { clinicMatchesRecord } from '../lib/clinic';
+import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
+import {
+  findCustomerByRecordKey,
+  hydrateCustomersByRecordKeys,
+  legacyNameKeysForRecord,
+  registerCustomerInMap,
+} from '../lib/customerLookup';
 import type { ClinicScope } from './ClinicScopeToggle';
 
 interface CustomerLTV {
@@ -41,22 +48,31 @@ interface SubscriptionRanking {
   total_amount: number;
 }
 
-function resolveCustomerName(
-  customer: Record<string, unknown> | undefined,
+function resolveLegacyName(
   customerId: string,
-  legacyNameByCustomerId?: Map<string, string>
+  legacyNameByCustomerId: Map<string, string>,
+  customerByKey: Map<string, Record<string, unknown>>
+): string | undefined {
+  for (const key of legacyNameKeysForRecord(customerId, customerByKey)) {
+    const legacy = legacyNameByCustomerId.get(key);
+    if (legacy) return legacy;
+  }
+  return undefined;
+}
+
+function resolveCustomerNameWithLookup(
+  customerId: string,
+  customerByKey: Map<string, Record<string, unknown>>,
+  legacyNameByCustomerId: Map<string, string>
 ): string {
+  const customer = findCustomerByRecordKey(customerId, customerByKey);
   const n = String(customer?.name ?? '').trim();
   if (n) return n;
   const k = String(customer?.name_kana ?? customer?.kana ?? '').trim();
   if (k) return k;
-  const legacy = legacyNameByCustomerId?.get(customerId);
+  const legacy = resolveLegacyName(customerId, legacyNameByCustomerId, customerByKey);
   if (legacy) return legacy;
-  return `ID:${customerId.slice(0, 8)}`;
-}
-
-function normalizeKey(v: string | null | undefined): string {
-  return String(v || '').trim();
+  return '（氏名未取得）';
 }
 
 function pickCustomerNumber(customer: Record<string, unknown> | undefined): string | undefined {
@@ -109,14 +125,14 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
     pRows.forEach((x) => ids.add(x.customer_id));
     sRows.forEach((x) => ids.add(x.customer_id));
 
-    const { data: customers } = await supabase.from('customers').select('*');
     const customerByKey = new Map<string, Record<string, unknown>>();
-    (customers || []).forEach((c) => {
-      const idKey = normalizeKey(String(c.id ?? ''));
-      if (idKey) customerByKey.set(idKey, c);
-      const numKey = normalizeKey(String(c.customer_number ?? ''));
-      if (numKey) customerByKey.set(numKey, c);
-    });
+    try {
+      const customers = await fetchAllCustomersByCreatedDesc();
+      customers.forEach((c) => registerCustomerInMap(c, customerByKey));
+      await hydrateCustomersByRecordKeys([...ids], customerByKey);
+    } catch (e) {
+      console.error('顧客名簿の取得に失敗:', e);
+    }
 
     const customerMap = new Map<string, CustomerLTV>();
     const legacyNameByCustomerId = new Map<string, string>();
@@ -124,11 +140,13 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       const id = String(v.customer_id || '').trim();
       const legacyName = String(v.import_customer_name || '').trim();
       if (!id || !legacyName) return;
-      if (!legacyNameByCustomerId.has(id)) legacyNameByCustomerId.set(id, legacyName);
+      for (const key of legacyNameKeysForRecord(id, customerByKey)) {
+        if (!legacyNameByCustomerId.has(key)) legacyNameByCustomerId.set(key, legacyName);
+      }
     });
 
     const bump = (customerId: string, amount: number, date: string, isVisit: boolean) => {
-      const c = customerByKey.get(normalizeKey(customerId));
+      const c = findCustomerByRecordKey(customerId, customerByKey);
       const existing = customerMap.get(customerId);
       if (existing) {
         existing.total_ltv += amount;
@@ -137,7 +155,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       } else {
         customerMap.set(customerId, {
           customer_id: customerId,
-          customer_name: resolveCustomerName(c, customerId, legacyNameByCustomerId),
+          customer_name: resolveCustomerNameWithLookup(customerId, customerByKey, legacyNameByCustomerId),
           customer_number: pickCustomerNumber(c),
           total_ltv: amount,
           visit_count: isVisit ? 1 : 0,
@@ -162,13 +180,13 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
     vRows.forEach((v) => {
       const cost = Number(v.maintenance_cost || 0);
       if (cost <= 0) return;
-      const customer = customerByKey.get(normalizeKey(v.customer_id));
+      const customer = findCustomerByRecordKey(v.customer_id, customerByKey);
       const existing = maintenanceMap.get(v.customer_id);
       if (existing) existing.total_cost += cost;
       else {
         maintenanceMap.set(v.customer_id, {
           customer_id: v.customer_id,
-          customer_name: resolveCustomerName(customer, v.customer_id, legacyNameByCustomerId),
+          customer_name: resolveCustomerNameWithLookup(v.customer_id, customerByKey, legacyNameByCustomerId),
           customer_number: pickCustomerNumber(customer),
           total_cost: cost,
         });
@@ -184,7 +202,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
     pRows.forEach((p) => {
       const amount = Number(p.amount || 0);
       const quantity = Number(p.quantity || 0);
-      const customer = customerByKey.get(normalizeKey(p.customer_id));
+      const customer = findCustomerByRecordKey(p.customer_id, customerByKey);
       const existing = productMap.get(p.customer_id);
       if (existing) {
         existing.total_amount += amount;
@@ -192,7 +210,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       } else {
         productMap.set(p.customer_id, {
           customer_id: p.customer_id,
-          customer_name: resolveCustomerName(customer, p.customer_id, legacyNameByCustomerId),
+          customer_name: resolveCustomerNameWithLookup(p.customer_id, customerByKey, legacyNameByCustomerId),
           customer_number: pickCustomerNumber(customer),
           total_quantity: quantity,
           total_amount: amount,
@@ -208,7 +226,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
     const subMap = new Map<string, SubscriptionRanking>();
     sRows.forEach((s) => {
       const amount = Number(s.amount || 0);
-      const customer = customerByKey.get(normalizeKey(s.customer_id));
+      const customer = findCustomerByRecordKey(s.customer_id, customerByKey);
       const existing = subMap.get(s.customer_id);
       if (existing) {
         existing.total_amount += amount;
@@ -216,7 +234,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       } else {
         subMap.set(s.customer_id, {
           customer_id: s.customer_id,
-          customer_name: resolveCustomerName(customer, s.customer_id, legacyNameByCustomerId),
+          customer_name: resolveCustomerNameWithLookup(s.customer_id, customerByKey, legacyNameByCustomerId),
           customer_number: pickCustomerNumber(customer),
           total_count: 1,
           total_amount: amount,
