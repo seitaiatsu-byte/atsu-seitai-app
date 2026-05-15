@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Calendar, CreditCard, Save, Repeat, History, Edit2, Trash2, X, Search } from 'lucide-react';
+import { Calendar, CreditCard, Save, Repeat, History, Edit2, Trash2, X, Search, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import CustomerSearchPanel from './CustomerSearchPanel';
 import { CLINIC_OPTIONS, type ClinicFullName } from '../lib/clinic';
-import { buildIdToNameMap, formatPaymentMethodLabel } from '../lib/paymentDisplay';
+import { buildIdToNameMap, formatPaymentMethodLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
+import { visitRecordHadSubscriptionLabel, visitRecordMixedLabel } from '../lib/visitSubscriptionLabel';
 
 type SubscriptionMaster = Database['public']['Tables']['subscription_master']['Row'];
 type PaymentMethodMaster = Database['public']['Tables']['payment_detail_master']['Row'];
@@ -12,6 +13,11 @@ type StaffMaster = Database['public']['Tables']['staff_master']['Row'];
 type CustomerRow = Database['public']['Tables']['customers']['Row'];
 type SubRecord = Database['public']['Tables']['subscription_records']['Row'] & {
   customers?: Pick<CustomerRow, 'id' | 'name' | 'customer_number'> | null;
+};
+type VisitRow = Database['public']['Tables']['visit_records']['Row'];
+type VisitMisclass = VisitRow & {
+  customers?: Pick<CustomerRow, 'id' | 'name' | 'customer_number'> | null;
+  matchHint: string;
 };
 
 interface SubscriptionFormProps {
@@ -57,6 +63,8 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
   const [listLoading, setListLoading] = useState(false);
   const [listLoadError, setListLoadError] = useState<string | null>(null);
   const [dbRecordCount, setDbRecordCount] = useState<number | null>(null);
+  const [visitMisclassified, setVisitMisclassified] = useState<VisitMisclass[]>([]);
+  const [visitMisclassLoading, setVisitMisclassLoading] = useState(false);
 
   useEffect(() => {
     loadSubscriptions();
@@ -165,15 +173,76 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
     }
   }, []);
 
-  useEffect(() => {
-    void loadRecentRecords();
-  }, [loadRecentRecords]);
+  const loadVisitMisclassified = useCallback(async () => {
+    setVisitMisclassLoading(true);
+    try {
+      const [{ data: pm }, { data: pd }] = await Promise.all([
+        supabase.from('payment_method_master').select('id,name'),
+        supabase.from('payment_detail_master').select('id,name'),
+      ]);
+      const detailMap = mergeIdNameMaps(
+        pm as { id: string; name: string }[],
+        pd as { id: string; name: string }[]
+      );
+
+      const PAGE = 500;
+      let from = 0;
+      const hits: VisitMisclass[] = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from('visit_records')
+          .select('*')
+          .order('visit_date', { ascending: false })
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error || !data?.length) break;
+        for (const row of data as VisitRow[]) {
+          const amount = Number(row.amount ?? 0);
+          if (!amount) continue;
+          const mixed = visitRecordMixedLabel(row, detailMap);
+          if (!visitRecordHadSubscriptionLabel(mixed)) continue;
+          const hints: string[] = [];
+          if (row.menu_name && /サブスク|定期|subscription/i.test(row.menu_name)) hints.push(`メニュー: ${row.menu_name}`);
+          if (row.import_kind_text && /サブスク|定期|subscription/i.test(row.import_kind_text)) {
+            hints.push(`種類: ${row.import_kind_text}`);
+          }
+          if (row.memo && /サブスク|定期|subscription/i.test(row.memo)) hints.push(`メモ: ${row.memo.slice(0, 40)}`);
+          hits.push({
+            ...row,
+            matchHint: hints.join(' / ') || mixed.replace(/\s+/g, ' ').trim().slice(0, 60),
+          });
+        }
+        if (data.length < PAGE) break;
+        from += data.length;
+      }
+
+      const customerIds = [...new Set(hits.map((r) => r.customer_id).filter(Boolean))];
+      const customerMap = new Map<string, Pick<CustomerRow, 'id' | 'name' | 'customer_number'>>();
+      for (const ids of chunkIds(customerIds, ID_CHUNK)) {
+        const { data: customers } = await supabase.from('customers').select('id, name, customer_number').in('id', ids);
+        for (const c of customers || []) customerMap.set(c.id, c);
+      }
+      for (const r of hits) r.customers = customerMap.get(r.customer_id) ?? null;
+
+      setVisitMisclassified(hits);
+    } finally {
+      setVisitMisclassLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const h = () => void loadRecentRecords();
+    void loadRecentRecords();
+    void loadVisitMisclassified();
+  }, [loadRecentRecords, loadVisitMisclassified]);
+
+  useEffect(() => {
+    const h = () => {
+      void loadRecentRecords();
+      void loadVisitMisclassified();
+    };
     window.addEventListener('records-updated', h);
     return () => window.removeEventListener('records-updated', h);
-  }, [loadRecentRecords]);
+  }, [loadRecentRecords, loadVisitMisclassified]);
 
   const getSubName = (id: string) => subscriptions.find((s) => s.id === id)?.name || '';
   const getStaffName = (id: string) => staffList.find((s) => s.id === id)?.name || '';
@@ -504,6 +573,52 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
             {isSubmitting ? '保存中...' : editingId ? '修正を保存' : '登録'}
           </button>
         </form>
+      </div>
+
+      <div className="bg-amber-50 rounded-2xl shadow-lg p-6 border-2 border-amber-300">
+        <h3 className="text-lg font-bold text-amber-900 mb-1 flex items-center gap-2">
+          <AlertTriangle className="text-amber-600" size={20} />
+          来院記録で「サブスク」と入っている行（金額あり・要確認）
+        </h3>
+        <p className="text-xs text-amber-900/90 mb-3">
+          以前の売上集計でサブスク列に入っていた候補です（全{visitMisclassified.length}件）。
+          修正は <strong>ホーム → 来院入力</strong> の履歴リストから行えます。サブスク料金として残す場合は、この画面でサブスク登録し、来院側は都度払いのメニュー名に直してください。
+        </p>
+        {visitMisclassLoading ? (
+          <p className="text-sm text-amber-800 py-4 text-center">読み込み中…</p>
+        ) : visitMisclassified.length === 0 ? (
+          <p className="text-sm text-amber-800 py-4 text-center">該当する来院記録はありません</p>
+        ) : (
+          <div className="space-y-2 max-h-[min(50vh,480px)] overflow-y-auto pr-1">
+            {visitMisclassified.map((v) => {
+              const c = v.customers;
+              return (
+                <div key={v.id} className="rounded-xl border-2 border-amber-200 bg-white p-3">
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span className="font-bold text-amber-900">{v.visit_date}</span>
+                    <span className="font-bold text-gray-900">
+                      {c?.customer_number ? `${c.customer_number} ` : ''}
+                      {c?.name || v.import_customer_name || '（顧客不明）'}
+                    </span>
+                    <span className="font-bold text-red-700">¥{Number(v.amount).toLocaleString()}</span>
+                    <span className="text-xs text-gray-500">{clinicShort(v.clinic_name)}</span>
+                  </div>
+                  <p className="text-xs text-amber-800 mt-1 truncate" title={v.matchHint}>
+                    該当: {v.matchHint}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => void loadVisitMisclassified()}
+          disabled={visitMisclassLoading}
+          className="mt-3 w-full py-2 rounded-xl text-sm font-bold bg-amber-200 text-amber-900 border-2 border-amber-300 disabled:opacity-50"
+        >
+          {visitMisclassLoading ? '読込中…' : 'この一覧を再読み込み'}
+        </button>
       </div>
 
       <div className="bg-white rounded-2xl shadow-lg p-6 border border-purple-100">
