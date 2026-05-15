@@ -5,7 +5,16 @@ import { clinicMatchesRecord, customerMatchesClinic } from '../lib/clinic';
 import { fetchBusinessRules } from '../lib/businessRules';
 import { repeatRateSecond, repeatRateSixth, type CustomerForRepeat } from '../lib/repeatMetrics';
 import { getCustomerBirthDate, calculateAge } from '../lib/customerBirthday';
+import { fetchAllCustomersByCreatedDesc, type CustomerRow } from '../lib/fetchAllCustomers';
 import type { ClinicScope } from './ClinicScopeToggle';
+
+type NewByMonthRow = {
+  month: string;
+  count: number;
+  fromFirstVisit: number;
+  fromVisitRecord: number;
+  fromImportOnly: number;
+};
 
 interface DetailedAnalyticsProps {
   clinicScope: ClinicScope;
@@ -36,6 +45,38 @@ function addMonths(d: Date, n: number) {
   return x;
 }
 
+/** YYYY-MM（日付のみ列は先頭7文字、timestamptz はローカル月） */
+function monthKeyFromValue(v: string | null | undefined): string | null {
+  if (!v?.trim()) return null;
+  const trimmed = v.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed.slice(0, 10))) return trimmed.slice(0, 7);
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) {
+    const m = trimmed.slice(0, 7);
+    return /^\d{4}-\d{2}$/.test(m) ? m : null;
+  }
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${mo}`;
+}
+
+function acquisitionMonthForCustomer(
+  c: CustomerRow,
+  earliestVisitByCustomer: Map<string, string>
+): { month: string; source: 'first_visit_date' | 'visit_record' | 'created_at' } | null {
+  const fromFv = monthKeyFromValue(c.first_visit_date);
+  if (fromFv) return { month: fromFv, source: 'first_visit_date' };
+
+  const earliest = earliestVisitByCustomer.get(c.id);
+  const fromVisit = monthKeyFromValue(earliest);
+  if (fromVisit) return { month: fromVisit, source: 'visit_record' };
+
+  const fromCreated = monthKeyFromValue(c.created_at);
+  if (fromCreated) return { month: fromCreated, source: 'created_at' };
+
+  return null;
+}
+
 export default function DetailedAnalytics({ clinicScope }: DetailedAnalyticsProps) {
   const [repeat2, setRepeat2] = useState(0);
   const [repeat6, setRepeat6] = useState(0);
@@ -44,7 +85,7 @@ export default function DetailedAnalytics({ clinicScope }: DetailedAnalyticsProp
   const [ageBuckets, setAgeBuckets] = useState<Record<string, number>>({});
   const [genderRatio, setGenderRatio] = useState({ male: 0, female: 0, other: 0 });
   const [complaints, setComplaints] = useState<{ name: string; count: number }[]>([]);
-  const [newByMonth, setNewByMonth] = useState<{ month: string; count: number }[]>([]);
+  const [newByMonth, setNewByMonth] = useState<NewByMonthRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -64,8 +105,13 @@ export default function DetailedAnalytics({ clinicScope }: DetailedAnalyticsProp
     const rules = await fetchBusinessRules();
     const lapse = rules.churnLapsedDays;
 
-    const { data: customersRaw } = await supabase.from('customers').select('*');
-    const customers = (customersRaw || []).filter((c) => customerMatchesClinic(clinicScope, c.clinic_name));
+    let customers: CustomerRow[] = [];
+    try {
+      customers = await fetchAllCustomersByCreatedDesc();
+    } catch (e) {
+      console.error('顧客名簿の取得に失敗:', e);
+    }
+    customers = customers.filter((c) => customerMatchesClinic(clinicScope, c.clinic_name));
 
     const { data: visitsRaw } = await supabase
       .from('visit_records')
@@ -179,16 +225,31 @@ export default function DetailedAnalytics({ clinicScope }: DetailedAnalyticsProp
         .slice(0, 15)
     );
 
-    const newMap = new Map<string, number>();
+    const earliestVisitByCustomer = new Map<string, string>();
+    visitsInScope.forEach((v) => {
+      const cur = earliestVisitByCustomer.get(v.customer_id);
+      if (!cur || v.visit_date < cur) earliestVisitByCustomer.set(v.customer_id, v.visit_date);
+    });
+
+    const newMap = new Map<string, NewByMonthRow>();
     customers.forEach((c) => {
-      const m = c.created_at?.slice(0, 7);
-      if (m) newMap.set(m, (newMap.get(m) || 0) + 1);
+      const acq = acquisitionMonthForCustomer(c, earliestVisitByCustomer);
+      if (!acq) return;
+      const row = newMap.get(acq.month) || {
+        month: acq.month,
+        count: 0,
+        fromFirstVisit: 0,
+        fromVisitRecord: 0,
+        fromImportOnly: 0,
+      };
+      row.count++;
+      if (acq.source === 'first_visit_date') row.fromFirstVisit++;
+      else if (acq.source === 'visit_record') row.fromVisitRecord++;
+      else row.fromImportOnly++;
+      newMap.set(acq.month, row);
     });
     setNewByMonth(
-      [...newMap.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
-        .slice(-18)
-        .map(([month, count]) => ({ month, count }))
+      [...newMap.values()].sort((a, b) => a.month.localeCompare(b.month)).slice(-18)
     );
 
     setLoading(false);
@@ -287,15 +348,42 @@ export default function DetailedAnalytics({ clinicScope }: DetailedAnalyticsProp
       <div className="border-2 border-gray-200 rounded-xl p-4">
         <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
           <UserPlus size={18} />
-          新規登録数推移（created_at 月別）
+          新規獲得推移（月別・初回来院ベース）
         </h3>
-        <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-          {newByMonth.map((n) => (
-            <span key={n.month} className="px-3 py-1 rounded-lg bg-indigo-50 text-indigo-900 text-sm font-bold">
-              {n.month}: {n.count}
-            </span>
-          ))}
-        </div>
+        <p className="text-xs text-gray-600 mb-3 rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2 leading-relaxed">
+          各顧客を「初回来院のあった月」に1人として数えた推移です。集計の優先順位は
+          <strong> 名簿の初回来院日 → 来院記録の最古日 → 名簿取込日（CSV一括取込など）</strong>
+          です。以前は名簿取込日（created_at）だけを見ていたため、取込月（例: 2026-04 に900件超）が新規のように見えていましたが、多くは
+          <strong>過去からいる患者の名簿登録月</strong>です。内訳の「名簿取込のみ」が多い月は参考程度に見てください。
+        </p>
+        {newByMonth.length === 0 ? (
+          <p className="text-sm text-gray-500">データなし</p>
+        ) : (
+          <div className="space-y-2 max-h-56 overflow-y-auto">
+            {newByMonth.map((n) => {
+              const max = Math.max(...newByMonth.map((x) => x.count), 1);
+              const pct = Math.round((n.count / max) * 100);
+              return (
+                <div key={n.month} className="text-sm">
+                  <div className="flex justify-between items-center mb-1 gap-2">
+                    <span className="font-bold text-gray-800">{n.month}</span>
+                    <span className="font-bold text-indigo-800 shrink-0">{n.count}人</span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-1">
+                    <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="text-xs text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5">
+                    {n.fromFirstVisit > 0 && <span>初回来院日 {n.fromFirstVisit}</span>}
+                    {n.fromVisitRecord > 0 && <span>来院記録 {n.fromVisitRecord}</span>}
+                    {n.fromImportOnly > 0 && (
+                      <span className="text-amber-700">名簿取込のみ {n.fromImportOnly}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
