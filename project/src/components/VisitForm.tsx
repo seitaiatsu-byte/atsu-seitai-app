@@ -4,6 +4,11 @@ import { supabase } from '../lib/supabase';
 import CustomerSearchPanel from './CustomerSearchPanel';
 import { CLINIC_OPTIONS, type ClinicFullName } from '../lib/clinic';
 import { buildIdToNameMap } from '../lib/paymentDisplay';
+import {
+  legacyImportKindLabel,
+  resolvePaymentDetailIdFromKindLabel,
+  stripKindPrefixFromMemo,
+} from '../lib/visitRecordKindCompat';
 import { getTodayLocalYmd } from '../lib/visitDateParse';
 import VisitRecordDateAccordion from './VisitRecordDateAccordion';
 import { recalcBeEquivalentCountsForCustomers } from '../lib/beEquivalentRecalc';
@@ -31,6 +36,7 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
   const [menuNameFree, setMenuNameFree] = useState('');
   const [maintenanceCost, setMaintenanceCost] = useState('0');
   const [memo, setMemo] = useState('');
+  const [importKindLegacy, setImportKindLegacy] = useState<string | null>(null);
 
   const [methodNameMap, setMethodNameMap] = useState<Record<string, string>>({});
   const [detailNameMap, setDetailNameMap] = useState<Record<string, string>>({});
@@ -134,6 +140,7 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
     setPreviewUrls([]);
     setCurrentMediaUrls([]);
     setSelectedCustomer(null);
+    setImportKindLegacy(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,12 +155,15 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
       const menuNameResolved = (menuObj?.name || menuNameFree.trim() || null) as string | null;
       const beNum = beEquiv.trim() ? parseInt(beEquiv.replace(/\D/g, ''), 10) : null;
 
+      const cleanedMemo = stripKindPrefixFromMemo(memo) ?? (memo.trim() || null);
+
       const basePayload = {
         visit_date: visitDate,
         payment_method: paymentMethodId,
         payment_detail_id: selectedPaymentDetail || null,
+        import_kind_text: null,
         amount: Number(amount) || 0,
-        memo,
+        memo: cleanedMemo,
         clinic_name: clinicName,
         staff_name: staffObj?.name || null,
         menu_id: selectedMenu || null,
@@ -238,8 +248,13 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
       const hit = paymentMethods.find((m) => m.name === String(rawPm || ''));
       setPaymentMethodId(hit?.id || paymentMethods[0]?.id || '');
     }
+    const legacyKind = legacyImportKindLabel(r);
+    setImportKindLegacy(legacyKind);
     if (r.payment_detail_id && isUuid(String(r.payment_detail_id))) {
       setSelectedPaymentDetail(String(r.payment_detail_id));
+    } else if (legacyKind) {
+      const matched = resolvePaymentDetailIdFromKindLabel(legacyKind, paymentDetails);
+      setSelectedPaymentDetail(matched || '');
     } else {
       setSelectedPaymentDetail('');
     }
@@ -267,7 +282,7 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
     setImportCsvVisitCount((r.import_csv_visit_count && String(r.import_csv_visit_count)) || '');
     setBeEquiv(r.be_equivalent_count != null ? String(r.be_equivalent_count) : '');
     setMaintenanceCost(r.maintenance_cost != null ? String(r.maintenance_cost) : '0');
-    setMemo(r.memo || '');
+    setMemo(stripKindPrefixFromMemo(r.memo) || '');
     setCurrentMediaUrls(r.media_urls || []);
     setPreviewUrls([]);
     setSelectedFiles([]);
@@ -305,6 +320,15 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
               {paymentMethods.map(m => (<button key={m.id} type="button" onClick={() => setPaymentMethodId(m.id)} className={`py-3 px-2 rounded-lg font-bold text-sm ${paymentMethodId === m.id ? 'bg-green-500 text-white shadow-md' : 'bg-gray-100'}`}>{m.name}</button>))}
             </div>
           </div>
+
+          {importKindLegacy && (
+            <div className="rounded-lg border-2 border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              取込データの種類: <strong>{importKindLegacy}</strong>
+              <span className="block mt-0.5 text-amber-800">
+                下の「種類」ボタンで選び直して保存すると、この表記は消えてマスタの名称になります。
+              </span>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2 font-bold">種類</label>

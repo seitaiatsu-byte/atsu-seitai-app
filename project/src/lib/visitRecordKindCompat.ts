@@ -1,4 +1,5 @@
 import type { Database } from './database.types';
+import { normalizeForMasterMatch } from './paymentDisplay';
 
 type VisitInsert = Database['public']['Tables']['visit_records']['Insert'];
 
@@ -23,6 +24,36 @@ export function parseKindFromImportMemo(memo: string | null | undefined): string
   if (memo == null) return null;
   const m = String(memo).match(KIND_IN_MEMO_RE);
   return m && m[1] != null && m[1].trim() !== '' ? m[1].trim() : null;
+}
+
+/** メモ先頭の「［種類: …］」を除去（種類は import_kind_text / マスタ側で管理） */
+export function stripKindPrefixFromMemo(memo: string | null | undefined): string | null {
+  if (memo == null) return null;
+  const next = String(memo).replace(KIND_IN_MEMO_RE, '').trim();
+  return next || null;
+}
+
+/** CSV・取込の種類文字列を payment_detail マスタ id に寄せる（完全一致のみ） */
+export function resolvePaymentDetailIdFromKindLabel(
+  label: string | null | undefined,
+  details: { id: string; name: string }[]
+): string | null {
+  const norm = normalizeForMasterMatch(label);
+  if (!norm) return null;
+  const hit = details.find((d) => normalizeForMasterMatch(d.name) === norm);
+  return hit?.id ?? null;
+}
+
+/** 来院行の「種類」表示用ラベル（取込列は画面保存後は使わない） */
+export function legacyImportKindLabel(row: {
+  import_kind_text?: string | null;
+  memo?: string | null;
+}): string | null {
+  const fromCol = row.import_kind_text != null && String(row.import_kind_text).trim() !== ''
+    ? String(row.import_kind_text).trim()
+    : null;
+  if (fromCol) return fromCol;
+  return parseKindFromImportMemo(row.memo);
 }
 
 export function visitInsertOmittingImportKindText(row: VisitInsert): VisitInsert {
