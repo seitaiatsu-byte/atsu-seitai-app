@@ -102,12 +102,12 @@ function normalizeYm(ym: string): string {
   return toYm(new Date());
 }
 
-function classifySalesType(label: string): 'transfer' | 'single' | 'coupon' | 'subscription' | 'product' {
+/** 来院記録の内訳分類（サブスク列には載せない。サブスク売上は subscription_records のみ） */
+function classifyVisitSalesType(label: string): 'transfer' | 'single' | 'coupon' | 'product' {
   const s = label.replace(/\s+/g, '').toLowerCase();
   if (!s) return 'single';
   if (s.includes('振込') || s.includes('bank') || s.includes('transfer')) return 'transfer';
   if (s.includes('回数券') || s.includes('回数') || s.includes('チケット')) return 'coupon';
-  if (s.includes('サブスク') || s.includes('定期') || s.includes('subscription')) return 'subscription';
   if (s.includes('物販') || s.includes('商品') || s.includes('プロテイン')) return 'product';
   return 'single';
 }
@@ -267,7 +267,7 @@ export default function SalesAggregationDashboard() {
           );
           const paymentLabel = String(v.payment_method ?? '');
           const mixedLabel = `${detailLabel} ${paymentLabel} ${v.menu_name ?? ''} ${v.memo ?? ''} ${v.import_kind_text ?? ''}`;
-          const kind = classifySalesType(mixedLabel);
+          const kind = classifyVisitSalesType(mixedLabel);
 
           if (kind === 'transfer') {
             // 振込は集計表の現金側「振込」に統一
@@ -275,12 +275,10 @@ export default function SalesAggregationDashboard() {
           } else if (methodBucket === 'cash') {
             if (kind === 'transfer') row.cashTransfer += amount;
             else if (kind === 'coupon') row.cashCoupon += amount;
-            else if (kind === 'subscription') row.cashSubscription += amount;
             else if (kind === 'product') row.cashProduct += amount;
             else row.cashSingle += amount;
           } else {
             if (kind === 'coupon') row.cardCoupon += amount;
-            else if (kind === 'subscription') row.cardSubscription += amount;
             else if (kind === 'product') row.cardProduct += amount;
             else row.cardSingle += amount;
           }

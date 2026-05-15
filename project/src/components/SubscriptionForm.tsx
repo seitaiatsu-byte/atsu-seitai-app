@@ -516,8 +516,8 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
           {dbRecordCount != null ? `／DB登録${dbRecordCount}件` : ''}
           {listFilter ? `／表示${filteredRecords.length}件` : ''}）。行の右で修正・削除できます。
         </p>
-        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-          ※売上集計表の「サブスク」列には、ここで登録した分に加え、<strong>来院入力</strong>でメニュー名・種類・メモに「サブスク」と入った分も含まれます。集計に数字があるのにこのリストが空の場合は、来院側にだけ記録されている可能性があります。
+        <p className="text-xs text-gray-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 mb-4">
+          売上集計の「サブスク」列に載るのは、<strong>この画面で登録した分だけ</strong>です。来院入力のメニュー名に「サブスク」とあっても、売上のサブスク列には含まれません（都度払い等として集計されます）。
         </p>
 
         {listLoadError && (
@@ -557,7 +557,7 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
             {recentRecords.length === 0
               ? dbRecordCount != null && dbRecordCount > 0
                 ? '登録データはありますが表示できませんでした。「更新」を押すか、しばらくしてから再度お試しください。'
-                : 'サブスク入力での登録はまだありません（売上集計のサブスクは来院記録を含む場合があります）'
+                : 'サブスク入力での登録はまだありません'
               : '該当する登録がありません'}
           </p>
         ) : (
