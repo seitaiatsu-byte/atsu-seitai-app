@@ -19,6 +19,13 @@ interface SubscriptionFormProps {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ID_CHUNK = 80;
+
+function chunkIds<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
 
 function clinicShort(name: string | null | undefined): string {
   if (!name) return '-';
@@ -47,6 +54,9 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState('');
   const [listFilter, setListFilter] = useState('');
+  const [listLoading, setListLoading] = useState(false);
+  const [listLoadError, setListLoadError] = useState<string | null>(null);
+  const [dbRecordCount, setDbRecordCount] = useState<number | null>(null);
 
   useEffect(() => {
     loadSubscriptions();
@@ -96,22 +106,63 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
   };
 
   const loadRecentRecords = useCallback(async () => {
-    const PAGE = 500;
-    let from = 0;
-    const all: SubRecord[] = [];
-    while (true) {
-      const { data, error } = await supabase
+    setListLoading(true);
+    setListLoadError(null);
+    let fetchError: string | null = null;
+    try {
+      const { count, error: countErr } = await supabase
         .from('subscription_records')
-        .select('*, customers(id, name, customer_number)')
-        .order('start_date', { ascending: false })
-        .order('created_at', { ascending: false })
-        .range(from, from + PAGE - 1);
-      if (error || !data?.length) break;
-      all.push(...(data as SubRecord[]));
-      if (data.length < PAGE) break;
-      from += data.length;
+        .select('*', { count: 'exact', head: true });
+      if (countErr) console.error('サブスク件数取得:', countErr);
+      else setDbRecordCount(count ?? 0);
+
+      const PAGE = 500;
+      let from = 0;
+      const all: SubRecord[] = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from('subscription_records')
+          .select('*')
+          .order('start_date', { ascending: false })
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error) {
+          fetchError = error.message;
+          break;
+        }
+        if (!data?.length) break;
+        all.push(...(data as SubRecord[]));
+        if (data.length < PAGE) break;
+        from += data.length;
+      }
+
+      const customerIds = [...new Set(all.map((r) => r.customer_id).filter(Boolean))];
+      const customerMap = new Map<string, Pick<CustomerRow, 'id' | 'name' | 'customer_number'>>();
+      for (const ids of chunkIds(customerIds, ID_CHUNK)) {
+        const { data: customers, error: custErr } = await supabase
+          .from('customers')
+          .select('id, name, customer_number')
+          .in('id', ids);
+        if (custErr) {
+          console.error('顧客名の取得:', custErr);
+          continue;
+        }
+        for (const c of customers || []) {
+          customerMap.set(c.id, c);
+        }
+      }
+      for (const r of all) {
+        r.customers = customerMap.get(r.customer_id) ?? null;
+      }
+
+      setRecentRecords(all);
+      if (!fetchError && count != null && count > 0 && all.length === 0) {
+        fetchError = 'データはありますが一覧の取得に失敗しました。再読み込みをお試しください。';
+      }
+      setListLoadError(fetchError);
+    } finally {
+      setListLoading(false);
     }
-    setRecentRecords(all);
   }, []);
 
   useEffect(() => {
@@ -460,25 +511,54 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
           <History className="text-purple-500" size={20} />
           サブスク登録リスト（確認・修正・削除）
         </h3>
-        <p className="text-xs text-gray-500 mb-4">
-          登録済みの一覧です。行の右のボタンで修正・削除できます（全{recentRecords.length}件
-          {listFilter ? `／表示${filteredRecords.length}件` : ''}）。
+        <p className="text-xs text-gray-500 mb-2">
+          サブスク入力画面から登録した記録の一覧です（全{recentRecords.length}件
+          {dbRecordCount != null ? `／DB登録${dbRecordCount}件` : ''}
+          {listFilter ? `／表示${filteredRecords.length}件` : ''}）。行の右で修正・削除できます。
+        </p>
+        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+          ※売上集計表の「サブスク」列には、ここで登録した分に加え、<strong>来院入力</strong>でメニュー名・種類・メモに「サブスク」と入った分も含まれます。集計に数字があるのにこのリストが空の場合は、来院側にだけ記録されている可能性があります。
         </p>
 
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            type="search"
-            value={listFilter}
-            onChange={(e) => setListFilter(e.target.value)}
-            placeholder="顧客番号・氏名・プラン名で絞り込み..."
-            className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none"
-          />
+        {listLoadError && (
+          <div className="mb-4 p-3 rounded-xl bg-red-50 border-2 border-red-200 text-red-800 text-sm font-bold" role="alert">
+            一覧の読み込みエラー: {listLoadError}
+            <button type="button" onClick={() => void loadRecentRecords()} className="ml-2 underline">
+              再読み込み
+            </button>
+          </div>
+        )}
+
+        <div className="relative mb-4 flex gap-2 items-stretch">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="search"
+              value={listFilter}
+              onChange={(e) => setListFilter(e.target.value)}
+              placeholder="顧客番号・氏名・プラン名で絞り込み..."
+              className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadRecentRecords()}
+            disabled={listLoading}
+            className="shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold bg-purple-100 text-purple-800 border-2 border-purple-200 disabled:opacity-50"
+          >
+            {listLoading ? '読込中…' : '更新'}
+          </button>
         </div>
 
-        {filteredRecords.length === 0 ? (
+        {listLoading && recentRecords.length === 0 ? (
+          <p className="text-sm text-gray-500 py-6 text-center">読み込み中…</p>
+        ) : filteredRecords.length === 0 ? (
           <p className="text-sm text-gray-500 py-6 text-center">
-            {recentRecords.length === 0 ? 'まだサブスク登録がありません' : '該当する登録がありません'}
+            {recentRecords.length === 0
+              ? dbRecordCount != null && dbRecordCount > 0
+                ? '登録データはありますが表示できませんでした。「更新」を押すか、しばらくしてから再度お試しください。'
+                : 'サブスク入力での登録はまだありません（売上集計のサブスクは来院記録を含む場合があります）'
+              : '該当する登録がありません'}
           </p>
         ) : (
           <div className="space-y-2 max-h-[min(70vh,640px)] overflow-y-auto pr-1">
