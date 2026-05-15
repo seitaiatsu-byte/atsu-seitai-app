@@ -55,6 +55,7 @@ export type Database = {
           /** 流入 main（referral_source と併用可。外部名 main_source 列） */
           main_source: string | null;
           referral_source_2: string | null;
+          referral_source_3: string | null;
           first_visit_date: string | null;
           chief_complaint: string | null;
           chief_complaint_1: string | null;
@@ -89,6 +90,7 @@ export type Database = {
           referral_source?: string | null;
           main_source?: string | null;
           referral_source_2?: string | null;
+          referral_source_3?: string | null;
           first_visit_date?: string | null;
           chief_complaint?: string | null;
           chief_complaint_1?: string | null;
@@ -122,6 +124,7 @@ export type Database = {
           referral_source?: string | null;
           main_source?: string | null;
           referral_source_2?: string | null;
+          referral_source_3?: string | null;
           first_visit_date?: string | null;
           chief_complaint?: string | null;
           chief_complaint_1?: string | null;

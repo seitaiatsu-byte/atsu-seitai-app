@@ -7,10 +7,11 @@ import { ClinicNameDisplay } from './ClinicNameDisplay';
 import { fetchAllCustomerNumbers } from '../lib/fetchAllCustomers';
 import { normalizePhoneDigitsForDb } from '../lib/customerImportHelpers';
 import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
+import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type ReferralRow = Database['public']['Tables']['referral_source_master']['Row'];
-type ChiefRow = Database['public']['Tables']['chief_complaint_master']['Row'];
+type ChiefRow = ChiefComplaintMasterRow;
 
 interface NewCustomerFormProps {
   onClose: () => void;
@@ -42,6 +43,7 @@ export default function NewCustomerForm({
     postal_code: '',
     referral_source: '',
     referral_source_2: '',
+    referral_source_3: '',
     chief_complaint_1: '',
     chief_complaint_2: '',
     chief_complaint_3: '',
@@ -116,6 +118,7 @@ export default function NewCustomerForm({
       town: String(row.town ?? '').trim(),
       referral_source: String(row.main_source ?? row.referral_source ?? '').trim(),
       referral_source_2: String(row.referral_source_2 ?? '').trim(),
+      referral_source_3: String(row.referral_source_3 ?? '').trim(),
       chief_complaint_1: String(row.chief_complaint_1 ?? row.complaint_1 ?? row.chief_complaint ?? '').trim(),
       chief_complaint_2: String(row.chief_complaint_2 ?? row.complaint_2 ?? '').trim(),
       chief_complaint_3: String(row.chief_complaint_3 ?? row.complaint_3 ?? '').trim(),
@@ -184,16 +187,10 @@ export default function NewCustomerForm({
       }
     }
 
-    const complaintsFirst = await supabase
-      .from('chief_complaint_master')
-      .select('*')
-      .order('display_order');
-    const complaints = complaintsFirst.error
-      ? (await supabase.from('chief_complaint_master').select('*')).data
-      : complaintsFirst.data;
+    const complaints = await loadChiefComplaintMaster(true);
 
     if (sources) setReferralSources(sources);
-    if (complaints) setChiefComplaints(complaints);
+    setChiefComplaints(complaints);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -305,6 +302,8 @@ export default function NewCustomerForm({
         }
         const ref2Name = formData.referral_source_2.trim();
         if (ref2Name) payload.referral_source_2 = ref2Name;
+        const ref3Name = formData.referral_source_3.trim();
+        if (ref3Name) payload.referral_source_3 = ref3Name;
         const cc1 = formData.chief_complaint_1.trim();
         if (cc1) {
           payload.chief_complaint_1 = cc1;
@@ -325,7 +324,22 @@ export default function NewCustomerForm({
       };
 
       // name / name_kana / customer_number は誤検知で除外しない（ふりがな未保存事故の予防）
-      const PROTECTED_COLUMNS = new Set(['name', 'name_kana', 'customer_number']);
+      const PROTECTED_COLUMNS = new Set([
+        'name',
+        'name_kana',
+        'customer_number',
+        'chief_complaint',
+        'chief_complaint_1',
+        'chief_complaint_2',
+        'chief_complaint_3',
+        'complaint_1',
+        'complaint_2',
+        'complaint_3',
+        'referral_source',
+        'referral_source_2',
+        'referral_source_3',
+        'main_source',
+      ]);
 
       if (mode === 'edit' && initialCustomer) {
         const base = buildPayload(formData.customer_number.trim());
@@ -741,6 +755,22 @@ export default function NewCustomerForm({
             </div>
 
             <div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">流入経路3</label>
+              <select
+                value={formData.referral_source_3}
+                onChange={(e) => setFormData({ ...formData, referral_source_3: e.target.value })}
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none"
+              >
+                <option value="">選択してください</option>
+                {referralSources.map((source, idx) => (
+                  <option key={`r3-${source.id}-${idx}`} value={source.name}>
+                    {source.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 主訴1
               </label>

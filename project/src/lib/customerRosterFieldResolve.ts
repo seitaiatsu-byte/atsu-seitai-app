@@ -70,12 +70,16 @@ export function getMainInflow2ForRoster(c: CustomerRowRecord): string | null {
   return s ? displayString(s) : null;
 }
 
+export function getMainInflow3ForRoster(c: CustomerRowRecord): string | null {
+  const s = firstStringFromRow(c, ['referral_source_3', 'sub_source_2', 'inflow3', 'main_source_3']);
+  return s ? displayString(s) : null;
+}
+
 export function getInflowLineFromRoster(c: CustomerRowRecord): string | null {
-  const a = getMainInflow1ForRoster(c);
-  const b = getMainInflow2ForRoster(c);
-  if (a || b) {
-    return [a, b].filter((x): x is string => Boolean(x && x.trim())).join(' / ') || null;
-  }
+  const parts = [getMainInflow1ForRoster(c), getMainInflow2ForRoster(c), getMainInflow3ForRoster(c)].filter(
+    (x): x is string => Boolean(x && x.trim())
+  );
+  if (parts.length > 0) return parts.join(' / ');
   return null;
 }
 

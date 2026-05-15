@@ -8,6 +8,8 @@ export const CUSTOMER_ROSTER_CSV_HEADERS = [
   'birth_date',
   'phone_number',
   'referral_source',
+  'referral_source_2',
+  'referral_source_3',
   'prefecture',
   'city',
   'town',
@@ -41,6 +43,10 @@ function cellFromCustomer(c: CustomerRow, key: (typeof CUSTOMER_ROSTER_CSV_HEADE
       return String(c.phone_number ?? '');
     case 'referral_source':
       return String(c.referral_source ?? r.main_source ?? '');
+    case 'referral_source_2':
+      return String(c.referral_source_2 ?? '');
+    case 'referral_source_3':
+      return String(c.referral_source_3 ?? '');
     case 'prefecture':
       return String(c.prefecture ?? '');
     case 'city':

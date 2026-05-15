@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Settings, Plus, Trash2, Edit2, Check, X, ClipboardList, CreditCard, Clock, Users, LayoutGrid, Megaphone, Repeat, Target, ChevronUp, ChevronDown } from 'lucide-react';
 
-type TableName = 'menu_master' | 'payment_detail_master' | 'payment_method_master' | 'product_master' | 'subscription_master' | 'staff_master' | 'main_complaint_master' | 'referral_source_master';
+type TableName = 'menu_master' | 'payment_detail_master' | 'payment_method_master' | 'product_master' | 'subscription_master' | 'staff_master' | 'chief_complaint_master' | 'referral_source_master';
 type MasterItem = {
   id: string;
   name: string;
@@ -30,7 +30,7 @@ export default function MasterManagement() {
     { id: 'product_master', label: '物販単価', icon: LayoutGrid },
     { id: 'subscription_master', label: 'サブスク', icon: Repeat },
     { id: 'staff_master', label: 'スタッフ', icon: Users },
-    { id: 'main_complaint_master', label: '主訴', icon: Target },
+    { id: 'chief_complaint_master', label: '主訴', icon: Target },
     { id: 'referral_source_master', label: '流入経路', icon: Megaphone },
   ];
 

@@ -35,6 +35,7 @@ type ImportColumnPresence = {
   birth: boolean;
   referral1: boolean;
   referral2: boolean;
+  referral3: boolean;
   prefecture: boolean;
   city: boolean;
   town: boolean;
@@ -54,6 +55,7 @@ function buildPresenceFromColMap(
     birth: (col['birth_date'] ?? -1) >= 0,
     referral1: (col['referral_1'] ?? -1) >= 0,
     referral2: (col['referral_2'] ?? -1) >= 0,
+    referral3: (col['referral_3'] ?? -1) >= 0,
     prefecture: (col['prefecture'] ?? -1) >= 0,
     city: (col['city'] ?? -1) >= 0,
     town: (col['town'] ?? -1) >= 0,
@@ -86,6 +88,7 @@ function buildCustomerUpdateFromImport(
   if (present.phone) u.phone_number = d.phone_number as string | null;
   if (present.referral1) u.referral_source = d.referral_source as string | null;
   if (present.referral2) u.referral_source_2 = d.referral_source_2 as string | null;
+  if (present.referral3) u.referral_source_3 = d.referral_source_3 as string | null;
   if (present.prefecture) u.prefecture = d.prefecture as string | null;
   if (present.city) u.city = d.city as string | null;
   if (present.town) u.town = d.town as string | null;
@@ -454,6 +457,7 @@ export default function CustomerImport() {
       const phoneIndex = col['phone'] ?? -1;
       const referralIndex = col['referral_1'] ?? -1;
       const referral2Index = col['referral_2'] ?? -1;
+      const referral3Index = col['referral_3'] ?? -1;
       const prefectureIndex = col['prefecture'] ?? -1;
       const cityIndex = col['city'] ?? -1;
       const townIndex = col['town'] ?? -1;
@@ -556,6 +560,7 @@ export default function CustomerImport() {
           phone_number: phoneIndex !== -1 ? normalizePhoneDigitsForDb(row[phoneIndex]) : null,
           referral_source: referralIndex !== -1 ? row[referralIndex]?.trim() || null : null,
           referral_source_2: referral2Index !== -1 ? row[referral2Index]?.trim() || null : null,
+          referral_source_3: referral3Index !== -1 ? row[referral3Index]?.trim() || null : null,
           prefecture: prefectureIndex !== -1 ? row[prefectureIndex]?.trim() || null : null,
           city: cityIndex !== -1 ? row[cityIndex]?.trim() || null : null,
           town: townIndex !== -1 ? row[townIndex]?.trim() || null : null,

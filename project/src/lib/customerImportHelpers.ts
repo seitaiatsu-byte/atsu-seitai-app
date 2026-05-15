@@ -49,6 +49,7 @@ const COLUMN_SPECS: ColumnSpec[] = [
   },
   { key: 'referral_1', labels: ['referral_source', '流入のメイン', '流入メイン', '流入経路', '流入', '紹介', '紹介元', '流入元', '獲得経路', 'acquisition', 'acquisition source'] },
   { key: 'referral_2', labels: ['referral_source_2', '流入のサブ', '流入サブ', '流入経路2', '紹介2', '紹介元2'] },
+  { key: 'referral_3', labels: ['referral_source_3', '流入のサブ2', '流入サブ2', '流入経路3', '紹介3', '紹介元3'] },
   { key: 'prefecture', labels: ['prefecture', '都道府県', '府県', '都府県'] },
   { key: 'city', labels: ['city', '市', '市・郡', '市区', '市区町村', '自治体'] },
   { key: 'town', labels: ['town', '町', '町名', '丁目', '番地以降'] },

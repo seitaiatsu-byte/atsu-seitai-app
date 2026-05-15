@@ -4,12 +4,25 @@ import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { normalizePhoneDigitsForDb } from '../lib/customerImportHelpers';
 import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
+import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type ReferralRow = Database['public']['Tables']['referral_source_master']['Row'];
-type ChiefRow = Database['public']['Tables']['chief_complaint_master']['Row'];
+type ChiefRow = ChiefComplaintMasterRow;
 
-const OPTIONAL_KEYS: string[] = ['kana', 'main_source', 'complaint_1', 'complaint_2', 'complaint_3', 'referral_source_id'];
+const OPTIONAL_KEYS: string[] = [
+  'kana',
+  'main_source',
+  'complaint_1',
+  'complaint_2',
+  'complaint_3',
+  'chief_complaint',
+  'chief_complaint_1',
+  'chief_complaint_2',
+  'chief_complaint_3',
+  'referral_source_id',
+  'referral_source_3',
+];
 
 type Props = {
   customer: Customer | null;
@@ -33,6 +46,7 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
   const [address, setAddress] = useState('');
   const [inflow1, setInflow1] = useState('');
   const [inflow2, setInflow2] = useState('');
+  const [inflow3, setInflow3] = useState('');
   const [c1, setC1] = useState('');
   const [c2, setC2] = useState('');
   const [c3, setC3] = useState('');
@@ -59,6 +73,7 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
     setAddress(String(r.address ?? '').trim());
     setInflow1(String(r.main_source ?? r.referral_source ?? '').trim());
     setInflow2(String(r.referral_source_2 ?? '').trim());
+    setInflow3(String(r.referral_source_3 ?? '').trim());
     setC1(String(r.chief_complaint_1 ?? r.complaint_1 ?? r.chief_complaint ?? '').trim());
     setC2(String(r.chief_complaint_2 ?? r.complaint_2 ?? '').trim());
     setC3(String(r.chief_complaint_3 ?? r.complaint_3 ?? '').trim());
@@ -75,10 +90,10 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
     const loadMasters = async () => {
       const [refs, chiefs] = await Promise.all([
         supabase.from('referral_source_master').select('*').eq('is_active', true).order('display_order'),
-        supabase.from('chief_complaint_master').select('*').eq('is_active', true).order('display_order'),
+        loadChiefComplaintMaster(true),
       ]);
       if (!refs.error) setReferralSources(refs.data || []);
-      if (!chiefs.error) setChiefComplaints(chiefs.data || []);
+      setChiefComplaints(chiefs);
     };
     void loadMasters();
   }, [open]);
@@ -103,6 +118,7 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
     const phoneNorm = normalizePhoneDigitsForDb(phone) ?? null;
     const ref1Name = inflow1.trim() || null;
     const ref2Name = inflow2.trim() || null;
+    const ref3Name = inflow3.trim() || null;
     const c1Text = c1.trim() || null;
     const c2Text = c2.trim() || null;
     const c3Text = c3.trim() || null;
@@ -126,6 +142,7 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
       referral_source: ref1Name,
       main_source: ref1Name,
       referral_source_2: ref2Name,
+      referral_source_3: ref3Name,
       referral_source_id: matchedReferral?.id && isUuidString(String(matchedReferral.id)) ? String(matchedReferral.id) : null,
       chief_complaint_1: c1Text,
       chief_complaint_2: c2Text,
@@ -296,6 +313,17 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
                 <option value="">未設定</option>
                 {referralSources.map((source, idx) => (
                   <option key={`edit-ref-2-${source.id}-${idx}`} value={source.name}>
+                    {source.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block font-bold text-gray-800 mb-1">流入（3つめ）</label>
+              <select className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={inflow3} onChange={(e) => setInflow3(e.target.value)}>
+                <option value="">未設定</option>
+                {referralSources.map((source, idx) => (
+                  <option key={`edit-ref-3-${source.id}-${idx}`} value={source.name}>
                     {source.name}
                   </option>
                 ))}
