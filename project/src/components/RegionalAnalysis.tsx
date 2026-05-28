@@ -352,8 +352,8 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
                     : 'bg-white border-gray-200'
                 }`}
               >
-                <div className="flex items-center justify-between mb-1.5 gap-2">
-                  <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center justify-between mb-1 gap-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     <div
                       className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
                         index === 0
@@ -372,14 +372,13 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
                       <span className="font-bold text-base text-gray-900 truncate">{item.region}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="text-right">
-                      <div className="flex items-center gap-1 justify-end">
-                        <Users size={16} className="text-blue-600" />
-                        <span className="text-xl font-bold text-blue-700">{item.customerCount}</span>
-                        <span className="text-xs text-gray-600">{t.people}</span>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2 shrink-0 text-xs">
+                    <span className="inline-flex items-center gap-1 text-gray-700">
+                      <Users size={14} className="text-blue-600" />
+                      <span className="font-bold text-blue-700">{item.customerCount}</span>{t.people}
+                    </span>
+                    <span className="text-gray-600">来院{item.visitCount}{t.visitsUnit}</span>
+                    <span className="font-bold text-green-700">{t.yen}{item.totalRevenue.toLocaleString()}</span>
                     <ChevronRight size={18} className="text-gray-400 shrink-0" />
                   </div>
                 </div>
@@ -391,22 +390,9 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="flex items-center gap-1">
-                    <TrendingUp size={12} className="text-orange-500" />
-                    <span className="text-gray-600">{t.visits}</span>
-                    <span className="font-bold text-gray-800">
-                      {item.visitCount}
-                      {t.visitsUnit}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 justify-end">
-                    <span className="text-gray-600">{t.revenue}</span>
-                    <span className="font-bold text-green-700 text-xs">
-                      {t.yen}
-                      {item.totalRevenue.toLocaleString()}
-                    </span>
-                  </div>
+                <div className="flex items-center gap-1 text-[11px] text-gray-500">
+                  <TrendingUp size={11} className="text-orange-500" />
+                  <span>来院回数と累計売上は右側に表示</span>
                 </div>
               </button>
             );
