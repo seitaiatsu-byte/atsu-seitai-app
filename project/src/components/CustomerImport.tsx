@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Upload, Download, CheckCircle, AlertCircle, FileText, Users, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -227,6 +227,7 @@ export default function CustomerImport() {
   const [rosterEdit, setRosterEdit] = useState<Customer | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showCsvGuide, setShowCsvGuide] = useState(false);
+  const [showSuspiciousList, setShowSuspiciousList] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rosterListScrollRef = useRef<HTMLDivElement>(null);
 
@@ -367,6 +368,24 @@ export default function CustomerImport() {
     if (Number.isFinite(an) && Number.isFinite(bn)) return an - bn;
     return (a.name || '').localeCompare(b.name || '', 'ja');
   });
+
+  const suspiciousNameGroups = useMemo(() => {
+    const groups = new Map<string, Customer[]>();
+    customers.forEach((c) => {
+      const key = normalizeForSearch(c.name);
+      if (!key) return;
+      const arr = groups.get(key) || [];
+      arr.push(c);
+      groups.set(key, arr);
+    });
+    return [...groups.entries()]
+      .map(([key, members]) => ({ key, members }))
+      .filter((g) => g.members.length >= 2)
+      .sort((a, b) => {
+        if (b.members.length !== a.members.length) return b.members.length - a.members.length;
+        return String(a.members[0]?.name || '').localeCompare(String(b.members[0]?.name || ''), 'ja');
+      });
+  }, [customers]);
 
   const totalListPages = Math.max(1, Math.ceil(sortedCustomers.length / LIST_ROWS_PER_PAGE));
   const effectiveListPage = Math.min(listPage, totalListPages);
@@ -1021,6 +1040,59 @@ export default function CustomerImport() {
             )}
           </div>
         </div>
+
+        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <button
+            type="button"
+            onClick={() => setShowSuspiciousList((v) => !v)}
+            className="w-full px-4 py-3 flex items-center justify-between text-left"
+          >
+            <span className="text-sm font-bold text-amber-900">
+              同姓同名の疑いリスト（要確認）: {suspiciousNameGroups.length}グループ
+            </span>
+            <span className="text-amber-800 font-bold">{showSuspiciousList ? '▲' : '▼'}</span>
+          </button>
+          {showSuspiciousList && (
+            <div className="px-4 pb-4">
+              {suspiciousNameGroups.length === 0 ? (
+                <div className="text-xs text-amber-800 bg-white border border-amber-200 rounded p-3">
+                  同姓同名の疑いは見つかりませんでした。
+                </div>
+              ) : (
+                <div className="panel-scrollbar max-h-72 overflow-y-auto space-y-2 pr-1">
+                  {suspiciousNameGroups.map((group) => (
+                    <div key={group.key} className="bg-white border border-amber-200 rounded-lg p-2">
+                      <div className="text-xs font-bold text-amber-900 mb-1">
+                        氏名: {group.members[0]?.name || '—'}（{group.members.length}件）
+                      </div>
+                      <div className="space-y-1">
+                        {group.members
+                          .slice()
+                          .sort((a, b) => {
+                            const an = Number(String(a.customer_number || '').replace(/\D/g, '')) || Number.MAX_SAFE_INTEGER;
+                            const bn = Number(String(b.customer_number || '').replace(/\D/g, '')) || Number.MAX_SAFE_INTEGER;
+                            return an - bn;
+                          })
+                          .map((c) => (
+                            <div key={c.id} className="text-[11px] text-slate-700 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                              <span className="font-mono font-bold">{c.customer_number || '—'}</span>
+                              <span>{getKanaForRoster(c as CustomerRowRecord) || 'かな未設定'}</span>
+                              <span>{getPhoneWithMemoFallback(c) || '電話未設定'}</span>
+                              <span className="text-slate-500">{new Date(c.created_at).toLocaleDateString('ja-JP')}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="mt-2 text-[11px] text-amber-800">
+                ※ 同姓同名は自動統合しません。顧客番号・かな・電話・来院履歴を見比べて確認してください。
+              </p>
+            </div>
+          )}
+        </div>
+
         <div className="mb-4">
           <input
             type="text"

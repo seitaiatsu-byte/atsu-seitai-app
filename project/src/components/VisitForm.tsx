@@ -27,6 +27,33 @@ function normalizeSearchText(raw: unknown): string {
   return s.replace(/[\u30a1-\u30f6]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
 }
 
+function parseCustomerNumber(raw: unknown): number {
+  const digits = String(raw ?? '').replace(/[^\d]/g, '');
+  const n = Number(digits);
+  return Number.isFinite(n) ? n : Number.NaN;
+}
+
+function buildLegacyCustomerWarning(customerNumber: unknown): string | null {
+  const n = parseCustomerNumber(customerNumber);
+  if (!Number.isFinite(n)) return null;
+
+  const notes: string[] = [];
+  if (n >= 5000 && n <= 5999) {
+    notes.push('高槻院の 5000〜5999 番台は古い顧客番号の可能性');
+  }
+  if (n >= 4000 && n <= 4999) {
+    notes.push('川西院の 4000〜4999 番台は FE 扱い・終了顧客の可能性');
+  }
+  if (notes.length === 0) return null;
+
+  return [
+    `顧客番号 ${n} は注意対象です。`,
+    ...notes.map((s) => `・${s}`),
+    '',
+    '古い番号やFE扱いの人の可能性がありますが、そのまま登録しますか？',
+  ].join('\n');
+}
+
 export default function VisitForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
@@ -172,6 +199,13 @@ export default function VisitForm() {
         `顧客番号 ${cn}・来院日 ${visitDate} の来院記録は既に登録されています。重複登録はできません。`
       );
       return;
+    }
+
+    if (!editingId) {
+      const warning = buildLegacyCustomerWarning(selectedCustomer.customer_number);
+      if (warning && !window.confirm(warning)) {
+        return;
+      }
     }
 
     setIsSubmitting(true);
