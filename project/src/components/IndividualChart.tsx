@@ -72,6 +72,7 @@ export default function IndividualChart() {
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [paymentMethodNames, setPaymentMethodNames] = useState<Record<string, string>>({});
   const [paymentDetailNames, setPaymentDetailNames] = useState<Record<string, string>>({});
+  const [paymentMethodOptions, setPaymentMethodOptions] = useState<{ id: string; name: string }[]>([]);
   const [methodNameMap, setMethodNameMap] = useState<Record<string, string>>({});
   const [detailNameMap, setDetailNameMap] = useState<Record<string, string>>({});
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([]);
@@ -87,6 +88,8 @@ export default function IndividualChart() {
   const [editingVisit, setEditingVisit] = useState<VisitRow | null>(null);
   const [editVisitDate, setEditVisitDate] = useState('');
   const [editVisitAmount, setEditVisitAmount] = useState('');
+  const [editVisitMenu, setEditVisitMenu] = useState('');
+  const [editVisitPaymentMethod, setEditVisitPaymentMethod] = useState('');
   const [editVisitMemo, setEditVisitMemo] = useState('');
 
   useEffect(() => {
@@ -160,6 +163,7 @@ export default function IndividualChart() {
     setPaymentDetailNames(merged);
     setMethodNameMap(buildIdToNameMap(pm as { id: string; name: string }[]));
     setDetailNameMap(buildIdToNameMap(pd as { id: string; name: string }[]));
+    setPaymentMethodOptions((pm || []) as { id: string; name: string }[]);
   }, [selectedCustomer]);
 
   const loadActiveChartRows = useCallback(async () => {
@@ -385,6 +389,8 @@ export default function IndividualChart() {
     setEditingVisit(v);
     setEditVisitDate(String(v.visit_date || '').slice(0, 10));
     setEditVisitAmount(String(Number(v.amount || 0)));
+    setEditVisitMenu(String(v.menu_name || ''));
+    setEditVisitPaymentMethod(String(v.payment_method || ''));
     setEditVisitMemo(String(v.memo || ''));
   };
 
@@ -400,6 +406,8 @@ export default function IndividualChart() {
       .update({
         visit_date: editVisitDate,
         amount,
+        menu_name: editVisitMenu || null,
+        payment_method: editVisitPaymentMethod || null,
         memo: editVisitMemo || null,
       })
       .eq('id', editingVisit.id);
@@ -1004,6 +1012,30 @@ export default function IndividualChart() {
                 onChange={(e) => setEditVisitAmount(e.target.value)}
                 className="w-full border rounded px-2 py-1.5 text-sm"
               />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1">メニュー</label>
+              <input
+                type="text"
+                value={editVisitMenu}
+                onChange={(e) => setEditVisitMenu(e.target.value)}
+                className="w-full border rounded px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1">支払方法</label>
+              <select
+                value={editVisitPaymentMethod}
+                onChange={(e) => setEditVisitPaymentMethod(e.target.value)}
+                className="w-full border rounded px-2 py-1.5 text-sm bg-white"
+              >
+                <option value="">未設定</option>
+                {paymentMethodOptions.map((pm) => (
+                  <option key={pm.id} value={pm.id}>
+                    {pm.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1">メモ</label>

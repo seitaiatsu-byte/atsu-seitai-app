@@ -232,12 +232,13 @@ function VisitDetailCard({
   actions?: React.ReactNode;
 }) {
   const rows = getVisitFieldRows(v, { customer, methodIdToName, detailIdToName });
+  const displayRows = rows.filter((r) => r.key !== 'pdd' && r.key !== 'tk');
   const hasMedia = (v.media_urls && v.media_urls.length > 0) || false;
 
   return (
     <div className="rounded-xl border border-white bg-white p-2.5 shadow-sm ring-1 ring-slate-200/60">
       <div className="grid grid-cols-1 gap-y-1.5 text-xs">
-        {rows.map((r) => (
+        {displayRows.map((r) => (
           <div key={r.key} className="flex items-start gap-2 border-b border-slate-100 pb-1 last:border-0">
             <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500 w-24 shrink-0">
               {r.label}
