@@ -8,14 +8,40 @@ import { fetchAllCustomerNumbers } from '../lib/fetchAllCustomers';
 import { normalizePhoneDigitsForDb } from '../lib/customerImportHelpers';
 import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
 import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
+import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
+import { hasCustomerNumber } from '../lib/registrationValidation';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type ReferralRow = Database['public']['Tables']['referral_source_master']['Row'];
 type ChiefRow = ChiefComplaintMasterRow;
 
+const EMPTY_CREATE_FORM = {
+  name: '',
+  name_kana: '',
+  phone_number: '',
+  customer_number: '',
+  email: '',
+  address: '',
+  birth_date: '',
+  gender: '',
+  memo: '',
+  clinic_name: '',
+  prefecture: '',
+  city: '',
+  town: '',
+  postal_code: '',
+  referral_source: '',
+  referral_source_2: '',
+  referral_source_3: '',
+  chief_complaint_1: '',
+  chief_complaint_2: '',
+  chief_complaint_3: '',
+};
+
 interface NewCustomerFormProps {
   onClose: () => void;
-  onSuccess: (customer: Customer) => void;
+  /** 修正モード完了時のみ（新規登録後は画面を閉じずフォームをクリア） */
+  onSuccess?: (customer: Customer) => void;
   mode?: 'create' | 'edit';
   initialCustomer?: Customer | null;
 }
@@ -54,6 +80,13 @@ export default function NewCustomerForm({
   const [chiefComplaints, setChiefComplaints] = useState<ChiefRow[]>([]);
   const [birthInput, setBirthInput] = useState('');
   const [submitErrors, setSubmitErrors] = useState<string[]>([]);
+
+  const resetCreateForm = () => {
+    setFormData({ ...EMPTY_CREATE_FORM });
+    setBirthInput('');
+    setSubmitErrors([]);
+    setAge(null);
+  };
 
   const resolveClinicNameByNumber = (value: string): string | null => {
     const num = parseInt(value, 10);
@@ -193,8 +226,7 @@ export default function NewCustomerForm({
     setChiefComplaints(complaints);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setSubmitErrors([]);
     const missing: string[] = [];
     if (!formData.name.trim()) missing.push('氏名');
@@ -204,6 +236,25 @@ export default function NewCustomerForm({
       return;
     }
     if (isSubmitting) return;
+
+    const customerNumberInput = formData.customer_number.trim();
+    if (mode === 'create' && customerNumberInput) {
+      if (await hasCustomerNumber(customerNumberInput)) {
+        setSubmitErrors([
+          `顧客番号 ${customerNumberInput} は既に登録されています。別の番号を指定してください。`,
+        ]);
+        return;
+      }
+    }
+
+    if (mode === 'edit' && initialCustomer && customerNumberInput) {
+      if (await hasCustomerNumber(customerNumberInput, initialCustomer.id)) {
+        setSubmitErrors([
+          `顧客番号 ${customerNumberInput} は既に別の顧客に使われています。別の番号を指定してください。`,
+        ]);
+        return;
+      }
+    }
 
     setIsSubmitting(true);
     try {
@@ -349,7 +400,7 @@ export default function NewCustomerForm({
           if (!res.error && res.data) {
             window.dispatchEvent(new Event('customers-updated'));
             alert('顧客情報を更新しました');
-            onSuccess(res.data);
+            onSuccess?.(res.data);
             return;
           }
           const error = res.error;
@@ -443,7 +494,7 @@ export default function NewCustomerForm({
         if (!error && data) {
           window.dispatchEvent(new Event('customers-updated'));
           alert('顧客登録が完了しました');
-          onSuccess(data);
+          resetCreateForm();
           return;
         }
 
@@ -483,7 +534,7 @@ export default function NewCustomerForm({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+        <form onSubmit={swallowFormSubmit} onKeyDown={blockEnterFormSubmit} noValidate className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
           <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
             <h3 className="font-bold text-blue-900 text-sm">基本情報</h3>
           </div>
@@ -755,7 +806,6 @@ export default function NewCustomerForm({
             </div>
 
             <div>
-            <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">流入経路3</label>
               <select
                 value={formData.referral_source_3}
@@ -771,6 +821,7 @@ export default function NewCustomerForm({
               </select>
             </div>
 
+            <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 主訴1
               </label>
@@ -847,7 +898,9 @@ export default function NewCustomerForm({
               キャンセル
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={() => void handleSubmit()}
+              disabled={isSubmitting}
               className={`flex-1 flex items-center justify-center gap-2 text-white py-3 px-6 rounded-xl font-bold transition-colors ${
                 isSubmitting ? 'bg-blue-400 cursor-wait' : 'bg-blue-500 hover:bg-blue-600'
               }`}

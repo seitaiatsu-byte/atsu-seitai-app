@@ -6,6 +6,12 @@ import CustomerSearchPanel from './CustomerSearchPanel';
 import { CLINIC_OPTIONS, type ClinicFullName } from '../lib/clinic';
 import { buildIdToNameMap, formatPaymentMethodLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
 import { visitRecordHadSubscriptionLabel, visitRecordMixedLabel } from '../lib/visitSubscriptionLabel';
+import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
+import {
+  formatCustomerNumberForMessage,
+  hasSubscriptionOnDate,
+  validateExplicitAmount,
+} from '../lib/registrationValidation';
 
 type SubscriptionMaster = Database['public']['Tables']['subscription_master']['Row'];
 type PaymentMethodMaster = Database['public']['Tables']['payment_detail_master']['Row'];
@@ -19,10 +25,6 @@ type VisitMisclass = VisitRow & {
   customers?: Pick<CustomerRow, 'id' | 'name' | 'customer_number'> | null;
   matchHint: string;
 };
-
-interface SubscriptionFormProps {
-  onSuccess: () => void;
-}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ID_CHUNK = 80;
@@ -40,7 +42,7 @@ function clinicShort(name: string | null | undefined): string {
   return name;
 }
 
-export default function SubscriptionForm({ onSuccess: _onSuccess }: SubscriptionFormProps) {
+export default function SubscriptionForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [subscriptions, setSubscriptions] = useState<SubscriptionMaster[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodMaster[]>([]);
@@ -305,8 +307,7 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
     });
   }, [recentRecords, listFilter]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setDuplicateError('');
     if (!selectedCustomer) {
       alert('先に顧客を検索・選択してください');
@@ -317,17 +318,16 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
       return;
     }
 
-    let dupQuery = supabase
-      .from('subscription_records')
-      .select('id')
-      .eq('customer_id', selectedCustomer.id)
-      .eq('start_date', startDate)
-      .eq('subscription_id', selectedSubscription);
-    if (editingId) dupQuery = dupQuery.neq('id', editingId);
-    const { data: existingSub } = await dupQuery.maybeSingle();
-    if (existingSub) {
+    const amountError = validateExplicitAmount(amount);
+    if (amountError) {
+      alert(amountError);
+      return;
+    }
+
+    if (await hasSubscriptionOnDate(selectedCustomer.id, startDate, editingId)) {
+      const cn = formatCustomerNumberForMessage(selectedCustomer.customer_number);
       setDuplicateError(
-        `同じ開始日（${startDate}）・同じ顧客・同じサブスク（${getSubName(selectedSubscription)}）の登録が既にあります。重複登録はできません。`
+        `顧客番号 ${cn}・開始日 ${startDate} のサブスク記録は既に登録されています。重複登録はできません。`
       );
       return;
     }
@@ -342,7 +342,7 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
       period_id: null,
       start_date: startDate,
       payment_method: paymentMethodId,
-      amount: parseFloat(amount) || 0,
+      amount: Number(amount.trim()),
       memo,
       clinic_name: clinicName,
       staff_name: staffNameResolved || null,
@@ -416,7 +416,7 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
           onClearSelection={() => setSelectedCustomer(null)}
         />
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={swallowFormSubmit} onKeyDown={blockEnterFormSubmit} className="space-y-4 mt-4">
           {duplicateError && (
             <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-red-800 text-sm font-bold" role="alert">
               {duplicateError}
@@ -511,6 +511,7 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none"
               placeholder="0"
             />
+            <p className="text-xs text-gray-500 mt-1">支払がない場合も「0」と入力してください</p>
           </div>
 
           <div>
@@ -563,7 +564,8 @@ export default function SubscriptionForm({ onSuccess: _onSuccess }: Subscription
           </div>
 
           <button
-            type="submit"
+            type="button"
+            onClick={() => void handleSubmit()}
             disabled={isSubmitting}
             className={`w-full flex items-center justify-center gap-2 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-lg disabled:opacity-50 ${
               editingId ? 'bg-orange-500 hover:bg-orange-600' : 'bg-purple-500 hover:bg-purple-600'

@@ -4,15 +4,18 @@ import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import CustomerSearchPanel from './CustomerSearchPanel';
 import { CLINIC_OPTIONS, type ClinicFullName } from '../lib/clinic';
+import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
+import {
+  formatCustomerNumberForMessage,
+  hasProductSaleOnDate,
+  splitAmountAcrossLines,
+  validateExplicitAmount,
+} from '../lib/registrationValidation';
 
 type ProductMaster = Database['public']['Tables']['product_master']['Row'];
 type PaymentMethodMaster = Database['public']['Tables']['payment_method_master']['Row'];
 type StaffMaster = Database['public']['Tables']['staff_master']['Row'];
 type CustomerRow = Database['public']['Tables']['customers']['Row'];
-
-interface ProductSaleFormProps {
-  onSuccess: () => void;
-}
 
 type Line = { productId: string; quantity: string };
 
@@ -22,7 +25,7 @@ const emptyLines = (): Line[] => [
   { productId: '', quantity: '1' },
 ];
 
-export default function ProductSaleForm({ onSuccess }: ProductSaleFormProps) {
+export default function ProductSaleForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [products, setProducts] = useState<ProductMaster[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodMaster[]>([]);
@@ -34,6 +37,7 @@ export default function ProductSaleForm({ onSuccess }: ProductSaleFormProps) {
   const [memo, setMemo] = useState('');
   const [clinicName, setClinicName] = useState<ClinicFullName>('高槻あつ整体院');
   const [staffId, setStaffId] = useState('');
+  const [amount, setAmount] = useState('');
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState('');
@@ -94,8 +98,7 @@ export default function ProductSaleForm({ onSuccess }: ProductSaleFormProps) {
     setMediaFiles((prev) => [...prev, ...next]);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setDuplicateError('');
     if (!selectedCustomer) {
       alert('先に顧客を検索・選択してください');
@@ -124,28 +127,26 @@ export default function ProductSaleForm({ onSuccess }: ProductSaleFormProps) {
       return;
     }
 
-    for (const line of activeLines) {
-      const p = getProduct(line.productId);
-      if (!p) continue;
-      const { data: existing } = await supabase
-        .from('product_sales')
-        .select('id')
-        .eq('customer_id', selectedCustomer.id)
-        .eq('sale_date', saleDate)
-        .eq('product_id', line.productId)
-        .maybeSingle();
-      if (existing) {
-        setDuplicateError(
-          `同じ日（${saleDate}）・同じ顧客で「${p.name}」の物販が既に登録されています。重複登録はできません。`
-        );
-        return;
-      }
+    const amountError = validateExplicitAmount(amount);
+    if (amountError) {
+      alert(amountError);
+      return;
+    }
+
+    if (await hasProductSaleOnDate(selectedCustomer.id, saleDate)) {
+      const cn = formatCustomerNumberForMessage(selectedCustomer.customer_number);
+      setDuplicateError(
+        `顧客番号 ${cn}・販売日 ${saleDate} の物販記録は既に登録されています。重複登録はできません。`
+      );
+      return;
     }
 
     setIsSubmitting(true);
     const staffNameResolved = staffId ? getStaffName(staffId) : '';
+    const amountValue = Number(amount.trim());
+    const lineAmounts = splitAmountAcrossLines(amountValue, activeLines.length);
 
-    const rows = activeLines.map((line) => {
+    const rows = activeLines.map((line, idx) => {
       const p = getProduct(line.productId)!;
       const q = parseInt(line.quantity, 10) || 1;
       return {
@@ -155,7 +156,7 @@ export default function ProductSaleForm({ onSuccess }: ProductSaleFormProps) {
         product_name: p.name,
         quantity: q,
         payment_method: paymentMethodId,
-        amount: p.price * q,
+        amount: lineAmounts[idx] ?? amountValue,
         memo,
         clinic_name: clinicName,
         staff_name: staffNameResolved || null,
@@ -174,12 +175,12 @@ export default function ProductSaleForm({ onSuccess }: ProductSaleFormProps) {
     alert('登録完了しました');
     setSelectedCustomer(null);
     setLines(emptyLines());
+    setAmount('');
     setMemo('');
     setStaffId('');
     setMediaFiles([]);
     setIsSubmitting(false);
     window.dispatchEvent(new Event('records-updated'));
-    onSuccess();
   };
 
   return (
@@ -193,7 +194,7 @@ export default function ProductSaleForm({ onSuccess }: ProductSaleFormProps) {
         onClearSelection={() => setSelectedCustomer(null)}
       />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={swallowFormSubmit} onKeyDown={blockEnterFormSubmit} className="space-y-4">
         {duplicateError && (
           <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-red-800 text-sm font-bold" role="alert">
             {duplicateError}
@@ -258,8 +259,18 @@ export default function ProductSaleForm({ onSuccess }: ProductSaleFormProps) {
         </div>
 
         <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-200">
-          <div className="text-sm font-bold text-gray-700">合計金額</div>
-          <div className="text-2xl font-bold text-amber-900">¥{totalAmount.toLocaleString()}</div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">金額</label>
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="w-full px-4 py-3 border-2 border-amber-300 rounded-lg font-bold text-2xl text-amber-900 text-right focus:border-orange-500 outline-none"
+            placeholder="0"
+          />
+          <p className="text-xs text-amber-800 mt-2">支払がない場合も「0」と入力してください</p>
+          {totalAmount > 0 && (
+            <p className="text-xs text-gray-600 mt-1">商品マスタ合計の参考: ¥{totalAmount.toLocaleString()}</p>
+          )}
         </div>
 
         <div>
@@ -361,7 +372,8 @@ export default function ProductSaleForm({ onSuccess }: ProductSaleFormProps) {
         </div>
 
         <button
-          type="submit"
+          type="button"
+          onClick={() => void handleSubmit()}
           disabled={isSubmitting}
           className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-lg disabled:opacity-50"
         >

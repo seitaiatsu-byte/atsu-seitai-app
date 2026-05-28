@@ -5,7 +5,6 @@ import HomeButtons from './components/HomeButtons';
 import VisitForm from './components/VisitForm';
 import ProductSaleForm from './components/ProductSaleForm';
 import SubscriptionForm from './components/SubscriptionForm';
-import RepeatAnalysis from './components/RepeatAnalysis';
 import MasterManagement from './components/MasterManagement';
 import CustomerImport from './components/CustomerImport';
 import ReportsAnalytics from './components/ReportsAnalytics';
@@ -78,21 +77,21 @@ function App() {
       {currentTab === 'home' && showVisitForm && (
         <div className="max-w-4xl mx-auto p-4 pt-2">
           <PageHeader title="来院入力" onBack={goHome} />
-          <VisitForm onSuccess={goHome} />
+          <VisitForm />
         </div>
       )}
 
       {currentTab === 'home' && showProductForm && (
         <div className="max-w-4xl mx-auto p-4 pt-2">
           <PageHeader title="物販入力" onBack={goHome} />
-          <ProductSaleForm onSuccess={goHome} />
+          <ProductSaleForm />
         </div>
       )}
 
       {currentTab === 'home' && showSubscriptionForm && (
         <div className="max-w-4xl mx-auto p-4 pt-2">
           <PageHeader title="サブスク入力" onBack={goHome} />
-          <SubscriptionForm onSuccess={goHome} />
+          <SubscriptionForm />
         </div>
       )}
 
@@ -145,22 +144,16 @@ function App() {
               </button>
             }
           />
-          <BusinessRulesConfig />
-          <MasterManagement />
           <CustomerImport />
+          <MasterManagement />
+          <BusinessRulesConfig />
           <VisitRecordColumnSettings />
           <VisitCsvImport />
-          <RepeatAnalysis />
         </div>
       )}
 
       {showNewCustomer && (
-        <NewCustomerForm
-          onClose={() => setShowNewCustomer(false)}
-          onSuccess={() => {
-            setShowNewCustomer(false);
-          }}
-        />
+        <NewCustomerForm onClose={() => setShowNewCustomer(false)} />
       )}
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-lg z-50">

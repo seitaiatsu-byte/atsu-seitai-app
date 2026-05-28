@@ -12,8 +12,14 @@ import {
 import { getTodayLocalYmd } from '../lib/visitDateParse';
 import VisitRecordDateAccordion from './VisitRecordDateAccordion';
 import { recalcBeEquivalentCountsForCustomers } from '../lib/beEquivalentRecalc';
+import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
+import {
+  formatCustomerNumberForMessage,
+  hasVisitOnDate,
+  validateExplicitAmount,
+} from '../lib/registrationValidation';
 
-export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
+export default function VisitForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [menus, setMenus] = useState<any[]>([]);
@@ -45,6 +51,7 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [currentMediaUrls, setCurrentMediaUrls] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [duplicateError, setDuplicateError] = useState('');
 
   useEffect(() => {
     if (selectedCustomer?.customer_number && !editingId) {
@@ -143,10 +150,23 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
     setImportKindLegacy(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    setDuplicateError('');
     if (!selectedCustomer) return alert('顧客を選んでください');
+
+    const amountError = validateExplicitAmount(amount);
+    if (amountError) return alert(amountError);
+
+    if (!editingId && (await hasVisitOnDate(selectedCustomer.id, visitDate))) {
+      const cn = formatCustomerNumberForMessage(selectedCustomer.customer_number);
+      setDuplicateError(
+        `顧客番号 ${cn}・来院日 ${visitDate} の来院記録は既に登録されています。重複登録はできません。`
+      );
+      return;
+    }
+
     setIsSubmitting(true);
+    const amountValue = Number(amount.trim());
 
     try {
       const menuObj = menus.find((m) => m.id === selectedMenu);
@@ -162,7 +182,7 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
         payment_method: paymentMethodId,
         payment_detail_id: selectedPaymentDetail || null,
         import_kind_text: null,
-        amount: Number(amount) || 0,
+        amount: amountValue,
         memo: cleanedMemo,
         clinic_name: clinicName,
         staff_name: staffObj?.name || null,
@@ -223,7 +243,6 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
       resetForm();
       loadRecentRecords();
       window.dispatchEvent(new Event('records-updated'));
-      onSuccess();
 
     } catch (err: any) {
       alert(`【エラー発生】\n${err.message}`);
@@ -294,7 +313,12 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
       <div className={`bg-white rounded-2xl shadow-lg p-6 border-4 ${editingId ? 'border-orange-500' : 'border-blue-100'}`}>
         <h2 className="text-xl font-bold mb-4">{editingId ? '【修正モード】' : '【来院入力】'}</h2>
         <CustomerSearchPanel accent={editingId ? "orange" : "blue"} selectedCustomer={selectedCustomer} onSelect={setSelectedCustomer} onClearSelection={() => setSelectedCustomer(null)} />
-        <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+        <form onSubmit={swallowFormSubmit} onKeyDown={blockEnterFormSubmit} className="space-y-4 mt-6">
+          {duplicateError && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-red-800 text-sm font-bold" role="alert">
+              {duplicateError}
+            </div>
+          )}
           <div className="flex gap-2">
             <input type="date" value={visitDate} onChange={e => setVisitDate(e.target.value)} className="flex-1 p-3 border-2 rounded-lg font-bold" />
             <select value={clinicName} onChange={e => setClinicName(e.target.value as any)} className="flex-1 p-3 border-2 rounded-lg font-bold">
@@ -303,7 +327,14 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
           </div>
           <div className="bg-gray-50 p-4 rounded-xl border-2">
             <label className="block text-xs font-bold text-gray-500 mb-1 text-right">金額</label>
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-transparent text-right font-bold text-3xl text-blue-700 outline-none" />
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full bg-transparent text-right font-bold text-3xl text-blue-700 outline-none"
+              placeholder="0"
+            />
+            <p className="text-xs text-gray-500 mt-1 text-right">支払がない場合も「0」と入力してください</p>
           </div>
 
           <div>
@@ -424,7 +455,7 @@ export default function VisitForm({ onSuccess }: { onSuccess: () => void }) {
             </div>
           </div>
 
-          <button type="submit" disabled={isSubmitting} className={`w-full py-4 rounded-xl font-bold text-xl text-white shadow-lg ${editingId ? 'bg-orange-500' : 'bg-blue-600'}`}>
+          <button type="button" onClick={() => void handleSubmit()} disabled={isSubmitting} className={`w-full py-4 rounded-xl font-bold text-xl text-white shadow-lg ${editingId ? 'bg-orange-500' : 'bg-blue-600'}`}>
             {isSubmitting ? '画像を保存中...' : editingId ? '修正を保存する' : '登録する'}
           </button>
         </form>

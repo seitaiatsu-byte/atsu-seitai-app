@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, FileText, TrendingUp, Repeat, Megaphone, Clock3, Activity, Grid3X3, Map as MapIcon, DollarSign } from 'lucide-react';
+import { BarChart3, FileText, TrendingUp, Repeat, Megaphone, Clock3, Activity, Grid3X3, Map as MapIcon, DollarSign, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { clinicMatchesRecord } from '../lib/clinic';
 import { bucketStoredPaymentMethod, formatPaymentDetailLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
 import { parseLocalVisitDateToYmd } from '../lib/visitDateParse';
 import { fetchBusinessRules } from '../lib/businessRules';
 import { repeatRateSecond, repeatRateSixth, type CustomerForRepeat } from '../lib/repeatMetrics';
+import RepeatAnalysis from './RepeatAnalysis';
 
 type ClinicFilter = 'kawanishi' | 'takatsuki' | 'all';
 type PageTab = 'sales' | 'analysis';
@@ -26,6 +27,14 @@ type Row = {
 
 type AnalysisItem = { key: string; title: string; subtitle: string; icon: typeof BarChart3 };
 type LapsedCustomerLite = { id: string; name: string; days: number };
+type DailyBreakdownItem = {
+  id: string;
+  sourceType: '来院' | '物販' | 'サブスク';
+  customerId: string;
+  customerNumber: string;
+  customerName: string;
+  amount: number;
+};
 
 const ANALYSIS_ITEMS: AnalysisItem[] = [
   { key: 'sales', title: '売上集計', subtitle: '日別・月別・年別の売上分析', icon: DollarSign },
@@ -183,6 +192,8 @@ export default function SalesAggregationDashboard() {
   const [reloadTick, setReloadTick] = useState(0);
   const [sourceCount, setSourceCount] = useState({ visits: 0, products: 0, subs: 0 });
   const [rawFetched, setRawFetched] = useState({ visits: 0, products: 0, subs: 0 });
+  const [breakdownByDate, setBreakdownByDate] = useState<Record<string, DailyBreakdownItem[]>>({});
+  const [selectedBreakdownDate, setSelectedBreakdownDate] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -215,17 +226,19 @@ export default function SalesAggregationDashboard() {
         const monthPrefix = `${ym}-`;
 
         const MAX_ROWS = 80000;
-        const [visRes, prodRes, subRes, methodsRes, detailsRes] = await Promise.all([
+        const [visRes, prodRes, subRes, methodsRes, detailsRes, customersRes] = await Promise.all([
           supabase.from('visit_records').select('*').order('created_at', { ascending: false }).limit(MAX_ROWS),
           supabase.from('product_sales').select('*').order('created_at', { ascending: false }).limit(MAX_ROWS),
           supabase.from('subscription_records').select('*').order('created_at', { ascending: false }).limit(MAX_ROWS),
           supabase.from('payment_method_master').select('id,name'),
           supabase.from('payment_detail_master').select('id,name'),
+          supabase.from('customers').select('id,customer_number,name'),
         ]);
 
         const visits = (visRes.data as Record<string, unknown>[] | null) || [];
         const products = (prodRes.data as Record<string, unknown>[] | null) || [];
         const subs = (subRes.data as Record<string, unknown>[] | null) || [];
+        const customers = (customersRes.data as Record<string, unknown>[] | null) || [];
         const methods = methodsRes.data;
         const details = detailsRes.data;
 
@@ -235,6 +248,7 @@ export default function SalesAggregationDashboard() {
           subRes.error?.message,
           methodsRes.error?.message,
           detailsRes.error?.message,
+          customersRes.error?.message,
         ]
           .filter(Boolean)
           .join(' | ');
@@ -243,6 +257,19 @@ export default function SalesAggregationDashboard() {
         setRawFetched({ visits: visits.length, products: products.length, subs: subs.length });
 
         const detailMap = mergeIdNameMaps(methods as { id: string; name: string }[], details as { id: string; name: string }[]);
+        const customerInfoMap = new Map<string, { customerNumber: string; customerName: string }>();
+        customers.forEach((c) => {
+          customerInfoMap.set(String(c.id), {
+            customerNumber: String(c.customer_number ?? ''),
+            customerName: String(c.name ?? ''),
+          });
+        });
+        const dayBreakdown = new Map<string, DailyBreakdownItem[]>();
+        const pushBreakdown = (day: string, item: DailyBreakdownItem) => {
+          const list = dayBreakdown.get(day) || [];
+          list.push(item);
+          dayBreakdown.set(day, list);
+        };
         let matchedVisits = 0;
         let matchedProducts = 0;
         let matchedSubs = 0;
@@ -283,6 +310,17 @@ export default function SalesAggregationDashboard() {
             else row.cardSingle += amount;
           }
           row.dayTotal += amount;
+          const cid = String(v.customer_id ?? '');
+          const c = customerInfoMap.get(cid);
+          const legacyName = String(v.import_customer_name ?? '').trim();
+          pushBreakdown(day, {
+            id: `visit-${String(v.id ?? `${cid}-${day}-${amount}`)}`,
+            sourceType: '来院',
+            customerId: cid,
+            customerNumber: c?.customerNumber || '',
+            customerName: c?.customerName || legacyName || '（顧客名未設定）',
+            amount,
+          });
         }
 
         for (const p of products) {
@@ -299,6 +337,16 @@ export default function SalesAggregationDashboard() {
           if (methodBucket === 'cash') row.cashProduct += amount;
           else row.cardProduct += amount;
           row.dayTotal += amount;
+          const cid = String(p.customer_id ?? '');
+          const c = customerInfoMap.get(cid);
+          pushBreakdown(day, {
+            id: `product-${String(p.id ?? `${cid}-${day}-${amount}`)}`,
+            sourceType: '物販',
+            customerId: cid,
+            customerNumber: c?.customerNumber || '',
+            customerName: c?.customerName || '（顧客名未設定）',
+            amount,
+          });
         }
 
         for (const s of subs) {
@@ -315,9 +363,24 @@ export default function SalesAggregationDashboard() {
           if (methodBucket === 'cash') row.cashSubscription += amount;
           else row.cardSubscription += amount;
           row.dayTotal += amount;
+          const cid = String(s.customer_id ?? '');
+          const c = customerInfoMap.get(cid);
+          pushBreakdown(day, {
+            id: `sub-${String(s.id ?? `${cid}-${day}-${amount}`)}`,
+            sourceType: 'サブスク',
+            customerId: cid,
+            customerNumber: c?.customerNumber || '',
+            customerName: c?.customerName || '（顧客名未設定）',
+            amount,
+          });
         }
 
         setRows(baseRows);
+        const breakdownObj: Record<string, DailyBreakdownItem[]> = {};
+        dayBreakdown.forEach((list, day) => {
+          breakdownObj[day] = [...list].sort((a, b) => b.amount - a.amount);
+        });
+        setBreakdownByDate(breakdownObj);
         setSourceCount({
           visits: matchedVisits,
           products: matchedProducts,
@@ -517,6 +580,14 @@ export default function SalesAggregationDashboard() {
 
   const activeMeta = ANALYSIS_ITEMS.find((x) => x.key === activeAnalysis) || ANALYSIS_ITEMS[0];
   const monthLabel = normalizeYm(month);
+  const selectedBreakdownItems = useMemo(
+    () => (selectedBreakdownDate ? breakdownByDate[selectedBreakdownDate] || [] : []),
+    [breakdownByDate, selectedBreakdownDate]
+  );
+  const selectedBreakdownTotal = useMemo(
+    () => selectedBreakdownItems.reduce((sum, item) => sum + item.amount, 0),
+    [selectedBreakdownItems]
+  );
 
   const downloadCsv = () => {
     const lines: string[] = [];
@@ -686,8 +757,22 @@ export default function SalesAggregationDashboard() {
                   const wk = weekdayKind(r.date);
                   const dateTextClass = wk === 'sun' ? 'text-red-600' : wk === 'sat' ? 'text-blue-600' : 'text-gray-800';
                   return (
-                    <tr key={r.date} className="odd:bg-[#f5fff5] even:bg-white">
-                      <td className={`border px-1 py-1 font-mono whitespace-nowrap ${dateTextClass}`}>{formatDateWithWeekday(r.date)}</td>
+                    <tr
+                      key={r.date}
+                      className="odd:bg-[#f5fff5] even:bg-white cursor-pointer hover:bg-amber-50/40"
+                      onClick={() => setSelectedBreakdownDate(r.date)}
+                      title="タップでこの日の内訳を表示"
+                    >
+                      <td className={`border px-1 py-1 font-mono whitespace-nowrap ${dateTextClass}`}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedBreakdownDate(r.date)}
+                          className="underline underline-offset-2 hover:text-blue-800"
+                          title="この日の内訳を表示"
+                        >
+                          {formatDateWithWeekday(r.date)}
+                        </button>
+                      </td>
                       <td className="border px-1 py-1 text-right">{yen(r.cashTransfer)}</td>
                       <td className="border px-1 py-1 text-right">{yen(r.cashSingle)}</td>
                       <td className="border px-1 py-1 text-right">{yen(r.cashCoupon)}</td>
@@ -699,7 +784,19 @@ export default function SalesAggregationDashboard() {
                       <td className="border px-1 py-1 text-right">{yen(r.cardSubscription)}</td>
                       <td className="border px-1 py-1 text-right">{yen(r.cardProduct)}</td>
                       <td className="border px-1 py-1 text-right font-bold">{yen(cardTotal)}</td>
-                      <td className="border px-1 py-1 text-right font-bold bg-amber-50 text-blue-700">{yen(r.dayTotal)}</td>
+                      <td className="border px-1 py-1 text-right font-bold bg-amber-50 text-blue-700">
+                        <button
+                          type="button"
+                          title="タップで日計の内訳を表示"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedBreakdownDate(r.date);
+                          }}
+                          className="w-full text-right hover:text-blue-900 hover:bg-amber-100 rounded px-1 py-1 border border-transparent hover:border-blue-200"
+                        >
+                          <span className="underline underline-offset-2">{yen(r.dayTotal)}</span>
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -842,6 +939,8 @@ export default function SalesAggregationDashboard() {
                 </>
               )}
             </div>
+          ) : activeAnalysis === 'repeat' ? (
+            <RepeatAnalysis />
           ) : (
             <div className="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50 p-5">
               <div className="text-sm text-blue-800 font-bold mb-1">{activeMeta.title}</div>
@@ -850,6 +949,55 @@ export default function SalesAggregationDashboard() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {selectedBreakdownDate && (
+        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+            <div className="px-5 py-4 border-b flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">日計内訳</h3>
+                <p className="text-sm text-gray-600">
+                  {formatDateWithWeekday(selectedBreakdownDate)} / 合計 ¥{Math.round(selectedBreakdownTotal).toLocaleString()}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedBreakdownDate(null)}
+                className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50"
+                aria-label="閉じる"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="overflow-auto p-4">
+              {selectedBreakdownItems.length === 0 ? (
+                <div className="text-sm text-gray-500 py-8 text-center">この日の内訳データはありません。</div>
+              ) : (
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-gray-200 text-left text-gray-600">
+                      <th className="py-2 pr-3">区分</th>
+                      <th className="py-2 pr-3">顧客番号</th>
+                      <th className="py-2 pr-3">人物</th>
+                      <th className="py-2 text-right">金額</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedBreakdownItems.map((item) => (
+                      <tr key={item.id} className="border-b border-gray-100">
+                        <td className="py-2 pr-3">{item.sourceType}</td>
+                        <td className="py-2 pr-3 font-mono">{item.customerNumber || '—'}</td>
+                        <td className="py-2 pr-3">{item.customerName}</td>
+                        <td className="py-2 text-right font-bold">¥{Math.round(item.amount).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

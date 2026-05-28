@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { MapPin, TrendingUp, Users, Download, Pencil, X, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { clinicMatchesRecord, customerMatchesClinic } from '../lib/clinic';
 import { fetchAllCustomersByCreatedDesc, type CustomerRow } from '../lib/fetchAllCustomers';
 import { downloadCustomersCsv } from '../lib/customerCsvExport';
 import CustomerRosterEditModal from './CustomerRosterEditModal';
@@ -15,6 +14,7 @@ interface RegionData {
 }
 
 type ViewMode = 'prefecture' | 'city' | 'town';
+type SegmentKey = 'all' | 'takatsuki' | 'kawanishi';
 
 interface RegionalAnalysisProps {
   clinicScope: ClinicScope;
@@ -51,14 +51,17 @@ function compareCustomerNumber(a: CustomerRow, b: CustomerRow): number {
 }
 
 export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps) {
-  const [prefectureData, setPrefectureData] = useState<RegionData[]>([]);
-  const [cityData, setCityData] = useState<RegionData[]>([]);
-  const [townData, setTownData] = useState<RegionData[]>([]);
+  const [segmentedData, setSegmentedData] = useState<Record<SegmentKey, Record<ViewMode, RegionData[]>>>({
+    all: { prefecture: [], city: [], town: [] },
+    takatsuki: { prefecture: [], city: [], town: [] },
+    kawanishi: { prefecture: [], city: [], town: [] },
+  });
   const [customersByRegion, setCustomersByRegion] = useState<Map<string, CustomerRow[]>>(new Map());
   const [allCustomers, setAllCustomers] = useState<CustomerRow[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('city');
+  const [activeSegment, setActiveSegment] = useState<SegmentKey>('takatsuki');
   const [loading, setLoading] = useState(true);
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const [selectedRegion, setSelectedRegion] = useState<{ segment: SegmentKey; region: string } | null>(null);
   const [editCustomer, setEditCustomer] = useState<CustomerRow | null>(null);
 
   const loadRegionalData = useCallback(async () => {
@@ -69,25 +72,44 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
     } catch (e) {
       console.error('\u9867\u5ba2\u540d\u7c3f\u306e\u53d6\u5f97\u306b\u5931\u6557:', e);
     }
-    const scoped = customers.filter((c) => customerMatchesClinic(clinicScope, c.clinic_name));
-    setAllCustomers(scoped);
+    const toCustomerNumber = (c: CustomerRow): number | null => {
+      const digits = String(c.customer_number ?? '').replace(/\D/g, '');
+      if (!digits) return null;
+      const n = Number(digits);
+      return Number.isFinite(n) ? n : null;
+    };
+    const isTakatsuki = (c: CustomerRow) => {
+      const n = toCustomerNumber(c);
+      return n !== null && n >= 5000;
+    };
+    const isKawanishi = (c: CustomerRow) => {
+      const n = toCustomerNumber(c);
+      return n !== null && n >= 1 && n <= 4999;
+    };
 
-    const { data: visitsRaw } = await supabase.from('visit_records').select('customer_id, amount, clinic_name');
-    const visits = (visitsRaw || []).filter((v) => clinicMatchesRecord(clinicScope, v.clinic_name));
+    // 地域分析は「全体」「高槻院(5000+)」「川西院(1-4999)」を同時表示
+    const segmentCustomers: Record<SegmentKey, CustomerRow[]> = {
+      all: customers,
+      takatsuki: customers.filter(isTakatsuki),
+      kawanishi: customers.filter(isKawanishi),
+    };
+    setAllCustomers(customers);
 
-    const customerMap = new Map<string, { prefecture: string; city: string; town: string }>();
-    scoped.forEach((c) => {
-      customerMap.set(c.id, {
-        prefecture: regionLabel(c.prefecture),
-        city: regionLabel(c.city),
-        town: regionLabel(c.town),
+    const { data: visitsRaw } = await supabase.from('visit_records').select('customer_id, amount');
+    const visits = visitsRaw || [];
+
+    const buildForMode = (mode: ViewMode, scopedCustomers: CustomerRow[]) => {
+      const customerMap = new Map<string, { prefecture: string; city: string; town: string }>();
+      scopedCustomers.forEach((c) => {
+        customerMap.set(c.id, {
+          prefecture: regionLabel(c.prefecture),
+          city: regionLabel(c.city),
+          town: regionLabel(c.town),
+        });
       });
-    });
-
-    const buildForMode = (mode: ViewMode) => {
       const stats = new Map<string, { count: number; visits: number; revenue: number }>();
       const byRegion = new Map<string, CustomerRow[]>();
-      scoped.forEach((c) => {
+      scopedCustomers.forEach((c) => {
         const key = regionField(mode, c);
         if (!stats.has(key)) stats.set(key, { count: 0, visits: 0, revenue: 0 });
         stats.get(key)!.count++;
@@ -115,21 +137,31 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
       return { data: rows, byRegion };
     };
 
-    const pref = buildForMode('prefecture');
-    const city = buildForMode('city');
-    const town = buildForMode('town');
-
-    setPrefectureData(pref.data);
-    setCityData(city.data);
-    setTownData(town.data);
-
-    const merged = new Map<string, CustomerRow[]>();
-    const attach = (mode: ViewMode, m: Map<string, CustomerRow[]>) => {
-      m.forEach((list, region) => merged.set(`${mode}:${region}`, list));
+    const allSegmentData: Record<SegmentKey, Record<ViewMode, RegionData[]>> = {
+      all: { prefecture: [], city: [], town: [] },
+      takatsuki: { prefecture: [], city: [], town: [] },
+      kawanishi: { prefecture: [], city: [], town: [] },
     };
-    attach('prefecture', pref.byRegion);
-    attach('city', city.byRegion);
-    attach('town', town.byRegion);
+    const merged = new Map<string, CustomerRow[]>();
+    const attach = (segment: SegmentKey, mode: ViewMode, m: Map<string, CustomerRow[]>) => {
+      m.forEach((list, region) => merged.set(`${segment}:${mode}:${region}`, list));
+    };
+
+    (['all', 'takatsuki', 'kawanishi'] as const).forEach((segment) => {
+      const pref = buildForMode('prefecture', segmentCustomers[segment]);
+      const city = buildForMode('city', segmentCustomers[segment]);
+      const town = buildForMode('town', segmentCustomers[segment]);
+      allSegmentData[segment] = {
+        prefecture: pref.data,
+        city: city.data,
+        town: town.data,
+      };
+      attach(segment, 'prefecture', pref.byRegion);
+      attach(segment, 'city', city.byRegion);
+      attach(segment, 'town', town.byRegion);
+    });
+
+    setSegmentedData(allSegmentData);
     setCustomersByRegion(merged);
     setLoading(false);
   }, [clinicScope]);
@@ -141,12 +173,15 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
     return () => window.removeEventListener('customers-updated', reload);
   }, [loadRegionalData]);
 
-  const data = viewMode === 'prefecture' ? prefectureData : viewMode === 'city' ? cityData : townData;
-  const maxCount = data.length > 0 ? Math.max(...data.map((d) => d.customerCount)) : 1;
+  const segmentTitle = (segment: SegmentKey) => {
+    if (segment === 'all') return '全体（両院）';
+    if (segment === 'takatsuki') return '高槻院（5000番以降）';
+    return '川西院（1～4999番）';
+  };
 
   const drilldownCustomers = useMemo(() => {
     if (!selectedRegion) return [];
-    const list = customersByRegion.get(`${viewMode}:${selectedRegion}`) || [];
+    const list = customersByRegion.get(`${selectedRegion.segment}:${viewMode}:${selectedRegion.region}`) || [];
     return [...list].sort(compareCustomerNumber);
   }, [customersByRegion, selectedRegion, viewMode]);
 
@@ -157,8 +192,11 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
 
   const handleExportDrilldown = () => {
     if (!selectedRegion || drilldownCustomers.length === 0) return;
-    const safe = selectedRegion.replace(/[\\/:*?"<>|]/g, '_');
-    downloadCustomersCsv(drilldownCustomers, `\u9867\u5ba2\u540d\u7c3f_${viewModeLabel(viewMode)}_${safe}.csv`);
+    const safe = selectedRegion.region.replace(/[\\/:*?"<>|]/g, '_');
+    downloadCustomersCsv(
+      drilldownCustomers,
+      `\u9867\u5ba2\u540d\u7c3f_${segmentTitle(selectedRegion.segment)}_${viewModeLabel(viewMode)}_${safe}.csv`
+    );
   };
 
   const handleSaved = () => {
@@ -171,6 +209,20 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
     setViewMode(mode);
     setSelectedRegion(null);
   };
+
+  const switchSegment = (segment: SegmentKey) => {
+    setActiveSegment(segment);
+    setSelectedRegion(null);
+  };
+
+  const SEGMENT_TABS: { key: SegmentKey; label: string }[] = [
+    { key: 'takatsuki', label: '高槻院' },
+    { key: 'kawanishi', label: '川西院' },
+    { key: 'all', label: '全体' },
+  ];
+
+  const activeData = segmentedData[activeSegment][viewMode];
+  const activeMaxCount = activeData.length > 0 ? Math.max(...activeData.map((d) => d.customerCount)) : 1;
 
   const t = {
     title: '\u5730\u57df\u5225\u5206\u6790',
@@ -218,6 +270,28 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
 
       <p className="text-sm text-gray-600 mb-4">{t.help}</p>
 
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {SEGMENT_TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => switchSegment(key)}
+            className={`py-3 px-3 rounded-xl font-bold transition-all ${
+              activeSegment === key
+                ? key === 'takatsuki'
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : key === 'kawanishi'
+                    ? 'bg-orange-500 text-white shadow-lg'
+                    : 'bg-slate-700 text-white shadow-lg'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-gray-500 mb-4">{segmentTitle(activeSegment)}</p>
+
       <div className="grid grid-cols-3 gap-2 mb-6">
         <button
           type="button"
@@ -256,22 +330,22 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
 
       {loading ? (
         <div className="text-center py-12 text-gray-500">{t.loading}</div>
-      ) : data.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+      ) : activeData.length === 0 ? (
+        <div className="text-center py-12 text-gray-500 rounded-xl border-2 border-gray-200">
           <MapPin size={48} className="mx-auto mb-4 text-gray-300" />
           <p>{t.noData}</p>
           <p className="text-sm mt-2">{t.noDataHint}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {data.map((item, index) => {
-            const percentage = (item.customerCount / maxCount) * 100;
+          {activeData.map((item, index) => {
+            const percentage = (item.customerCount / activeMaxCount) * 100;
             const isTop3 = index < 3;
             return (
               <button
-                key={item.region}
+                key={`${activeSegment}:${item.region}`}
                 type="button"
-                onClick={() => setSelectedRegion(item.region)}
+                onClick={() => setSelectedRegion({ segment: activeSegment, region: item.region })}
                 className={`w-full text-left rounded-xl border-2 p-4 transition-all hover:shadow-lg hover:border-green-400 ${
                   isTop3
                     ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300'
@@ -347,8 +421,8 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
               <div>
                 <h3 className="text-xl font-bold text-gray-800">{t.modalTitle}</h3>
                 <p className="text-sm text-gray-600">
-                  {viewModeLabel(viewMode)}: {selectedRegion}?{drilldownCustomers.length}
-                  {t.people}?
+                  {segmentTitle(selectedRegion.segment)} / {viewModeLabel(viewMode)}: {selectedRegion.region}（{drilldownCustomers.length}
+                  {t.people}）
                 </p>
               </div>
               <div className="flex items-center gap-2">

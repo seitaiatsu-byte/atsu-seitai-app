@@ -46,7 +46,7 @@ export default function RepeatAnalysis() {
         </button>
       </div>
       <p className="text-xs text-gray-600 mb-4">
-        メニュー名に除外キーワードを含む来院はカウントから除外。詳細な院別分析は「日報月報」タブ内の詳細分析を参照。
+        メニュー名に除外キーワードを含む来院はカウントから除外。院別の詳細は「日報・月報」タブの詳細分析を参照。
       </p>
       {loading ? (
         <div className="text-center py-6 text-gray-500">計算中...</div>
