@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Upload, Edit2, Trash2, History } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Upload, Edit2, Trash2, History, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import CustomerSearchPanel from './CustomerSearchPanel';
 import { CLINIC_OPTIONS, type ClinicFullName } from '../lib/clinic';
@@ -52,6 +52,7 @@ export default function VisitForm() {
   const [currentMediaUrls, setCurrentMediaUrls] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState('');
+  const [historyFilter, setHistoryFilter] = useState('');
 
   useEffect(() => {
     if (selectedCustomer?.customer_number && !editingId) {
@@ -308,6 +309,27 @@ export default function VisitForm() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const filteredRecentRecords = useMemo(() => {
+    const q = historyFilter.trim().toLowerCase();
+    if (!q) return recentRecords;
+    return recentRecords.filter((r) => {
+      const c = r.customers;
+      const hay = [
+        c?.name,
+        c?.customer_number,
+        r.staff_name,
+        r.menu_name,
+        r.memo,
+        r.import_customer_name,
+        r.visit_date,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [recentRecords, historyFilter]);
+
   return (
     <div className="space-y-6 pb-20">
       <div className={`bg-white rounded-2xl shadow-lg p-6 border-4 ${editingId ? 'border-orange-500' : 'border-blue-100'}`}>
@@ -465,12 +487,28 @@ export default function VisitForm() {
         <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2 font-bold">
           <History className="text-gray-400" /> 来院履歴（日付別・詳細展開 / 修正・削除）
         </h3>
-        <p className="text-xs text-gray-500 mb-4">日付をタップで開閉。カード内に 11 列＋院・維持費などを表示します。</p>
+        <p className="text-xs text-gray-500 mb-2">日付をタップで開閉。カード内に 11 列＋院・維持費などを表示します。</p>
+        <p className="text-xs text-gray-500 mb-3">
+          受け付け履歴確認用: 顧客番号・氏名・担当・メニュー名・メモで検索できます（全{recentRecords.length}件
+          {historyFilter ? `／表示${filteredRecentRecords.length}件` : ''}）。
+        </p>
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input
+            type="search"
+            value={historyFilter}
+            onChange={(e) => setHistoryFilter(e.target.value)}
+            placeholder="顧客番号・氏名・担当・メニュー名で検索..."
+            className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none"
+          />
+        </div>
         {recentRecords.length === 0 ? (
           <p className="text-sm text-gray-500">履歴はまだありません</p>
+        ) : filteredRecentRecords.length === 0 ? (
+          <p className="text-sm text-gray-500 py-4">検索条件に一致する履歴はありません</p>
         ) : (
           <VisitRecordDateAccordion
-            visits={recentRecords}
+            visits={filteredRecentRecords}
             customer={null}
             methodIdToName={methodNameMap}
             detailIdToName={detailNameMap}
