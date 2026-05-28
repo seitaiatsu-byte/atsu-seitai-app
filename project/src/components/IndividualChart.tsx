@@ -51,10 +51,13 @@ type ActiveChartRow = {
   customer: Customer;
   latestVisitDate: string | null;
   daysSinceLatestVisit: number | null;
+  latestMenu: string;
   ltv: number;
   route: string;
   symptom: string;
 };
+
+type ActiveSortKey = 'number' | 'age' | 'symptom' | 'route' | 'menu' | 'ltv' | 'latest';
 
 function formatDateJaYmd(s: string | null | undefined): string {
   const t = (s || '').trim().slice(0, 10);
@@ -77,6 +80,10 @@ export default function IndividualChart() {
   const [activeRows, setActiveRows] = useState<ActiveChartRow[]>([]);
   const [activeLoading, setActiveLoading] = useState(false);
   const [checkedActiveIds, setCheckedActiveIds] = useState<Set<string>>(new Set());
+  const [activeSort, setActiveSort] = useState<{ key: ActiveSortKey; dir: 'asc' | 'desc' }>({
+    key: 'latest',
+    dir: 'asc',
+  });
   const [editingVisit, setEditingVisit] = useState<VisitRow | null>(null);
   const [editVisitDate, setEditVisitDate] = useState('');
   const [editVisitAmount, setEditVisitAmount] = useState('');
@@ -159,23 +166,27 @@ export default function IndividualChart() {
     setActiveLoading(true);
     const [{ data: customers }, { data: vRows }, { data: pRows }, { data: sRows }] = await Promise.all([
       supabase.from('customers').select('*').order('customer_number', { ascending: true }),
-      supabase.from('visit_records').select('id, customer_id, visit_date, amount'),
+      supabase.from('visit_records').select('id, customer_id, visit_date, amount, menu_name'),
       supabase.from('product_sales').select('customer_id, amount'),
       supabase.from('subscription_records').select('customer_id, amount'),
     ]);
 
-    const visits = (vRows || []) as Pick<VisitRow, 'id' | 'customer_id' | 'visit_date' | 'amount'>[];
+    const visits = (vRows || []) as Pick<VisitRow, 'id' | 'customer_id' | 'visit_date' | 'amount' | 'menu_name'>[];
     const products = (pRows || []) as Pick<ProductRow, 'customer_id' | 'amount'>[];
     const subsRows = (sRows || []) as Pick<SubRow, 'customer_id' | 'amount'>[];
     const customerRows = (customers || []) as Customer[];
 
     const latestVisitByCustomer = new Map<string, string>();
+    const latestMenuByCustomer = new Map<string, string>();
     const ltvByCustomer = new Map<string, number>();
     const now = new Date();
 
     visits.forEach((v) => {
       const cur = latestVisitByCustomer.get(v.customer_id);
-      if (!cur || String(v.visit_date) > cur) latestVisitByCustomer.set(v.customer_id, String(v.visit_date));
+      if (!cur || String(v.visit_date) > cur) {
+        latestVisitByCustomer.set(v.customer_id, String(v.visit_date));
+        latestMenuByCustomer.set(v.customer_id, String(v.menu_name || '').trim() || '—');
+      }
       ltvByCustomer.set(v.customer_id, (ltvByCustomer.get(v.customer_id) || 0) + Number(v.amount || 0));
     });
     products.forEach((p) => {
@@ -195,6 +206,7 @@ export default function IndividualChart() {
           customer: c,
           latestVisitDate: latest,
           daysSinceLatestVisit: daysSince,
+          latestMenu: latestMenuByCustomer.get(c.id) || '—',
           ltv: ltvByCustomer.get(c.id) || 0,
           route: getInflowLineForChart(c, null, [])?.line || '—',
           symptom: getChiefComplaint1Display(c) || '—',
@@ -324,6 +336,50 @@ export default function IndividualChart() {
     if (days > 30) return 'text-yellow-700 font-bold';
     return 'text-green-700 font-bold';
   };
+
+  const toggleActiveSort = (key: ActiveSortKey) => {
+    setActiveSort((prev) => {
+      if (prev.key === key) {
+        return { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, dir: 'asc' };
+    });
+  };
+
+  const sortMark = (key: ActiveSortKey) => {
+    if (activeSort.key !== key) return '↕';
+    return activeSort.dir === 'asc' ? '▲' : '▼';
+  };
+
+  const sortedActiveRows = useMemo(() => {
+    const rows = [...activeRows];
+    rows.sort((a, b) => {
+      let cmp = 0;
+      if (activeSort.key === 'number') {
+        const an = Number(String(a.customer.customer_number || '').replace(/\D/g, '')) || Number.MAX_SAFE_INTEGER;
+        const bn = Number(String(b.customer.customer_number || '').replace(/\D/g, '')) || Number.MAX_SAFE_INTEGER;
+        cmp = an - bn;
+      } else if (activeSort.key === 'age') {
+        const an = getAgeYearsFromCustomer(a.customer) ?? -1;
+        const bn = getAgeYearsFromCustomer(b.customer) ?? -1;
+        cmp = an - bn;
+      } else if (activeSort.key === 'symptom') {
+        cmp = String(a.symptom || '').localeCompare(String(b.symptom || ''), 'ja');
+      } else if (activeSort.key === 'route') {
+        cmp = String(a.route || '').localeCompare(String(b.route || ''), 'ja');
+      } else if (activeSort.key === 'menu') {
+        cmp = String(a.latestMenu || '').localeCompare(String(b.latestMenu || ''), 'ja');
+      } else if (activeSort.key === 'ltv') {
+        cmp = (a.ltv || 0) - (b.ltv || 0);
+      } else if (activeSort.key === 'latest') {
+        const ad = a.daysSinceLatestVisit ?? Number.MAX_SAFE_INTEGER;
+        const bd = b.daysSinceLatestVisit ?? Number.MAX_SAFE_INTEGER;
+        cmp = ad - bd;
+      }
+      return activeSort.dir === 'asc' ? cmp : -cmp;
+    });
+    return rows;
+  }, [activeRows, activeSort]);
 
   const openVisitEdit = (v: VisitRow) => {
     setEditingVisit(v);
@@ -510,16 +566,31 @@ export default function IndividualChart() {
                   <thead className="sticky top-0 bg-slate-100 z-10">
                     <tr className="text-left text-slate-700">
                       <th className="px-2 py-2 w-8"> </th>
-                      <th className="px-2 py-2">番号</th>
-                      <th className="px-2 py-2">年齢</th>
-                      <th className="px-2 py-2">症状</th>
-                      <th className="px-2 py-2">経路</th>
-                      <th className="px-2 py-2 text-right">LTV</th>
-                      <th className="px-2 py-2">最新来院日</th>
+                      <th className="px-2 py-2">
+                        <button type="button" onClick={() => toggleActiveSort('number')} className="font-bold">番号/氏名 {sortMark('number')}</button>
+                      </th>
+                      <th className="px-2 py-2">
+                        <button type="button" onClick={() => toggleActiveSort('age')} className="font-bold">年齢 {sortMark('age')}</button>
+                      </th>
+                      <th className="px-2 py-2">
+                        <button type="button" onClick={() => toggleActiveSort('symptom')} className="font-bold">症状 {sortMark('symptom')}</button>
+                      </th>
+                      <th className="px-2 py-2">
+                        <button type="button" onClick={() => toggleActiveSort('route')} className="font-bold">経路 {sortMark('route')}</button>
+                      </th>
+                      <th className="px-2 py-2">
+                        <button type="button" onClick={() => toggleActiveSort('menu')} className="font-bold">メニュー {sortMark('menu')}</button>
+                      </th>
+                      <th className="px-2 py-2 text-right">
+                        <button type="button" onClick={() => toggleActiveSort('ltv')} className="font-bold">LTV {sortMark('ltv')}</button>
+                      </th>
+                      <th className="px-2 py-2">
+                        <button type="button" onClick={() => toggleActiveSort('latest')} className="font-bold">最新来院日 {sortMark('latest')}</button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {activeRows.map((r) => (
+                    {sortedActiveRows.map((r) => (
                       <tr
                         key={r.customer.id}
                         className="border-b border-slate-100 hover:bg-blue-50 cursor-pointer"
@@ -532,13 +603,17 @@ export default function IndividualChart() {
                             onChange={() => toggleActiveChecked(r.customer.id)}
                           />
                         </td>
-                        <td className="px-2 py-1.5 font-semibold">{r.customer.customer_number || '—'}</td>
+                        <td className="px-2 py-1.5 font-semibold">
+                          <span className="mr-2">{r.customer.customer_number || '—'}</span>
+                          <span className="text-slate-700">{r.customer.name || '—'}</span>
+                        </td>
                         <td className="px-2 py-1.5">{getAgeYearsFromCustomer(r.customer) ?? '—'}歳</td>
                         <td className="px-2 py-1.5">{r.symptom}</td>
                         <td className="px-2 py-1.5">{r.route}</td>
+                        <td className="px-2 py-1.5">{r.latestMenu}</td>
                         <td className="px-2 py-1.5 text-right font-bold text-blue-700">¥{Math.round(r.ltv).toLocaleString()}</td>
                         <td className={`px-2 py-1.5 ${latestVisitColorClass(r.daysSinceLatestVisit)}`}>
-                          {r.latestVisitDate ? `${new Date(`${r.latestVisitDate}T12:00:00`).toLocaleDateString('ja-JP')} (${r.daysSinceLatestVisit}日)` : '来院なし'}
+                          {r.latestVisitDate ? `${new Date(`${r.latestVisitDate}T12:00:00`).toLocaleDateString('ja-JP')}（${r.daysSinceLatestVisit}日経過）` : '来院なし'}
                         </td>
                       </tr>
                     ))}
