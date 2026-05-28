@@ -77,6 +77,10 @@ export default function IndividualChart() {
   const [activeRows, setActiveRows] = useState<ActiveChartRow[]>([]);
   const [activeLoading, setActiveLoading] = useState(false);
   const [checkedActiveIds, setCheckedActiveIds] = useState<Set<string>>(new Set());
+  const [editingVisit, setEditingVisit] = useState<VisitRow | null>(null);
+  const [editVisitDate, setEditVisitDate] = useState('');
+  const [editVisitAmount, setEditVisitAmount] = useState('');
+  const [editVisitMemo, setEditVisitMemo] = useState('');
 
   useEffect(() => {
     fetchBusinessRules().then((r) => setExcludeKeywords(r.excludeKeywords));
@@ -319,6 +323,48 @@ export default function IndividualChart() {
     if (days > 60) return 'text-red-700 font-bold';
     if (days > 30) return 'text-yellow-700 font-bold';
     return 'text-green-700 font-bold';
+  };
+
+  const openVisitEdit = (v: VisitRow) => {
+    setEditingVisit(v);
+    setEditVisitDate(String(v.visit_date || '').slice(0, 10));
+    setEditVisitAmount(String(Number(v.amount || 0)));
+    setEditVisitMemo(String(v.memo || ''));
+  };
+
+  const saveVisitEdit = async () => {
+    if (!editingVisit) return;
+    const amount = Number(editVisitAmount);
+    if (!editVisitDate || !Number.isFinite(amount)) {
+      alert('来院日と金額を正しく入力してください');
+      return;
+    }
+    const { error } = await supabase
+      .from('visit_records')
+      .update({
+        visit_date: editVisitDate,
+        amount,
+        memo: editVisitMemo || null,
+      })
+      .eq('id', editingVisit.id);
+    if (error) {
+      alert(`修正に失敗しました: ${error.message}`);
+      return;
+    }
+    setEditingVisit(null);
+    window.dispatchEvent(new Event('records-updated'));
+    await loadCustomerData();
+  };
+
+  const deleteVisit = async (v: VisitRow) => {
+    if (!window.confirm('この来院履歴を削除しますか？')) return;
+    const { error } = await supabase.from('visit_records').delete().eq('id', v.id);
+    if (error) {
+      alert(`削除に失敗しました: ${error.message}`);
+      return;
+    }
+    window.dispatchEvent(new Event('records-updated'));
+    await loadCustomerData();
   };
 
   const productSummary = useMemo(() => {
@@ -591,6 +637,9 @@ export default function IndividualChart() {
 
           <div className="mt-6">
             <h3 className="text-sm font-bold text-gray-700 mb-1 underline decoration-blue-200">来院記録（日付別に展開 / 全項目表示）</h3>
+            <p className="text-xs text-slate-500 mb-2">
+              来院履歴カウント: 全{visits.length}件 / 初回あり{firstVisitId ? '（1件）' : '（0件）'} / 実通院最大{visitOrdinalById.size}回
+            </p>
             <p className="text-xs text-slate-500 mb-3">同じ日に複数来院がある場合は、日付見出しの下に並びます。</p>
             <VisitRecordDateAccordion
               visits={visits}
@@ -602,6 +651,24 @@ export default function IndividualChart() {
               methodIdToName={methodNameMap}
               detailIdToName={detailNameMap}
               defaultExpandFirst
+              renderCardActions={(v) => (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => openVisitEdit(v)}
+                    className="px-2 py-1 text-xs font-bold rounded border border-blue-300 text-blue-700 hover:bg-blue-50"
+                  >
+                    修正
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void deleteVisit(v)}
+                    className="px-2 py-1 text-xs font-bold rounded border border-red-300 text-red-700 hover:bg-red-50"
+                  >
+                    削除
+                  </button>
+                </>
+              )}
             />
           </div>
 
@@ -836,6 +903,57 @@ export default function IndividualChart() {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingVisit && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-xl bg-white border border-slate-200 shadow-xl p-4 space-y-3">
+            <h4 className="text-base font-bold text-gray-800">来院履歴を修正</h4>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1">来院日</label>
+              <input
+                type="date"
+                value={editVisitDate}
+                onChange={(e) => setEditVisitDate(e.target.value)}
+                className="w-full border rounded px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1">金額</label>
+              <input
+                type="number"
+                value={editVisitAmount}
+                onChange={(e) => setEditVisitAmount(e.target.value)}
+                className="w-full border rounded px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1">メモ</label>
+              <textarea
+                value={editVisitMemo}
+                onChange={(e) => setEditVisitMemo(e.target.value)}
+                rows={3}
+                className="w-full border rounded px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setEditingVisit(null)}
+                className="px-3 py-1.5 text-sm font-bold rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveVisitEdit()}
+                className="px-3 py-1.5 text-sm font-bold rounded border border-blue-300 text-blue-700 hover:bg-blue-50"
+              >
+                保存
+              </button>
             </div>
           </div>
         </div>
