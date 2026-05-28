@@ -58,6 +58,7 @@ type ActiveChartRow = {
 };
 
 type ActiveSortKey = 'number' | 'age' | 'symptom' | 'route' | 'menu' | 'ltv' | 'latest';
+const ACTIVE_RANGE_MAX = 360;
 
 function formatDateJaYmd(s: string | null | undefined): string {
   const t = (s || '').trim().slice(0, 10);
@@ -216,6 +217,7 @@ export default function IndividualChart() {
           symptom: getChiefComplaint1Display(c) || '—',
         };
       })
+      .filter((row) => row.daysSinceLatestVisit != null && row.daysSinceLatestVisit >= 0 && row.daysSinceLatestVisit <= ACTIVE_RANGE_MAX)
       .sort((a, b) => {
         const ad = a.daysSinceLatestVisit ?? Number.MAX_SAFE_INTEGER;
         const bd = b.daysSinceLatestVisit ?? Number.MAX_SAFE_INTEGER;
@@ -336,9 +338,18 @@ export default function IndividualChart() {
 
   const latestVisitColorClass = (days: number | null) => {
     if (days == null) return 'text-gray-500';
-    if (days > 60) return 'text-red-700 font-bold';
-    if (days > 30) return 'text-yellow-700 font-bold';
-    return 'text-green-700 font-bold';
+    if (days <= 89) return 'text-blue-700 font-bold';
+    if (days <= 119) return 'text-yellow-700 font-bold';
+    if (days <= 179) return 'text-orange-700 font-bold';
+    return 'text-slate-500 font-bold';
+  };
+
+  const activeRowBgClass = (days: number | null) => {
+    if (days == null) return 'bg-white';
+    if (days <= 89) return 'bg-blue-50';
+    if (days <= 119) return 'bg-yellow-50';
+    if (days <= 179) return 'bg-orange-50';
+    return 'bg-slate-100';
   };
 
   const toggleActiveSort = (key: ActiveSortKey) => {
@@ -601,7 +612,7 @@ export default function IndividualChart() {
                     {sortedActiveRows.map((r) => (
                       <tr
                         key={r.customer.id}
-                        className="border-b border-slate-100 hover:bg-blue-50 cursor-pointer"
+                        className={`border-b border-slate-100 cursor-pointer hover:brightness-[0.98] ${activeRowBgClass(r.daysSinceLatestVisit)}`}
                         onClick={() => setSelectedCustomer(r.customer)}
                       >
                         <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
