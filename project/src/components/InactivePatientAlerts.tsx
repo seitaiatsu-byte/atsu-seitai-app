@@ -29,6 +29,8 @@ interface ActiveRow {
   lastVisitDate: string;
 }
 
+const ACTIVE_DAY_MAX = 360;
+
 /** 誕生日一覧の色分け境界（日数） */
 const BDAY_VISIT_3M = 90;
 const BDAY_VISIT_6M = 180;
@@ -126,7 +128,7 @@ export default function InactivePatientAlerts() {
       if (vi) {
         const last = new Date(vi.date);
         const daysSince = Math.floor((today.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysSince < a) {
+        if (daysSince >= 0 && daysSince <= ACTIVE_DAY_MAX) {
           active.push({
             customer: c,
             daysSince,
@@ -254,11 +256,10 @@ export default function InactivePatientAlerts() {
   }, [activeMembers, activeSort]);
 
   const activeRowColorClass = (daysSince: number) => {
-    const a = Math.max(1, cfg.activeMaxExclusive);
-    const ratio = daysSince / a;
-    if (ratio < 0.34) return 'bg-emerald-50 border-emerald-200';
-    if (ratio < 0.67) return 'bg-teal-50 border-teal-200';
-    return 'bg-yellow-50 border-yellow-200';
+    if (daysSince <= 89) return 'bg-blue-50 border-blue-200';
+    if (daysSince <= 119) return 'bg-yellow-50 border-yellow-200';
+    if (daysSince <= 179) return 'bg-orange-50 border-orange-200';
+    return 'bg-slate-50 border-slate-200';
   };
 
   const toggleActiveSort = (key: 'days' | 'name' | 'last') => {
@@ -405,7 +406,7 @@ export default function InactivePatientAlerts() {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <UserCheck className="text-emerald-600 shrink-0" size={18} />
-              <h3 className="font-bold text-emerald-900 text-sm truncate">アクティブ（{labelActiveShort(cfg)}）</h3>
+              <h3 className="font-bold text-emerald-900 text-sm truncate">アクティブ（0〜360日）</h3>
             </div>
             <div className="text-3xl font-bold text-emerald-900 leading-none shrink-0">{activeMembers.length}</div>
           </div>
@@ -416,7 +417,7 @@ export default function InactivePatientAlerts() {
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
             <UserCheck className="text-emerald-600" size={20} />
-            アクティブ会員リスト（最終来院の経過が{labelActiveShort(cfg)}）
+            アクティブ会員リスト（最終来院の経過が0〜360日）
           </h3>
           <div className="mb-2 flex flex-wrap gap-2 text-xs">
             <button
