@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Calendar, Phone, Cake, UserCheck, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -78,6 +78,7 @@ export default function InactivePatientAlerts() {
   const [birthNext, setBirthNext] = useState<BirthdayRow[]>([]);
   const [activeMembers, setActiveMembers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [redUpperDays, setRedUpperDays] = useState(365);
 
   const loadAlerts = useCallback(async () => {
     setLoading(true);
@@ -294,9 +295,14 @@ export default function InactivePatientAlerts() {
   const t1a = cfg.activeMaxExclusive;
   const t1b = cfg.tier1End;
   const t2b = cfg.tier2End;
+  const filteredB3 = useMemo(
+    () => b3.filter((row) => row.daysSince >= t2b && row.daysSince <= redUpperDays),
+    [b3, t2b, redUpperDays]
+  );
+  const redRangeTitle = `${t2b}日以上〜${redUpperDays}日以内 未来院`;
   const hasBirth = birthThis.length + birthNext.length > 0;
   const allQuiet =
-    b1.length === 0 && b2.length === 0 && b3.length === 0 && !hasBirth;
+    b1.length === 0 && b2.length === 0 && filteredB3.length === 0 && !hasBirth;
 
   return (
     <div className="space-y-6">
@@ -420,10 +426,30 @@ export default function InactivePatientAlerts() {
         'text-orange-800',
         b2
       )}
+
+      <div className="bg-white rounded-2xl shadow-lg p-4 border border-red-200">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-bold text-red-800">長期未来院の表示範囲:</span>
+          <span className="text-gray-700">{t2b}日以上〜</span>
+          <input
+            type="number"
+            min={t2b}
+            value={redUpperDays}
+            onChange={(e) => {
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isFinite(n)) return;
+              setRedUpperDays(Math.max(t2b, n));
+            }}
+            className="w-24 px-2 py-1 border rounded-lg font-bold text-right"
+          />
+          <span className="text-gray-700">日以内</span>
+        </div>
+      </div>
+
       {renderInactiveList(
-        `${t2b}日以上 未来院`,
+        redRangeTitle,
         'text-red-800',
-        b3
+        filteredB3
       )}
 
       {allQuiet && (
