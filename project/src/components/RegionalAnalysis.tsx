@@ -337,7 +337,7 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
           <p className="text-sm mt-2">{t.noDataHint}</p>
         </div>
       ) : (
-        <div className="panel-scrollbar max-h-[44rem] overflow-y-auto pr-1 space-y-3">
+        <div className="panel-scrollbar max-h-[44rem] overflow-y-auto pr-1 space-y-2">
           {activeData.map((item, index) => {
             const percentage = (item.customerCount / activeMaxCount) * 100;
             const isTop3 = index < 3;
@@ -346,16 +346,16 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
                 key={`${activeSegment}:${item.region}`}
                 type="button"
                 onClick={() => setSelectedRegion({ segment: activeSegment, region: item.region })}
-                className={`w-full text-left rounded-xl border-2 p-4 transition-all hover:shadow-lg hover:border-green-400 ${
+                className={`w-full text-left rounded-xl border p-3 transition-all hover:shadow-lg hover:border-green-400 ${
                   isTop3
                     ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300'
                     : 'bg-white border-gray-200'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2 gap-2">
+                <div className="flex items-center justify-between mb-1.5 gap-2">
                   <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
+                      className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
                         index === 0
                           ? 'bg-yellow-400 text-white'
                           : index === 1
@@ -367,33 +367,33 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
                     >
                       {index + 1}
                     </div>
-                    <div className="flex items-center gap-2 min-w-0">
-                      <MapPin size={20} className="text-green-600 shrink-0" />
-                      <span className="font-bold text-lg text-gray-900 truncate">{item.region}</span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <MapPin size={16} className="text-green-600 shrink-0" />
+                      <span className="font-bold text-base text-gray-900 truncate">{item.region}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="text-right">
                       <div className="flex items-center gap-1 justify-end">
-                        <Users size={18} className="text-blue-600" />
-                        <span className="text-2xl font-bold text-blue-700">{item.customerCount}</span>
-                        <span className="text-sm text-gray-600">{t.people}</span>
+                        <Users size={16} className="text-blue-600" />
+                        <span className="text-xl font-bold text-blue-700">{item.customerCount}</span>
+                        <span className="text-xs text-gray-600">{t.people}</span>
                       </div>
                     </div>
-                    <ChevronRight size={22} className="text-gray-400 shrink-0" />
+                    <ChevronRight size={18} className="text-gray-400 shrink-0" />
                   </div>
                 </div>
 
-                <div className="relative h-6 bg-gray-100 rounded-full overflow-hidden mb-2">
+                <div className="relative h-4 bg-gray-100 rounded-full overflow-hidden mb-1.5">
                   <div
                     className="absolute h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500"
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="flex items-center gap-1">
-                    <TrendingUp size={14} className="text-orange-500" />
+                    <TrendingUp size={12} className="text-orange-500" />
                     <span className="text-gray-600">{t.visits}</span>
                     <span className="font-bold text-gray-800">
                       {item.visitCount}
@@ -402,7 +402,7 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
                   </div>
                   <div className="flex items-center gap-1 justify-end">
                     <span className="text-gray-600">{t.revenue}</span>
-                    <span className="font-bold text-green-700">
+                    <span className="font-bold text-green-700 text-xs">
                       {t.yen}
                       {item.totalRevenue.toLocaleString()}
                     </span>

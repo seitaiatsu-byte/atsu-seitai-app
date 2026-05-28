@@ -270,8 +270,8 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
         ) : rankings.length === 0 ? (
           <div className="text-center py-12 text-gray-500">データがありません</div>
         ) : (
-          <div className="panel-scrollbar max-h-[56rem] overflow-y-auto pr-1 space-y-2">
-            <div className="grid grid-cols-12 gap-2 p-3 bg-gray-100 rounded-lg font-bold text-sm text-gray-700">
+          <div className="panel-scrollbar max-h-[56rem] overflow-y-auto pr-1 space-y-1.5">
+            <div className="grid grid-cols-12 gap-2 p-2.5 bg-gray-100 rounded-lg font-bold text-sm text-gray-700">
               <div className="col-span-1 text-center">順位</div>
               <div className="col-span-3">顧客名</div>
               <div className="col-span-2">電話番号</div>
@@ -288,7 +288,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
               return (
                 <div
                   key={customer.customer_id}
-                  className={`grid grid-cols-12 gap-2 p-4 rounded-lg border-2 transition-all hover:shadow-md ${
+                  className={`grid grid-cols-12 gap-2 p-2.5 rounded-lg border transition-all hover:shadow-md ${
                     index < 3
                       ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-300'
                       : 'bg-white border-gray-200'
@@ -296,7 +296,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
                 >
                   <div className="col-span-1 flex items-center justify-center">
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
+                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
                         index === 0
                           ? 'bg-yellow-400 text-white'
                           : index === 1
@@ -311,38 +311,38 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
                   </div>
 
                   <div className="col-span-3 flex items-center">
-                    <div className="flex items-center gap-2">
-                      <User size={18} className="text-gray-400" />
+                    <div className="flex items-center gap-1.5">
+                      <User size={15} className="text-gray-400" />
                       <div className="leading-tight">
-                        <div className="font-bold text-gray-900">{customer.customer_name}</div>
+                        <div className="font-bold text-sm text-gray-900">{customer.customer_name}</div>
                         <div className="text-xs text-gray-500">{customer.customer_number || '-'}</div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="col-span-2 flex items-center text-sm text-gray-600">{customer.phone_number || '-'}</div>
+                  <div className="col-span-2 flex items-center text-xs text-gray-600">{customer.phone_number || '-'}</div>
 
                   <div className="col-span-2 flex items-center justify-end">
                     <div className="flex items-center gap-1">
-                      <DollarSign size={18} className="text-green-600" />
-                      <span className="font-bold text-xl text-green-700">¥{Math.round(customer.total_ltv).toLocaleString()}</span>
+                      <DollarSign size={15} className="text-green-600" />
+                      <span className="font-bold text-lg text-green-700">¥{Math.round(customer.total_ltv).toLocaleString()}</span>
                     </div>
                   </div>
 
                   <div className="col-span-2 flex items-center justify-center">
-                    <div className="bg-blue-100 px-4 py-2 rounded-full">
-                      <span className="font-bold text-blue-800">{customer.visit_count}回</span>
+                    <div className="bg-blue-100 px-3 py-1 rounded-full">
+                      <span className="font-bold text-sm text-blue-800">{customer.visit_count}回</span>
                     </div>
                   </div>
 
                   <div className="col-span-2 flex items-center justify-center">
                     <div
-                      className={`px-3 py-2 rounded-lg text-sm font-bold ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
                         isDanger ? 'bg-red-100 text-red-800' : isWarning ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
                       }`}
                     >
                       <div className="flex items-center gap-1">
-                        <Calendar size={14} />
+                        <Calendar size={12} />
                         <span>{daysSince}日前</span>
                       </div>
                     </div>
@@ -357,9 +357,9 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl shadow-lg p-4">
           <h3 className="text-lg font-bold text-amber-800 mb-3">維持費用ランキング</h3>
-          <div className="panel-scrollbar space-y-2 max-h-[34rem] overflow-y-auto pr-1">
+          <div className="panel-scrollbar space-y-1.5 max-h-[34rem] overflow-y-auto pr-1">
             {maintenanceRankings.map((r, i) => (
-              <div key={r.customer_id} className="flex items-center justify-between rounded-lg border px-3 py-2">
+              <div key={r.customer_id} className="flex items-center justify-between rounded-lg border px-2.5 py-1.5">
                 <span className="text-sm font-bold text-gray-800">
                   {i + 1}. {r.customer_name}
                   <span className="text-xs text-gray-500 ml-1">({r.customer_number || '-'})</span>
@@ -372,9 +372,9 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
 
         <div className="bg-white rounded-2xl shadow-lg p-4">
           <h3 className="text-lg font-bold text-orange-800 mb-3">物販ランキング（数量・金額）</h3>
-          <div className="panel-scrollbar space-y-2 max-h-[34rem] overflow-y-auto pr-1">
+          <div className="panel-scrollbar space-y-1.5 max-h-[34rem] overflow-y-auto pr-1">
             {productRankings.map((r, i) => (
-              <div key={r.customer_id} className="rounded-lg border px-3 py-2">
+              <div key={r.customer_id} className="rounded-lg border px-2.5 py-1.5">
                 <div className="text-sm font-bold text-gray-800">
                   {i + 1}. {r.customer_name}
                   <span className="text-xs text-gray-500 ml-1">({r.customer_number || '-'})</span>
@@ -388,9 +388,9 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
 
         <div className="bg-white rounded-2xl shadow-lg p-4">
           <h3 className="text-lg font-bold text-purple-800 mb-3">サブスクランキング</h3>
-          <div className="panel-scrollbar space-y-2 max-h-[34rem] overflow-y-auto pr-1">
+          <div className="panel-scrollbar space-y-1.5 max-h-[34rem] overflow-y-auto pr-1">
             {subscriptionRankings.map((r, i) => (
-              <div key={r.customer_id} className="rounded-lg border px-3 py-2">
+              <div key={r.customer_id} className="rounded-lg border px-2.5 py-1.5">
                 <div className="text-sm font-bold text-gray-800">
                   {i + 1}. {r.customer_name}
                   <span className="text-xs text-gray-500 ml-1">({r.customer_number || '-'})</span>
