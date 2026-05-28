@@ -23,6 +23,7 @@ export default function BusinessRulesConfig() {
   const [alertFollow, setAlertFollow] = useState<AlertFollowConfig>(DEFAULT_ALERT_FOLLOW);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showImpactGuide, setShowImpactGuide] = useState(false);
 
   useEffect(() => {
     loadRules();
@@ -309,34 +310,43 @@ export default function BusinessRulesConfig() {
           </div>
         </div>
 
-        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-5 rounded-lg">
-          <h3 className="font-bold text-yellow-900 text-lg mb-3">設定の影響</h3>
-          <ul className="space-y-2 text-sm text-gray-700">
-            <li className="flex items-start gap-2">
-              <span className="text-yellow-600 font-bold">・</span>
-              <span>
-                <strong>アラート・フォロー日数帯:</strong> 上部の「アラート」タブの4枚（黄・橙・赤）と緑（アクティブ）の日数帯
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-yellow-600 font-bold">・</span>
-              <span>
-                <strong>離脱予備軍アラート:</strong> 設定した日数を超えた顧客が自動的にアラートに表示されます
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-yellow-600 font-bold">・</span>
-              <span>
-                <strong>通院回数:</strong> 除外キーワードを含むメニューは「0回目」としてカウントされ、リピート率計算に影響します
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-yellow-600 font-bold">・</span>
-              <span>
-                <strong>分析データ:</strong> すべての分析・レポート画面でこの設定が適用されます
-              </span>
-            </li>
-          </ul>
+        <div className="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg">
+          <button
+            type="button"
+            onClick={() => setShowImpactGuide((v) => !v)}
+            className="w-full flex items-center justify-between p-5 text-left"
+          >
+            <h3 className="font-bold text-yellow-900 text-lg">設定の影響</h3>
+            <span className="text-yellow-700 font-bold">{showImpactGuide ? '▲' : '▼'}</span>
+          </button>
+          {showImpactGuide && (
+            <ul className="space-y-2 text-sm text-gray-700 px-5 pb-5">
+              <li className="flex items-start gap-2">
+                <span className="text-yellow-600 font-bold">・</span>
+                <span>
+                  <strong>アラート・フォロー日数帯:</strong> 上部の「アラート」タブの4枚（黄・橙・赤）と緑（アクティブ）の日数帯
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-yellow-600 font-bold">・</span>
+                <span>
+                  <strong>離脱予備軍アラート:</strong> 設定した日数を超えた顧客が自動的にアラートに表示されます
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-yellow-600 font-bold">・</span>
+                <span>
+                  <strong>通院回数:</strong> 除外キーワードを含むメニューは「0回目」としてカウントされ、リピート率計算に影響します
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-yellow-600 font-bold">・</span>
+                <span>
+                  <strong>分析データ:</strong> すべての分析・レポート画面でこの設定が適用されます
+                </span>
+              </li>
+            </ul>
+          )}
         </div>
 
         <button

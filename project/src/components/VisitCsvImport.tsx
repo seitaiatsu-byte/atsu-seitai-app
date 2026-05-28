@@ -152,6 +152,7 @@ export default function VisitCsvImport() {
   const [importing, setImporting] = useState(false);
   const [progressText, setProgressText] = useState('');
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   const downloadTemplate = () => {
     const example = [
@@ -616,14 +617,25 @@ export default function VisitCsvImport() {
         <h2 className="text-2xl font-bold text-gray-800">CSV 来院記録（テンプレ 11 列）</h2>
       </div>
 
-      <div className="mb-5 bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-        <div className="flex items-start gap-3">
-          <FileText className="text-blue-600 mt-1" size={20} />
-          <div className="text-sm text-blue-800 space-y-2">
-            <div className="font-bold">
-              <strong>1 行目は取り込みません</strong>（何を書いても可）。データは{VISIT_CSV_DATA_START_ROW_1_BASED}行目から。値の解釈は
-              <strong>列の位置</strong>のみ（A=1列目=日付 … K=11列目=メモ）。列見出しの表記に依存しません。
-            </div>
+      <div className="mb-5 bg-blue-50 border-2 border-blue-200 rounded-xl">
+        <button
+          type="button"
+          onClick={() => setShowGuide((v) => !v)}
+          className="w-full p-4 flex items-center justify-between text-left"
+        >
+          <div className="flex items-center gap-3">
+            <FileText className="text-blue-600" size={20} />
+            <div className="font-bold text-blue-800">CSV 来院記録ルール（テンプレ 11 列）</div>
+          </div>
+          <span className="text-blue-700 font-bold">{showGuide ? '▲' : '▼'}</span>
+        </button>
+        {showGuide && (
+          <div className="px-4 pb-4">
+            <div className="text-sm text-blue-800 space-y-2">
+              <div className="font-bold">
+                <strong>1 行目は取り込みません</strong>（何を書いても可）。データは{VISIT_CSV_DATA_START_ROW_1_BASED}行目から。値の解釈は
+                <strong>列の位置</strong>のみ（A=1列目=日付 … K=11列目=メモ）。列見出しの表記に依存しません。
+              </div>
             <div className="text-amber-900 text-xs">
               読まないとき: Excel は「CSV UTF-8(コンマ区切り)」を保存。2 行目以降に日付+顧客。1
               行だけのときは A=日付・B=顧客番号。セミコロン / タブ / UTF-16
@@ -669,7 +681,8 @@ export default function VisitCsvImport() {
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3 mb-4">

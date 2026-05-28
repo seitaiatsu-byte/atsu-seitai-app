@@ -226,6 +226,7 @@ export default function CustomerImport() {
   const [listPage, setListPage] = useState(1);
   const [rosterEdit, setRosterEdit] = useState<Customer | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showCsvGuide, setShowCsvGuide] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rosterListScrollRef = useRef<HTMLDivElement>(null);
 
@@ -826,11 +827,20 @@ export default function CustomerImport() {
         <h2 className="text-2xl font-bold text-gray-800">顧客名簿インポート</h2>
       </div>
 
-      <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <FileText className="text-blue-600 mt-1" size={24} />
-          <div className="w-full">
-            <div className="font-bold text-blue-800 mb-3">CSVファイル形式（15列対応）</div>
+      <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-lg">
+        <button
+          type="button"
+          onClick={() => setShowCsvGuide((v) => !v)}
+          className="w-full p-4 flex items-center justify-between text-left"
+        >
+          <div className="flex items-center gap-3">
+            <FileText className="text-blue-600" size={24} />
+            <div className="font-bold text-blue-800">CSVファイル形式（15列対応）</div>
+          </div>
+          <span className="text-blue-700 font-bold">{showCsvGuide ? '▲' : '▼'}</span>
+        </button>
+        {showCsvGuide && (
+          <div className="px-4 pb-4">
             <div className="text-sm text-blue-700 space-y-2">
               <div className="font-bold bg-white rounded p-2 border border-blue-300 text-xs">
                 A. 顧客番号 | B. 名前 <span className="text-red-600">*</span> | C. ふりがな <span className="text-red-600">*</span> | D. 性別 | E. 生年月日 | F. 電話番号 | G. 流入のメイン | H. 府県 | I. 市・郡 | J. 町 | K. 主訴1 | L. 主訴2 | M. 主訴3 | N. メールアドレス | O. 備考
@@ -856,7 +866,7 @@ export default function CustomerImport() {
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="flex gap-3 mb-6">
