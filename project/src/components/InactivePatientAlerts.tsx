@@ -53,6 +53,11 @@ function birthdayRowCardClass(daysSinceLastVisit: number | null): string {
   return 'bg-gray-50 border-gray-200';
 }
 
+function compactPhone(v: string | null | undefined): string {
+  const t = String(v || '').trim();
+  return t || '-';
+}
+
 function lastVisitPerCustomer(visits: { customer_id: string; visit_date: string; amount?: number | null }[]) {
   const map = new Map<string, { date: string; count: number; sum: number }>();
   visits.forEach((v) => {
@@ -227,32 +232,30 @@ export default function InactivePatientAlerts() {
     b1.length === 0 && b2.length === 0 && filteredB3.length === 0 && !hasBirth;
 
   const renderBirthdayList = (items: BirthdayRow[]) => (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {items.map((item) => (
         <div
           key={item.customer.id}
-          className={`rounded-lg p-3 border transition-colors ${birthdayRowCardClass(item.daysSinceLastVisit)}`}
+          className={`rounded-lg px-3 py-2 border transition-colors ${birthdayRowCardClass(item.daysSinceLastVisit)}`}
         >
-          <div className="flex flex-wrap justify-between gap-1.5">
-            <div>
-              <div className="text-base font-bold text-gray-900 leading-tight">
-                {item.customer.name}
-                {item.customer.customer_number != null && String(item.customer.customer_number).trim() !== '' && (
-                  <span className="ml-2 text-xs font-mono font-semibold text-gray-600">
-                    {item.customer.customer_number}
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-gray-600">{item.customer.name_kana}</div>
-              <div className="text-xs mt-0.5 text-gray-700">
-                {new Date(item.birthDate).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })}（満
-                {item.displayAge}歳付近）
-              </div>
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <div className="min-w-0 flex items-center gap-2">
+              <span className="font-bold text-gray-900 truncate">{item.customer.name}</span>
+              {item.customer.customer_number != null && String(item.customer.customer_number).trim() !== '' && (
+                <span className="text-xs font-mono font-semibold text-gray-600 shrink-0">
+                  {item.customer.customer_number}
+                </span>
+              )}
+              <span className="text-xs text-gray-600 truncate">{item.customer.name_kana}</span>
+              <span className="text-xs text-gray-700 shrink-0">
+                {new Date(item.birthDate).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}（満
+                {item.displayAge}歳）
+              </span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Phone size={16} />
-              <span className="text-sm font-bold">{item.customer.phone_number || '-'}</span>
-            </div>
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-gray-700 shrink-0">
+              <Phone size={14} />
+              {compactPhone(item.customer.phone_number)}
+            </span>
           </div>
         </div>
       ))}
@@ -330,32 +333,40 @@ export default function InactivePatientAlerts() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl shadow-lg p-4 border border-yellow-300">
-          <div className="flex items-center gap-2 mb-2">
-            <Calendar className="text-yellow-600" size={22} />
-            <h3 className="font-bold text-yellow-900">{labelYellowRange(cfg)}</h3>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Calendar className="text-yellow-600 shrink-0" size={18} />
+              <h3 className="font-bold text-yellow-900 text-sm truncate">{labelYellowRange(cfg)}</h3>
+            </div>
+            <div className="text-3xl font-bold text-yellow-900 leading-none shrink-0">{b1.length}</div>
           </div>
-          <div className="text-3xl font-bold text-yellow-900 leading-none">{b1.length}</div>
         </div>
         <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl shadow-lg p-4 border border-orange-300">
-          <div className="flex items-center gap-2 mb-2">
-            <Calendar className="text-orange-600" size={22} />
-            <h3 className="font-bold text-orange-900">{labelOrangeRange(cfg)}</h3>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Calendar className="text-orange-600 shrink-0" size={18} />
+              <h3 className="font-bold text-orange-900 text-sm truncate">{labelOrangeRange(cfg)}</h3>
+            </div>
+            <div className="text-3xl font-bold text-orange-900 leading-none shrink-0">{b2.length}</div>
           </div>
-          <div className="text-3xl font-bold text-orange-900 leading-none">{b2.length}</div>
         </div>
         <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl shadow-lg p-4 border border-red-300">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertCircle className="text-red-600" size={22} />
-            <h3 className="font-bold text-red-900">{labelRedRange(cfg)}</h3>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertCircle className="text-red-600 shrink-0" size={18} />
+              <h3 className="font-bold text-red-900 text-sm truncate">{labelRedRange(cfg)}</h3>
+            </div>
+            <div className="text-3xl font-bold text-red-900 leading-none shrink-0">{b3.length}</div>
           </div>
-          <div className="text-3xl font-bold text-red-900 leading-none">{b3.length}</div>
         </div>
         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl shadow-lg p-4 border border-emerald-300">
-          <div className="flex items-center gap-2 mb-2">
-            <UserCheck className="text-emerald-600" size={22} />
-            <h3 className="font-bold text-emerald-900">アクティブ（{labelActiveShort(cfg)}に来院）</h3>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <UserCheck className="text-emerald-600 shrink-0" size={18} />
+              <h3 className="font-bold text-emerald-900 text-sm truncate">アクティブ（{labelActiveShort(cfg)}）</h3>
+            </div>
+            <div className="text-3xl font-bold text-emerald-900 leading-none shrink-0">{activeMembers.length}</div>
           </div>
-          <div className="text-3xl font-bold text-emerald-900 leading-none">{activeMembers.length}</div>
         </div>
       </div>
 
