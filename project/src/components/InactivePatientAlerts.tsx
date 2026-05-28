@@ -23,11 +23,11 @@ interface InactiveRow {
   ltvApprox: number;
 }
 
-/** 3ヶ月 / 半年 / 1年 の境界（日数） */
+/** 誕生日一覧の色分け境界（日数） */
 const BDAY_VISIT_3M = 90;
 const BDAY_VISIT_6M = 180;
 const BDAY_VISIT_1Y = 365;
-const BDAY_VISIT_1Y6M = 548; // 約1年半（365 + 183）
+const BDAY_VISIT_MAX = 548; // 約1年半（365 + 183）
 
 interface BirthdayRow {
   customer: Customer;
@@ -49,7 +49,7 @@ function birthdayRowCardClass(daysSinceLastVisit: number | null): string {
   if (daysSinceLastVisit <= BDAY_VISIT_1Y) {
     return 'bg-yellow-50 border-yellow-300';
   }
-  if (daysSinceLastVisit <= BDAY_VISIT_1Y6M) return 'bg-pink-50 border-pink-200';
+  if (daysSinceLastVisit <= BDAY_VISIT_MAX) return 'bg-pink-50 border-pink-200';
   return 'bg-gray-50 border-gray-200';
 }
 
@@ -165,7 +165,7 @@ export default function InactivePatientAlerts() {
         ? Math.floor((today.getTime() - new Date(vi.date).getTime()) / (1000 * 60 * 60 * 24))
         : null;
       // 誕生日一覧は「最終来院が1年半以内」の患者のみ表示する
-      if (daysSinceLastVisit == null || daysSinceLastVisit > BDAY_VISIT_1Y6M) {
+      if (daysSinceLastVisit == null || daysSinceLastVisit > BDAY_VISIT_MAX) {
         continue;
       }
       if (bm === thisM) {
@@ -400,6 +400,9 @@ export default function InactivePatientAlerts() {
               <span className="inline-block w-2.5 h-2.5 rounded-sm bg-pink-100 border border-pink-200 align-middle" />{' '}
               1年超〜1年半以内
             </span>
+          </p>
+          <p className="text-xs text-gray-500 mb-4">
+            ※ 最終来院から1年半を超える方は、誕生日一覧には表示しません。
           </p>
           {birthThis.length > 0 && (
             <div className="mb-8">
