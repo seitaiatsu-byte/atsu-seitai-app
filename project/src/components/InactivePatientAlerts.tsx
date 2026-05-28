@@ -214,6 +214,18 @@ export default function InactivePatientAlerts() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [loadAlerts]);
 
+  const t1a = cfg.activeMaxExclusive;
+  const t1b = cfg.tier1End;
+  const t2b = cfg.tier2End;
+  const filteredB3 = useMemo(
+    () => b3.filter((row) => row.daysSince >= t2b && row.daysSince <= redUpperDays),
+    [b3, t2b, redUpperDays]
+  );
+  const redRangeTitle = `${t2b}日以上〜${redUpperDays}日以内 未来院`;
+  const hasBirth = birthThis.length + birthNext.length > 0;
+  const allQuiet =
+    b1.length === 0 && b2.length === 0 && filteredB3.length === 0 && !hasBirth;
+
   const renderBirthdayList = (items: BirthdayRow[]) => (
     <div className="space-y-3">
       {items.map((item) => (
@@ -291,18 +303,6 @@ export default function InactivePatientAlerts() {
       </div>
     );
   }
-
-  const t1a = cfg.activeMaxExclusive;
-  const t1b = cfg.tier1End;
-  const t2b = cfg.tier2End;
-  const filteredB3 = useMemo(
-    () => b3.filter((row) => row.daysSince >= t2b && row.daysSince <= redUpperDays),
-    [b3, t2b, redUpperDays]
-  );
-  const redRangeTitle = `${t2b}日以上〜${redUpperDays}日以内 未来院`;
-  const hasBirth = birthThis.length + birthNext.length > 0;
-  const allQuiet =
-    b1.length === 0 && b2.length === 0 && filteredB3.length === 0 && !hasBirth;
 
   return (
     <div className="space-y-6">
