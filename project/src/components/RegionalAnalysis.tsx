@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { MapPin, TrendingUp, Users, Download, Pencil, X, ChevronRight } from 'lucide-react';
+import { MapPin, Users, Download, Pencil, X, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchAllCustomersByCreatedDesc, type CustomerRow } from '../lib/fetchAllCustomers';
 import { downloadCustomersCsv } from '../lib/customerCsvExport';
@@ -390,10 +390,6 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
                   />
                 </div>
 
-                <div className="flex items-center gap-1 text-[11px] text-gray-500">
-                  <TrendingUp size={11} className="text-orange-500" />
-                  <span>来院回数と累計売上は右側に表示</span>
-                </div>
               </button>
             );
           })}

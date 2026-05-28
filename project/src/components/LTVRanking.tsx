@@ -379,13 +379,15 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
           <h3 className="text-lg font-bold text-purple-800 mb-3">サブスクランキング</h3>
           <div className="panel-scrollbar space-y-1.5 max-h-[34rem] overflow-y-auto pr-1">
             {subscriptionRankings.map((r, i) => (
-              <div key={r.customer_id} className="rounded-lg border px-2.5 py-1.5">
-                <div className="text-sm font-bold text-gray-800">
+              <div key={r.customer_id} className="rounded-lg border px-2.5 py-1.5 flex items-center justify-between gap-2">
+                <div className="min-w-0 text-sm font-bold text-gray-800 truncate">
                   {i + 1}. {r.customer_name}
                   <span className="text-xs text-gray-500 ml-1">({r.customer_number || '-'})</span>
                 </div>
-                <div className="text-xs text-gray-600 mt-1">件数: {r.total_count}件</div>
-                <div className="text-sm font-bold text-purple-700">¥{Math.round(r.total_amount).toLocaleString()}</div>
+                <div className="shrink-0 flex items-center gap-2 text-xs">
+                  <span className="text-gray-600">件数:{r.total_count}件</span>
+                  <span className="text-sm font-bold text-purple-700">¥{Math.round(r.total_amount).toLocaleString()}</span>
+                </div>
               </div>
             ))}
           </div>
