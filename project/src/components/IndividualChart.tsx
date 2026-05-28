@@ -36,6 +36,8 @@ type TimelineItem = {
   label: string;
   sublabel: string;
   amount: number;
+  visitOrdinal?: number;
+  isFirstVisit?: boolean;
 };
 
 type MediaEntry = {
@@ -45,6 +47,14 @@ type MediaEntry = {
 };
 
 type ChartSummaryPanel = 'maintenance' | 'product' | 'subscription' | null;
+type ActiveChartRow = {
+  customer: Customer;
+  latestVisitDate: string | null;
+  daysSinceLatestVisit: number | null;
+  ltv: number;
+  route: string;
+  symptom: string;
+};
 
 function formatDateJaYmd(s: string | null | undefined): string {
   const t = (s || '').trim().slice(0, 10);
@@ -64,6 +74,9 @@ export default function IndividualChart() {
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([]);
   const [referral1FromMaster, setReferral1FromMaster] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState<ChartSummaryPanel>(null);
+  const [activeRows, setActiveRows] = useState<ActiveChartRow[]>([]);
+  const [activeLoading, setActiveLoading] = useState(false);
+  const [checkedActiveIds, setCheckedActiveIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchBusinessRules().then((r) => setExcludeKeywords(r.excludeKeywords));
@@ -138,9 +151,69 @@ export default function IndividualChart() {
     setDetailNameMap(buildIdToNameMap(pd as { id: string; name: string }[]));
   }, [selectedCustomer]);
 
+  const loadActiveChartRows = useCallback(async () => {
+    setActiveLoading(true);
+    const [{ data: customers }, { data: vRows }, { data: pRows }, { data: sRows }] = await Promise.all([
+      supabase.from('customers').select('*').order('customer_number', { ascending: true }),
+      supabase.from('visit_records').select('id, customer_id, visit_date, amount'),
+      supabase.from('product_sales').select('customer_id, amount'),
+      supabase.from('subscription_records').select('customer_id, amount'),
+    ]);
+
+    const visits = (vRows || []) as Pick<VisitRow, 'id' | 'customer_id' | 'visit_date' | 'amount'>[];
+    const products = (pRows || []) as Pick<ProductRow, 'customer_id' | 'amount'>[];
+    const subsRows = (sRows || []) as Pick<SubRow, 'customer_id' | 'amount'>[];
+    const customerRows = (customers || []) as Customer[];
+
+    const latestVisitByCustomer = new Map<string, string>();
+    const ltvByCustomer = new Map<string, number>();
+    const now = new Date();
+
+    visits.forEach((v) => {
+      const cur = latestVisitByCustomer.get(v.customer_id);
+      if (!cur || String(v.visit_date) > cur) latestVisitByCustomer.set(v.customer_id, String(v.visit_date));
+      ltvByCustomer.set(v.customer_id, (ltvByCustomer.get(v.customer_id) || 0) + Number(v.amount || 0));
+    });
+    products.forEach((p) => {
+      ltvByCustomer.set(p.customer_id, (ltvByCustomer.get(p.customer_id) || 0) + Number(p.amount || 0));
+    });
+    subsRows.forEach((s) => {
+      ltvByCustomer.set(s.customer_id, (ltvByCustomer.get(s.customer_id) || 0) + Number(s.amount || 0));
+    });
+
+    const rows: ActiveChartRow[] = customerRows
+      .map((c) => {
+        const latest = latestVisitByCustomer.get(c.id) || null;
+        const daysSince = latest
+          ? Math.floor((now.getTime() - new Date(`${latest}T12:00:00`).getTime()) / (1000 * 60 * 60 * 24))
+          : null;
+        return {
+          customer: c,
+          latestVisitDate: latest,
+          daysSinceLatestVisit: daysSince,
+          ltv: ltvByCustomer.get(c.id) || 0,
+          route: getInflowLineForChart(c, null, [])?.line || '—',
+          symptom: getChiefComplaint1Display(c) || '—',
+        };
+      })
+      .sort((a, b) => {
+        const ad = a.daysSinceLatestVisit ?? Number.MAX_SAFE_INTEGER;
+        const bd = b.daysSinceLatestVisit ?? Number.MAX_SAFE_INTEGER;
+        if (ad !== bd) return ad - bd;
+        return (b.ltv || 0) - (a.ltv || 0);
+      });
+
+    setActiveRows(rows);
+    setActiveLoading(false);
+  }, []);
+
   useEffect(() => {
     void loadCustomerData();
   }, [loadCustomerData]);
+
+  useEffect(() => {
+    void loadActiveChartRows();
+  }, [loadActiveChartRows]);
 
   useEffect(() => {
     setSummaryOpen(null);
@@ -149,10 +222,11 @@ export default function IndividualChart() {
   useEffect(() => {
     const onRecordsUpdated = () => {
       void loadCustomerData();
+      void loadActiveChartRows();
     };
     window.addEventListener('records-updated', onRecordsUpdated);
     return () => window.removeEventListener('records-updated', onRecordsUpdated);
-  }, [loadCustomerData]);
+  }, [loadCustomerData, loadActiveChartRows]);
 
   const totalLtv = useMemo(() => {
     const vt = visits.reduce((a, v) => a + Number(v.amount || 0), 0);
@@ -160,6 +234,23 @@ export default function IndividualChart() {
     const st = subs.reduce((a, s) => a + Number(s.amount || 0), 0);
     return vt + pt + st;
   }, [visits, products, subs]);
+
+  const visitOrdinalById = useMemo(() => {
+    const sortedAsc = [...visits].sort((a, b) => {
+      const d = String(a.visit_date).localeCompare(String(b.visit_date));
+      if (d !== 0) return d;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    const map = new Map<string, number>();
+    sortedAsc.forEach((v, i) => map.set(v.id, i + 1));
+    return map;
+  }, [visits]);
+
+  const firstVisitId = useMemo(() => {
+    const first = [...visits]
+      .sort((a, b) => String(a.visit_date).localeCompare(String(b.visit_date)) || String(a.id).localeCompare(String(b.id)))[0];
+    return first?.id ?? null;
+  }, [visits]);
 
   const timeline: TimelineItem[] = useMemo(() => {
     const rows: TimelineItem[] = [];
@@ -171,8 +262,18 @@ export default function IndividualChart() {
         kind: 'visit',
         date: v.visit_date,
         label: '来院',
-        sublabel: [v.menu_name, pd !== '-' ? pd : null, pm !== '-' ? pm : null].filter(Boolean).join(' / '),
+        sublabel: [
+          firstVisitId === v.id ? '初回' : null,
+          `実通院${visitOrdinalById.get(v.id) || 0}回`,
+          v.menu_name,
+          pd !== '-' ? pd : null,
+          pm !== '-' ? pm : null,
+        ]
+          .filter(Boolean)
+          .join(' / '),
         amount: Number(v.amount || 0),
+        visitOrdinal: visitOrdinalById.get(v.id),
+        isFirstVisit: firstVisitId === v.id,
       });
     });
     products.forEach((p) => {
@@ -202,7 +303,23 @@ export default function IndividualChart() {
     });
     rows.sort((a, b) => b.date.localeCompare(a.date));
     return rows;
-  }, [visits, products, subs, paymentMethodNames, paymentDetailNames]);
+  }, [visits, products, subs, paymentMethodNames, paymentDetailNames, visitOrdinalById, firstVisitId]);
+
+  const toggleActiveChecked = (customerId: string) => {
+    setCheckedActiveIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(customerId)) n.delete(customerId);
+      else n.add(customerId);
+      return n;
+    });
+  };
+
+  const latestVisitColorClass = (days: number | null) => {
+    if (days == null) return 'text-gray-500';
+    if (days > 60) return 'text-red-700 font-bold';
+    if (days > 30) return 'text-yellow-700 font-bold';
+    return 'text-green-700 font-bold';
+  };
 
   const productSummary = useMemo(() => {
     const lineCount = products.length;
@@ -329,12 +446,62 @@ export default function IndividualChart() {
       <h2 className="text-2xl font-bold text-gray-800 mb-4">個人カルテ</h2>
 
       {!selectedCustomer ? (
-        <CustomerSearchPanel
-          accent="blue"
-          selectedCustomer={null}
-          onSelect={(c) => setSelectedCustomer(c)}
-          onClearSelection={() => {}}
-        />
+        <div className="space-y-4">
+          <CustomerSearchPanel
+            accent="blue"
+            selectedCustomer={null}
+            onSelect={(c) => setSelectedCustomer(c)}
+            onClearSelection={() => {}}
+          />
+
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <h3 className="text-sm font-bold text-gray-800 mb-2">アクティブカルテ一覧</h3>
+            {activeLoading ? (
+              <div className="text-xs text-gray-500 py-4">読み込み中...</div>
+            ) : (
+              <div className="panel-scrollbar max-h-[34rem] overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-slate-100 z-10">
+                    <tr className="text-left text-slate-700">
+                      <th className="px-2 py-2 w-8"> </th>
+                      <th className="px-2 py-2">番号</th>
+                      <th className="px-2 py-2">年齢</th>
+                      <th className="px-2 py-2">症状</th>
+                      <th className="px-2 py-2">経路</th>
+                      <th className="px-2 py-2 text-right">LTV</th>
+                      <th className="px-2 py-2">最新来院日</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeRows.map((r) => (
+                      <tr
+                        key={r.customer.id}
+                        className="border-b border-slate-100 hover:bg-blue-50 cursor-pointer"
+                        onClick={() => setSelectedCustomer(r.customer)}
+                      >
+                        <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={checkedActiveIds.has(r.customer.id)}
+                            onChange={() => toggleActiveChecked(r.customer.id)}
+                          />
+                        </td>
+                        <td className="px-2 py-1.5 font-semibold">{r.customer.customer_number || '—'}</td>
+                        <td className="px-2 py-1.5">{getAgeYearsFromCustomer(r.customer) ?? '—'}歳</td>
+                        <td className="px-2 py-1.5">{r.symptom}</td>
+                        <td className="px-2 py-1.5">{r.route}</td>
+                        <td className="px-2 py-1.5 text-right font-bold text-blue-700">¥{Math.round(r.ltv).toLocaleString()}</td>
+                        <td className={`px-2 py-1.5 ${latestVisitColorClass(r.daysSinceLatestVisit)}`}>
+                          {r.latestVisitDate ? `${new Date(`${r.latestVisitDate}T12:00:00`).toLocaleDateString('ja-JP')} (${r.daysSinceLatestVisit}日)` : '来院なし'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       ) : (
         <div>
           <div className="flex justify-end mb-2">
