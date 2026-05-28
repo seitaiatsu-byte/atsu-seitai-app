@@ -270,7 +270,7 @@ export default function InactivePatientAlerts() {
           <Calendar size={20} />
           {title}（{items.length}名）
         </h3>
-        <div className="space-y-3 max-h-96 overflow-y-auto">
+        <div className="space-y-2 max-h-96 overflow-y-auto">
           {items.map((item) => (
             <div
               key={item.customer.id}
@@ -376,9 +376,9 @@ export default function InactivePatientAlerts() {
           </h3>
           <div className="max-h-64 overflow-y-auto divide-y">
             {activeMembers.map((c) => (
-              <div key={c.id} className="py-2 flex justify-between text-sm">
-                <span className="font-bold">{c.name}</span>
-                <span className="text-gray-500">{c.phone_number || '-'}</span>
+              <div key={c.id} className="py-1.5 flex justify-between text-xs">
+                <span className="font-bold text-gray-800">{c.name}</span>
+                <span className="text-gray-500">{compactPhone(c.phone_number)}</span>
               </div>
             ))}
           </div>
