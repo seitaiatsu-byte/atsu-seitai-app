@@ -348,23 +348,23 @@ export default function IndividualChart() {
             </button>
           </div>
 
-          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-6 mb-6 space-y-4">
+          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4 mb-5 space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="text-xs text-gray-600 font-bold">顧客番号</div>
-                <div className="text-xl font-bold text-gray-900">{selectedCustomer.customer_number}</div>
-                <div className="text-2xl font-bold text-gray-900 mt-1">{selectedCustomer.name}</div>
-                <div className="text-gray-600">
+                <div className="text-lg font-bold text-gray-900">{selectedCustomer.customer_number}</div>
+                <div className="text-xl font-bold text-gray-900 mt-0.5">{selectedCustomer.name}</div>
+                <div className="text-sm text-gray-600">
                   {getKanaForRoster(selectedCustomer as CustomerRowRecord) ?? '—'}
                 </div>
               </div>
               <div className="text-right text-sm">
                 <div className="font-bold text-pink-700">総LTV</div>
-                <div className="text-3xl font-bold text-pink-900">¥{Math.round(totalLtv).toLocaleString()}</div>
+                <div className="text-2xl font-bold text-pink-900">¥{Math.round(totalLtv).toLocaleString()}</div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2 text-sm">
               <div>
                 <div className="text-xs text-gray-600 font-bold">性別</div>
                 <div className="font-bold">{selectedCustomer.gender || '-'}</div>
@@ -384,7 +384,7 @@ export default function IndividualChart() {
                 <div className="font-bold">
                   {phoneForChart.value ?? '—'}
                   {phoneForChart.value && !phoneForChart.fromRoster && (
-                    <div className="text-[10px] text-amber-700 font-normal mt-0.5">
+                    <div className="text-[10px] text-amber-700 font-normal mt-0.5 leading-tight">
                       ※ 名簿の電話欄に値が取れないため、メモ・住所・来院メモから抽出しています
                     </div>
                   )}
@@ -401,7 +401,7 @@ export default function IndividualChart() {
                 <div className="font-bold">
                   {inflowFromVisits.line ?? '—'}
                   {inflowFromVisits.note === 'visit' && (
-                    <div className="text-[10px] text-amber-700 font-normal mt-0.5">
+                    <div className="text-[10px] text-amber-700 font-normal mt-0.5 leading-tight">
                       ※ 顧客の「流入」が未登録のため、直近の来院取込（種類列）を表示しています
                     </div>
                   )}
@@ -412,7 +412,7 @@ export default function IndividualChart() {
                 <div className="font-bold">
                   {formatTableCell(chiefLines[0], '—')}
                   {chiefLines[0] && !getChiefComplaint1Display(selectedCustomer) && (
-                    <div className="text-[10px] text-amber-700 font-normal mt-0.5">
+                    <div className="text-[10px] text-amber-700 font-normal mt-0.5 leading-tight">
                       ※ 顧客の主訴欄が空のため、直近来院の実施メニュー名を補完
                     </div>
                   )}
@@ -439,15 +439,15 @@ export default function IndividualChart() {
             </div>
 
             {rosterMemo && (
-              <div className="rounded-lg p-3 bg-white/90 border border-gray-200 text-sm">
+              <div className="rounded-lg p-2.5 bg-white/90 border border-gray-200 text-sm">
                 <div className="text-xs text-gray-600 font-bold mb-1">メモ</div>
                 <div className="text-gray-800 whitespace-pre-wrap break-words">{rosterMemo}</div>
               </div>
             )}
 
-            <div className="bg-white/80 rounded-lg p-4 border border-blue-200">
+            <div className="bg-white/80 rounded-lg p-3 border border-blue-200">
               <div className="text-sm font-bold text-gray-800 mb-2">リピート・来院（設定連動）</div>
-              <ul className="text-sm text-gray-700 space-y-1 list-disc list-inside">
+              <ul className="text-xs text-gray-700 space-y-0.5 list-disc list-inside">
                 <li>対象来院: {qualifyingCount}回</li>
                 <li>リピート回数: {repeatVisitCount}回</li>
                 <li>初診日: {firstQDate ? new Date(firstQDate).toLocaleDateString('ja-JP') : '—'}</li>

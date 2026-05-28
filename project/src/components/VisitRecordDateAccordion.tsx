@@ -235,14 +235,14 @@ function VisitDetailCard({
   const hasMedia = (v.media_urls && v.media_urls.length > 0) || false;
 
   return (
-    <div className="rounded-xl border-2 border-white bg-white p-3 shadow-sm ring-1 ring-slate-200/60">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+    <div className="rounded-xl border border-white bg-white p-2.5 shadow-sm ring-1 ring-slate-200/60">
+      <div className="grid grid-cols-1 gap-y-1.5 text-xs">
         {rows.map((r) => (
-          <div key={r.key} className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2 border-b border-slate-100 pb-1.5 last:border-0 sm:border-0 sm:pb-0">
-            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:w-28 shrink-0">
+          <div key={r.key} className="flex items-start gap-2 border-b border-slate-100 pb-1 last:border-0">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500 w-24 shrink-0">
               {r.label}
             </span>
-            <span className="text-slate-900 font-medium break-words whitespace-pre-wrap min-w-0">
+            <span className="text-slate-900 font-medium break-words whitespace-pre-wrap min-w-0 leading-tight">
               {r.key === 'cl' ? (
                 <ClinicNameFromVisitClinicName clinicName={v.clinic_name} emptyLabel="—" />
               ) : (
@@ -252,7 +252,7 @@ function VisitDetailCard({
           </div>
         ))}
         {hasMedia && (
-          <div className="col-span-1 sm:col-span-2">
+          <div>
             <span className="text-[10px] font-bold text-slate-500">添付画像</span>
             <div className="flex flex-wrap gap-1 mt-1">
               {(v.media_urls || []).slice(0, 6).map((url) => (
@@ -273,7 +273,7 @@ function VisitDetailCard({
           </div>
         )}
       </div>
-      {actions && <div className="mt-3 flex justify-end gap-1 pt-2 border-t border-slate-100">{actions}</div>}
+      {actions && <div className="mt-2 flex justify-end gap-1 pt-2 border-t border-slate-100">{actions}</div>}
     </div>
   );
 }
