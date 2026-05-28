@@ -1033,24 +1033,24 @@ export default function CustomerImport() {
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-inner border border-gray-200">
-            <div ref={rosterListScrollRef} className="panel-scrollbar max-h-[44rem] overflow-y-auto">
-              <table className="w-full">
+            <div ref={rosterListScrollRef} className="panel-scrollbar max-h-[44rem] overflow-auto">
+              <table className="w-full min-w-[1280px]">
                 <thead className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white sticky top-0">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-bold">顧客番号</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold">氏名</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold">ふりがな</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold">性別</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold">年齢</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold">電話番号</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold max-w-[140px]">流入</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold max-w-[120px]">主訴1</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold">院</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold max-w-[100px]">メモ</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold whitespace-nowrap">顧客番号</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold whitespace-nowrap">氏名</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold whitespace-nowrap">ふりがな</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold whitespace-nowrap">性別</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold whitespace-nowrap">年齢</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold whitespace-nowrap">電話番号</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold whitespace-nowrap max-w-[140px]">流入</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold whitespace-nowrap max-w-[120px]">主訴1</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold whitespace-nowrap">院</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold whitespace-nowrap max-w-[100px]">メモ</th>
                     <th className="px-4 py-3 text-left text-sm font-bold sticky right-0 bg-gradient-to-r from-indigo-500 to-indigo-600 min-w-[170px]">
                       操作
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-bold">登録日</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold whitespace-nowrap">登録日</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1061,19 +1061,19 @@ export default function CustomerImport() {
                       key={customer.id}
                       className={`border-b border-gray-100 hover:bg-blue-50 transition-colors ${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}
                     >
-                      <td className="px-4 py-3 text-sm font-mono text-gray-700">{customer.customer_number}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-gray-800">{customer.name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
+                      <td className="px-4 py-3 text-sm font-mono text-gray-700 whitespace-nowrap">{customer.customer_number}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-gray-800 whitespace-nowrap">{customer.name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                         {getKanaForRoster(asRow) ?? '—'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{customer.gender || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
+                      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{customer.gender || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                         {(() => {
                           const y = getAgeYearsFromCustomer(customer);
                           return y != null ? `${y}歳` : '—';
                         })()}
                       </td>
-                      <td className="px-4 py-3 text-sm font-mono text-gray-600">
+                      <td className="px-4 py-3 text-sm font-mono text-gray-600 whitespace-nowrap">
                         {getPhoneWithMemoFallback(customer) ?? '—'}
                       </td>
                       <td
@@ -1088,7 +1088,7 @@ export default function CustomerImport() {
                       >
                         {getComplaint1ForRoster(asRow) ?? '—'}
                       </td>
-                      <td className="px-4 py-3 text-sm">
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <ClinicNameFromCustomer customer={customer} emptyLabel="—" />
                       </td>
                       <td
@@ -1127,7 +1127,7 @@ export default function CustomerImport() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500">
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                         {new Date(customer.created_at).toLocaleDateString('ja-JP')}
                       </td>
                     </tr>
