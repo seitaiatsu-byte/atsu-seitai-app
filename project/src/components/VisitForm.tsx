@@ -19,6 +19,14 @@ import {
   validateExplicitAmount,
 } from '../lib/registrationValidation';
 
+function normalizeSearchText(raw: unknown): string {
+  const s = String(raw ?? '')
+    .normalize('NFKC')
+    .replace(/\s+/g, '')
+    .toLowerCase();
+  return s.replace(/[\u30a1-\u30f6]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+}
+
 export default function VisitForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
@@ -87,7 +95,7 @@ export default function VisitForm() {
     while (true) {
       const { data, error } = await supabase
         .from('visit_records')
-        .select('*, customers(id, name, customer_number)')
+        .select('*, customers(id, name, customer_number, name_kana, kana)')
         .order('visit_date', { ascending: false })
         .order('created_at', { ascending: false })
         .range(from, from + PAGE - 1);
@@ -310,12 +318,14 @@ export default function VisitForm() {
   };
 
   const filteredRecentRecords = useMemo(() => {
-    const q = historyFilter.trim().toLowerCase();
+    const q = normalizeSearchText(historyFilter);
     if (!q) return recentRecords;
     return recentRecords.filter((r) => {
       const c = r.customers;
+      const customerKana = c?.name_kana || c?.kana || '';
       const hay = [
         c?.name,
+        customerKana,
         c?.customer_number,
         r.staff_name,
         r.menu_name,
@@ -324,8 +334,8 @@ export default function VisitForm() {
         r.visit_date,
       ]
         .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
+        .map(normalizeSearchText)
+        .join(' ');
       return hay.includes(q);
     });
   }, [recentRecords, historyFilter]);
