@@ -270,7 +270,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
         ) : rankings.length === 0 ? (
           <div className="text-center py-12 text-gray-500">データがありません</div>
         ) : (
-          <div className="space-y-2">
+          <div className="panel-scrollbar max-h-[56rem] overflow-y-auto pr-1 space-y-2">
             <div className="grid grid-cols-12 gap-2 p-3 bg-gray-100 rounded-lg font-bold text-sm text-gray-700">
               <div className="col-span-1 text-center">順位</div>
               <div className="col-span-3">顧客名</div>
@@ -357,7 +357,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl shadow-lg p-4">
           <h3 className="text-lg font-bold text-amber-800 mb-3">維持費用ランキング</h3>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="panel-scrollbar space-y-2 max-h-[34rem] overflow-y-auto pr-1">
             {maintenanceRankings.map((r, i) => (
               <div key={r.customer_id} className="flex items-center justify-between rounded-lg border px-3 py-2">
                 <span className="text-sm font-bold text-gray-800">
@@ -372,7 +372,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
 
         <div className="bg-white rounded-2xl shadow-lg p-4">
           <h3 className="text-lg font-bold text-orange-800 mb-3">物販ランキング（数量・金額）</h3>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="panel-scrollbar space-y-2 max-h-[34rem] overflow-y-auto pr-1">
             {productRankings.map((r, i) => (
               <div key={r.customer_id} className="rounded-lg border px-3 py-2">
                 <div className="text-sm font-bold text-gray-800">
@@ -388,7 +388,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
 
         <div className="bg-white rounded-2xl shadow-lg p-4">
           <h3 className="text-lg font-bold text-purple-800 mb-3">サブスクランキング</h3>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="panel-scrollbar space-y-2 max-h-[34rem] overflow-y-auto pr-1">
             {subscriptionRankings.map((r, i) => (
               <div key={r.customer_id} className="rounded-lg border px-3 py-2">
                 <div className="text-sm font-bold text-gray-800">

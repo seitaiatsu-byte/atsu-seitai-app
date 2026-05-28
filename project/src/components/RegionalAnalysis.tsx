@@ -337,7 +337,7 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
           <p className="text-sm mt-2">{t.noDataHint}</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="panel-scrollbar max-h-[44rem] overflow-y-auto pr-1 space-y-3">
           {activeData.map((item, index) => {
             const percentage = (item.customerCount / activeMaxCount) * 100;
             const isTop3 = index < 3;

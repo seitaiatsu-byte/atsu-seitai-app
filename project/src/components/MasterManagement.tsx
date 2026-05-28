@@ -173,7 +173,7 @@ export default function MasterManagement() {
         </form>
       </div>
 
-      <div className="space-y-2">
+      <div className="panel-scrollbar space-y-2 max-h-[42rem] overflow-y-auto pr-1">
         {isLoading ? ( <div className="text-center py-10 font-bold text-gray-400">通信中...</div> ) : (
           items.map((item, index) => (
             <div key={item.id} className="flex items-center justify-between p-4 bg-white border rounded-xl shadow-sm">
