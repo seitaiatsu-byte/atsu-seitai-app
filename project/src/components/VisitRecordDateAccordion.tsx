@@ -236,18 +236,12 @@ function VisitDetailCard({
 
   return (
     <div className="rounded-xl border border-white bg-white p-2.5 shadow-sm ring-1 ring-slate-200/60">
-      <div className="grid grid-cols-1 gap-y-1.5 text-xs">
+      <div className="grid grid-cols-1 gap-y-1 text-xs">
         {rows.map((r) => (
-          <div key={r.key} className="flex items-start gap-2 border-b border-slate-100 pb-1 last:border-0">
-            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500 w-24 shrink-0">
-              {r.label}
-            </span>
-            <span className="text-slate-900 font-medium break-words whitespace-pre-wrap min-w-0 leading-tight">
-              {r.key === 'cl' ? (
-                <ClinicNameFromVisitClinicName clinicName={v.clinic_name} emptyLabel="—" />
-              ) : (
-                r.value
-              )}
+          <div key={r.key} className="border-b border-slate-100 pb-1 last:border-0 text-[11px] leading-tight">
+            <span className="font-bold text-slate-500 mr-1">{r.label}:</span>
+            <span className="text-slate-900 font-medium break-words whitespace-pre-wrap">
+              {r.key === 'cl' ? <ClinicNameFromVisitClinicName clinicName={v.clinic_name} emptyLabel="—" /> : r.value}
             </span>
           </div>
         ))}

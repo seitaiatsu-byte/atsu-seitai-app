@@ -348,14 +348,16 @@ export default function IndividualChart() {
             </button>
           </div>
 
-          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4 mb-5 space-y-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-3 mb-4 space-y-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <div className="text-xs text-gray-600 font-bold">顧客番号</div>
                 <div className="text-lg font-bold text-gray-900">{selectedCustomer.customer_number}</div>
-                <div className="text-xl font-bold text-gray-900 mt-0.5">{selectedCustomer.name}</div>
-                <div className="text-sm text-gray-600">
-                  {getKanaForRoster(selectedCustomer as CustomerRowRecord) ?? '—'}
+                <div className="text-lg font-bold text-gray-900 mt-0.5 leading-tight">
+                  {selectedCustomer.name}
+                  <span className="ml-2 text-sm font-normal text-gray-600">
+                    {getKanaForRoster(selectedCustomer as CustomerRowRecord) ?? '—'}
+                  </span>
                 </div>
               </div>
               <div className="text-right text-sm">
@@ -364,78 +366,16 @@ export default function IndividualChart() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2 text-sm">
-              <div>
-                <div className="text-xs text-gray-600 font-bold">性別</div>
-                <div className="font-bold">{selectedCustomer.gender || '-'}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-600 font-bold">年齢</div>
-                <div className="font-bold">{age != null ? `${age}歳` : '—'}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-600 font-bold">生年月日</div>
-                <div className="font-bold">
-                  {birth ? new Date(birth).toLocaleDateString('ja-JP') : '-'}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-600 font-bold">電話</div>
-                <div className="font-bold">
-                  {phoneForChart.value ?? '—'}
-                  {phoneForChart.value && !phoneForChart.fromRoster && (
-                    <div className="text-[10px] text-amber-700 font-normal mt-0.5 leading-tight">
-                      ※ 名簿の電話欄に値が取れないため、メモ・住所・来院メモから抽出しています
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="col-span-2">
-                <div className="text-xs text-gray-600 font-bold">住所</div>
-                <div className="font-bold">
-                  {[selectedCustomer.prefecture, selectedCustomer.city, selectedCustomer.town].filter(Boolean).join(' ') || '-'}
-                </div>
-              </div>
-              <div className="col-span-2">
-                <div className="text-xs text-gray-600 font-bold">流入経路</div>
-                <div className="font-bold">
-                  {inflowFromVisits.line ?? '—'}
-                  {inflowFromVisits.note === 'visit' && (
-                    <div className="text-[10px] text-amber-700 font-normal mt-0.5 leading-tight">
-                      ※ 顧客の「流入」が未登録のため、直近の来院取込（種類列）を表示しています
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-600 font-bold">主訴1</div>
-                <div className="font-bold">
-                  {formatTableCell(chiefLines[0], '—')}
-                  {chiefLines[0] && !getChiefComplaint1Display(selectedCustomer) && (
-                    <div className="text-[10px] text-amber-700 font-normal mt-0.5 leading-tight">
-                      ※ 顧客の主訴欄が空のため、直近来院の実施メニュー名を補完
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-600 font-bold">主訴2</div>
-                <div className="font-bold">{formatTableCell(chiefLines[1], '—')}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-600 font-bold">主訴3</div>
-                <div className="font-bold">{formatTableCell(chiefLines[2], '—')}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-600 font-bold">ポイント</div>
-                <div className="font-bold text-blue-600">{selectedCustomer.points ?? 0} pt</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-600 font-bold">院</div>
-                <div className="font-bold">
-                  <ClinicNameFromCustomer customer={selectedCustomer} emptyLabel="—" />
-                </div>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              <div><span className="font-bold text-gray-600">性別:</span> <span className="font-bold">{selectedCustomer.gender || '-'}</span></div>
+              <div><span className="font-bold text-gray-600">年齢:</span> <span className="font-bold">{age != null ? `${age}歳` : '—'}</span></div>
+              <div><span className="font-bold text-gray-600">生年月日:</span> <span className="font-bold">{birth ? new Date(birth).toLocaleDateString('ja-JP') : '-'}</span></div>
+              <div><span className="font-bold text-gray-600">電話:</span> <span className="font-bold">{phoneForChart.value ?? '—'}</span></div>
+              <div className="md:col-span-2"><span className="font-bold text-gray-600">住所:</span> <span className="font-bold">{[selectedCustomer.prefecture, selectedCustomer.city, selectedCustomer.town].filter(Boolean).join(' ') || '-'}</span></div>
+              <div className="md:col-span-2"><span className="font-bold text-gray-600">流入経路:</span> <span className="font-bold">{inflowFromVisits.line ?? '—'}</span></div>
+              <div className="md:col-span-2"><span className="font-bold text-gray-600">主訴:</span> <span className="font-bold">{formatTableCell(chiefLines[0], '—')} / {formatTableCell(chiefLines[1], '—')} / {formatTableCell(chiefLines[2], '—')}</span></div>
+              <div><span className="font-bold text-gray-600">ポイント:</span> <span className="font-bold text-blue-600">{selectedCustomer.points ?? 0} pt</span></div>
+              <div><span className="font-bold text-gray-600">院:</span> <span className="font-bold"><ClinicNameFromCustomer customer={selectedCustomer} emptyLabel="—" /></span></div>
             </div>
 
             {rosterMemo && (
@@ -445,14 +385,9 @@ export default function IndividualChart() {
               </div>
             )}
 
-            <div className="bg-white/80 rounded-lg p-3 border border-blue-200">
-              <div className="text-sm font-bold text-gray-800 mb-2">リピート・来院（設定連動）</div>
-              <ul className="text-xs text-gray-700 space-y-0.5 list-disc list-inside">
-                <li>対象来院: {qualifyingCount}回</li>
-                <li>リピート回数: {repeatVisitCount}回</li>
-                <li>初診日: {firstQDate ? new Date(firstQDate).toLocaleDateString('ja-JP') : '—'}</li>
-                <li>初診当日物販: {firstDayProductCount}件</li>
-              </ul>
+            <div className="bg-white/80 rounded-lg p-2.5 border border-blue-200 text-xs text-gray-700">
+              <span className="font-bold text-gray-800">リピート・来院（設定連動）:</span>{' '}
+              対象来院 {qualifyingCount}回 / リピート {repeatVisitCount}回 / 初診日 {firstQDate ? new Date(firstQDate).toLocaleDateString('ja-JP') : '—'} / 初診当日物販 {firstDayProductCount}件
             </div>
           </div>
 
@@ -464,21 +399,21 @@ export default function IndividualChart() {
               ) : (
                 <ul className="divide-y divide-gray-100">
                   {timeline.map((row) => (
-                    <li key={row.id} className="px-4 py-3 hover:bg-white transition-colors">
-                      <div className="flex flex-wrap justify-between gap-2">
-                        <div>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                    <li key={row.id} className="px-3 py-2 hover:bg-white transition-colors">
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <div className="min-w-0 flex items-center gap-2">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${
                             row.kind === 'visit' ? 'bg-blue-100 text-blue-700' : 
                             row.kind === 'product' ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'
                           }`}>
                             {row.label}
                           </span>
-                          <span className="ml-2 font-bold text-gray-800">
+                          <span className="font-bold text-gray-800 shrink-0">
                             {new Date(row.date).toLocaleDateString('ja-JP')}
                           </span>
-                          <div className="text-xs text-gray-500 mt-1">{row.sublabel}</div>
+                          <span className="text-xs text-gray-500 truncate">{row.sublabel}</span>
                         </div>
-                        <div className="font-bold text-gray-900">¥{Math.round(row.amount).toLocaleString()}</div>
+                        <div className="font-bold text-gray-900 shrink-0">¥{Math.round(row.amount).toLocaleString()}</div>
                       </div>
                     </li>
                   ))}
