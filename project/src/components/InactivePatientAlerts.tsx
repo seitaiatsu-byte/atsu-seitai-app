@@ -404,18 +404,20 @@ export default function InactivePatientAlerts() {
           <p className="text-xs text-gray-500 mb-4">
             ※ 最終来院から1年半を超える方は、誕生日一覧には表示しません。
           </p>
-          {birthThis.length > 0 && (
-            <div className="mb-8">
-              <h4 className="text-md font-bold text-pink-900 mb-3 border-b-2 border-pink-200 pb-2">今月</h4>
-              {renderBirthdayList(birthThis)}
-            </div>
-          )}
-          {birthNext.length > 0 && (
-            <div>
-              <h4 className="text-md font-bold text-pink-900 mb-3 border-b-2 border-pink-200 pb-2">来月</h4>
-              {renderBirthdayList(birthNext)}
-            </div>
-          )}
+          <div className="panel-scrollbar max-h-96 overflow-y-auto pr-1">
+            {birthThis.length > 0 && (
+              <div className="mb-8">
+                <h4 className="text-md font-bold text-pink-900 mb-3 border-b-2 border-pink-200 pb-2">今月</h4>
+                {renderBirthdayList(birthThis)}
+              </div>
+            )}
+            {birthNext.length > 0 && (
+              <div>
+                <h4 className="text-md font-bold text-pink-900 mb-3 border-b-2 border-pink-200 pb-2">来月</h4>
+                {renderBirthdayList(birthNext)}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
