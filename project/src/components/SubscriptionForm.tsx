@@ -649,19 +649,18 @@ export default function SubscriptionForm() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-lg p-6 border border-purple-100">
-        <h3 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
+        <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
           <History className="text-purple-500" size={20} />
-          サブスク登録リスト（確認・修正・削除）
+          サブスク履歴（日付ごと）
         </h3>
         <p className="text-xs text-gray-500 mb-2">
           サブスク入力画面から登録した記録の一覧です（全{recentRecords.length}件
           {dbRecordCount != null ? `／DB登録${dbRecordCount}件` : ''}
-          {listFilter ? `／表示${filteredRecords.length}件` : ''}）。行の右で修正・削除できます。
+          {listFilter ? `／表示${filteredRecords.length}件` : ''}）。ここから修正・削除できます。
         </p>
         <p className="text-xs text-gray-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 mb-4">
           売上集計の「サブスク」列に載るのは、<strong>この画面で登録した分だけ</strong>です。来院入力のメニュー名に「サブスク」とあっても、売上のサブスク列には含まれません（都度払い等として集計されます）。
         </p>
-
         {listLoadError && (
           <div className="mb-4 p-3 rounded-xl bg-red-50 border-2 border-red-200 text-red-800 text-sm font-bold" role="alert">
             一覧の読み込みエラー: {listLoadError}
@@ -670,7 +669,6 @@ export default function SubscriptionForm() {
             </button>
           </div>
         )}
-
         <div className="relative mb-4 flex gap-2 items-stretch">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -691,83 +689,6 @@ export default function SubscriptionForm() {
             {listLoading ? '読込中…' : '更新'}
           </button>
         </div>
-
-        {listLoading && recentRecords.length === 0 ? (
-          <p className="text-sm text-gray-500 py-6 text-center">読み込み中…</p>
-        ) : filteredRecords.length === 0 ? (
-          <p className="text-sm text-gray-500 py-6 text-center">
-            {recentRecords.length === 0
-              ? dbRecordCount != null && dbRecordCount > 0
-                ? '登録データはありますが表示できませんでした。「更新」を押すか、しばらくしてから再度お試しください。'
-                : 'サブスク入力での登録はまだありません'
-              : '該当する登録がありません'}
-          </p>
-        ) : (
-          <div className="space-y-2 max-h-[min(70vh,640px)] overflow-y-auto pr-1">
-            {filteredRecords.map((r) => {
-              const c = r.customers;
-              const payLabel = formatPaymentMethodLabel(r.payment_method, paymentNameMap);
-              return (
-                <div
-                  key={r.id}
-                  className={`rounded-xl border-2 p-3 flex flex-col sm:flex-row sm:items-center gap-3 ${
-                    editingId === r.id ? 'border-orange-400 bg-orange-50/50' : 'border-gray-100 bg-slate-50/80'
-                  }`}
-                >
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                      <span className="font-bold text-purple-800">{r.start_date}</span>
-                      <span className="text-xs text-gray-500">
-                        登録: {(r.created_at || '').slice(0, 10)}
-                      </span>
-                    </div>
-                    <div className="font-bold text-gray-900 truncate">
-                      {c?.customer_number ? `${c.customer_number} ` : ''}
-                      {c?.name || '（顧客不明）'}
-                    </div>
-                    <div className="text-sm text-gray-700">
-                      <span className="font-bold text-purple-700">{r.subscription_name || '（プラン名なし）'}</span>
-                      <span className="mx-2">¥{Number(r.amount || 0).toLocaleString()}</span>
-                      <span className="text-gray-500">{payLabel}</span>
-                    </div>
-                    <div className="text-xs text-gray-500 flex flex-wrap gap-x-3">
-                      <span>院: {clinicShort(r.clinic_name)}</span>
-                      {r.staff_name ? <span>担当: {r.staff_name}</span> : null}
-                      {r.memo ? <span className="truncate max-w-full">メモ: {r.memo}</span> : null}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 shrink-0 sm:flex-col sm:gap-1">
-                    <button
-                      type="button"
-                      onClick={() => startEdit(r)}
-                      className="flex items-center justify-center gap-1 px-3 py-2 text-sm font-bold text-blue-700 bg-white border-2 border-blue-200 rounded-lg hover:bg-blue-50"
-                      title="修正"
-                    >
-                      <Edit2 size={16} />
-                      修正
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete(r)}
-                      className="flex items-center justify-center gap-1 px-3 py-2 text-sm font-bold text-red-700 bg-white border-2 border-red-200 rounded-lg hover:bg-red-50"
-                      title="削除"
-                    >
-                      <Trash2 size={16} />
-                      削除
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-lg p-6 border border-purple-100">
-        <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-          <History className="text-purple-500" size={20} />
-          サブスク履歴（日付ごと）
-        </h3>
         {listLoading && recentRecords.length === 0 ? (
           <p className="text-sm text-gray-500 py-4">読み込み中…</p>
         ) : groupedHistory.length === 0 ? (
@@ -792,20 +713,55 @@ export default function SubscriptionForm() {
                   </button>
                   {isOpen && (
                     <div className="p-3 space-y-2 bg-white">
-                      {dayRows.map((r) => (
-                        <div key={r.id} className="rounded-lg border border-slate-200 px-3 py-2">
-                          <div className="font-bold text-gray-900">
-                            {r.customers?.customer_number ? `${r.customers.customer_number} ` : ''}
-                            {r.customers?.name || '（顧客不明）'}
+                      {dayRows.map((r) => {
+                        const c = r.customers;
+                        const payLabel = formatPaymentMethodLabel(r.payment_method, paymentNameMap);
+                        return (
+                          <div
+                            key={r.id}
+                            className={`rounded-lg border px-3 py-2 flex flex-col sm:flex-row sm:items-center gap-3 ${
+                              editingId === r.id ? 'border-orange-400 bg-orange-50/50' : 'border-slate-200'
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-gray-900">
+                                {c?.customer_number ? `${c.customer_number} ` : ''}
+                                {c?.name || '（顧客不明）'}
+                              </div>
+                              <div className="text-sm text-gray-700">
+                                <span className="font-bold text-purple-700">{r.subscription_name || '（プラン名なし）'}</span>
+                                <span className="mx-2">¥{Number(r.amount || 0).toLocaleString()}</span>
+                                <span className="text-gray-500">{payLabel}</span>
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                登録: {(r.created_at || '').slice(0, 10)} / 院: {clinicShort(r.clinic_name)}
+                                {r.staff_name ? ` / 担当: ${r.staff_name}` : ''}
+                                {r.memo ? ` / メモ: ${r.memo}` : ''}
+                              </div>
+                            </div>
+                            <div className="flex gap-2 shrink-0 sm:flex-col sm:gap-1">
+                              <button
+                                type="button"
+                                onClick={() => startEdit(r)}
+                                className="flex items-center justify-center gap-1 px-3 py-2 text-sm font-bold text-blue-700 bg-white border-2 border-blue-200 rounded-lg hover:bg-blue-50"
+                                title="修正"
+                              >
+                                <Edit2 size={16} />
+                                修正
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleDelete(r)}
+                                className="flex items-center justify-center gap-1 px-3 py-2 text-sm font-bold text-red-700 bg-white border-2 border-red-200 rounded-lg hover:bg-red-50"
+                                title="削除"
+                              >
+                                <Trash2 size={16} />
+                                削除
+                              </button>
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-700">
-                            {r.subscription_name || '（プラン名なし）'} / ¥{Number(r.amount || 0).toLocaleString()}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {r.staff_name ? `担当: ${r.staff_name} / ` : ''}院: {clinicShort(r.clinic_name)}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
