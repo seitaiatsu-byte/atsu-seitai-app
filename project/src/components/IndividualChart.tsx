@@ -576,7 +576,12 @@ export default function IndividualChart() {
           />
 
           <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <h3 className="text-sm font-bold text-gray-800 mb-2">アクティブカルテ一覧</h3>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-bold text-gray-800">アクティブカルテ一覧</h3>
+              <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">
+                {sortedActiveRows.length}枚
+              </span>
+            </div>
             {activeLoading ? (
               <div className="text-xs text-gray-500 py-4">読み込み中...</div>
             ) : (
