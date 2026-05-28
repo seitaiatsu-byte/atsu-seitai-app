@@ -54,6 +54,12 @@ function buildLegacyCustomerWarning(customerNumber: unknown): string | null {
   ].join('\n');
 }
 
+function isNumericOnlyFieldTarget(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  const inputMode = (el.getAttribute('inputmode') || '').toLowerCase();
+  return inputMode === 'numeric' || inputMode === 'decimal' || el.getAttribute('data-ime') === 'off';
+}
+
 export default function VisitForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
@@ -88,6 +94,10 @@ export default function VisitForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState('');
   const [historyFilter, setHistoryFilter] = useState('');
+  const legacyNumberWarning = useMemo(
+    () => buildLegacyCustomerWarning(selectedCustomer?.customer_number),
+    [selectedCustomer?.customer_number]
+  );
 
   useEffect(() => {
     if (selectedCustomer?.customer_number && !editingId) {
@@ -379,10 +389,24 @@ export default function VisitForm() {
       <div className={`bg-white rounded-2xl shadow-lg p-6 border-4 ${editingId ? 'border-orange-500' : 'border-blue-100'}`}>
         <h2 className="text-xl font-bold mb-4">{editingId ? '【修正モード】' : '【来院入力】'}</h2>
         <CustomerSearchPanel accent={editingId ? "orange" : "blue"} selectedCustomer={selectedCustomer} onSelect={setSelectedCustomer} onClearSelection={() => setSelectedCustomer(null)} />
-        <form onSubmit={swallowFormSubmit} onKeyDown={blockEnterFormSubmit} className="space-y-4 mt-6">
+        <form
+          onSubmit={swallowFormSubmit}
+          onKeyDown={blockEnterFormSubmit}
+          onFocus={(e) => {
+            // 非数値フィールドでは日本語入力を維持しやすくするヒントを与える
+            if (isNumericOnlyFieldTarget(e.target)) return;
+            if (e.target instanceof HTMLElement) e.target.setAttribute('lang', 'ja');
+          }}
+          className="space-y-4 mt-6"
+        >
           {duplicateError && (
             <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-red-800 text-sm font-bold" role="alert">
               {duplicateError}
+            </div>
+          )}
+          {legacyNumberWarning && !editingId && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 text-amber-900 text-xs whitespace-pre-line">
+              {legacyNumberWarning}
             </div>
           )}
           <div className="flex gap-2">
@@ -395,6 +419,8 @@ export default function VisitForm() {
             <label className="block text-xs font-bold text-gray-500 mb-1 text-right">金額</label>
             <input
               type="number"
+              inputMode="numeric"
+              data-ime="off"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="w-full bg-transparent text-right font-bold text-3xl text-blue-700 outline-none"
@@ -448,6 +474,8 @@ export default function VisitForm() {
             <p className="text-xs text-gray-500 mt-1">マスタにない名称は下に直接入力（CSV/取込と同じ menu_name に保存されます）</p>
             <input
               type="text"
+              inputMode="text"
+              lang="ja"
               value={menuNameFree}
               onChange={(e) => setMenuNameFree(e.target.value)}
               className="w-full mt-2 p-2 border-2 border-dashed border-slate-200 rounded-lg text-sm"
@@ -460,6 +488,8 @@ export default function VisitForm() {
               <label className="block text-xs font-bold text-gray-600 mb-1">通院count(表の値)</label>
               <input
                 type="text"
+                inputMode="numeric"
+                data-ime="off"
                 value={importCsvVisitCount}
                 onChange={(e) => setImportCsvVisitCount(e.target.value)}
                 className="w-full p-2 border-2 rounded-lg text-sm"
@@ -471,6 +501,7 @@ export default function VisitForm() {
               <input
                 type="text"
                 inputMode="numeric"
+                data-ime="off"
                 value={beEquiv}
                 onChange={(e) => setBeEquiv(e.target.value)}
                 className="w-full p-2 border-2 rounded-lg text-sm"
@@ -481,6 +512,8 @@ export default function VisitForm() {
               <label className="block text-xs font-bold text-gray-600 mb-1">回数券（表記）</label>
               <input
                 type="text"
+                inputMode="text"
+                lang="ja"
                 value={importTicketRaw}
                 onChange={(e) => setImportTicketRaw(e.target.value)}
                 className="w-full p-2 border-2 rounded-lg text-sm"
@@ -493,6 +526,8 @@ export default function VisitForm() {
             <div className="relative">
               <input
                 type="number"
+                inputMode="numeric"
+                data-ime="off"
                 value={pointsUsed}
                 onChange={(e) => setPointsUsed(e.target.value)}
                 className="w-full p-3 border-2 rounded-lg pr-12 font-bold"
@@ -502,6 +537,8 @@ export default function VisitForm() {
             <div className="relative">
               <input
                 type="number"
+                inputMode="numeric"
+                data-ime="off"
                 value={maintenanceCost}
                 onChange={(e) => setMaintenanceCost(e.target.value)}
                 className="w-full p-3 border-2 border-amber-300 rounded-lg pr-12 font-bold"
@@ -510,7 +547,7 @@ export default function VisitForm() {
             </div>
           </div>
 
-          <textarea value={memo} onChange={e => setMemo(e.target.value)} className="w-full p-3 border-2 rounded-lg text-sm" placeholder="メモを入力..." rows={2} />
+          <textarea value={memo} onChange={e => setMemo(e.target.value)} className="w-full p-3 border-2 rounded-lg text-sm" placeholder="メモを入力..." rows={2} lang="ja" />
 
           <div className="p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
             <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2 font-bold"><Upload size={16} /> 写真を追加（プレビュー表示）</label>
@@ -540,6 +577,8 @@ export default function VisitForm() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="search"
+            inputMode="text"
+            lang="ja"
             value={historyFilter}
             onChange={(e) => setHistoryFilter(e.target.value)}
             placeholder="顧客番号・氏名・担当・メニュー名で検索..."

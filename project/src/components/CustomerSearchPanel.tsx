@@ -219,6 +219,8 @@ export default function CustomerSearchPanel({
       <div className="relative">
         <input
           type="text"
+          inputMode="text"
+          lang="ja"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={onSearchKeyDown}
