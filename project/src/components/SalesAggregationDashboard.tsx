@@ -6,6 +6,7 @@ import { bucketStoredPaymentMethod, formatPaymentDetailLabel, mergeIdNameMaps } 
 import { parseLocalVisitDateToYmd } from '../lib/visitDateParse';
 import { fetchBusinessRules } from '../lib/businessRules';
 import { repeatRateSecond, repeatRateSixth, type CustomerForRepeat } from '../lib/repeatMetrics';
+import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import RepeatAnalysis from './RepeatAnalysis';
 
 type ClinicFilter = 'kawanishi' | 'takatsuki' | 'all';
@@ -226,19 +227,18 @@ export default function SalesAggregationDashboard() {
         const monthPrefix = `${ym}-`;
 
         const MAX_ROWS = 80000;
-        const [visRes, prodRes, subRes, methodsRes, detailsRes, customersRes] = await Promise.all([
+        const [visRes, prodRes, subRes, methodsRes, detailsRes] = await Promise.all([
           supabase.from('visit_records').select('*').order('created_at', { ascending: false }).limit(MAX_ROWS),
           supabase.from('product_sales').select('*').order('created_at', { ascending: false }).limit(MAX_ROWS),
           supabase.from('subscription_records').select('*').order('created_at', { ascending: false }).limit(MAX_ROWS),
           supabase.from('payment_method_master').select('id,name'),
           supabase.from('payment_detail_master').select('id,name'),
-          supabase.from('customers').select('id,customer_number,name'),
         ]);
 
         const visits = (visRes.data as Record<string, unknown>[] | null) || [];
         const products = (prodRes.data as Record<string, unknown>[] | null) || [];
         const subs = (subRes.data as Record<string, unknown>[] | null) || [];
-        const customers = (customersRes.data as Record<string, unknown>[] | null) || [];
+        const customers = await fetchAllCustomersByCreatedDesc();
         const methods = methodsRes.data;
         const details = detailsRes.data;
 
@@ -248,7 +248,6 @@ export default function SalesAggregationDashboard() {
           subRes.error?.message,
           methodsRes.error?.message,
           detailsRes.error?.message,
-          customersRes.error?.message,
         ]
           .filter(Boolean)
           .join(' | ');
