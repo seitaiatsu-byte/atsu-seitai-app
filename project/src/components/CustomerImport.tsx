@@ -227,6 +227,7 @@ export default function CustomerImport() {
   const [rosterEdit, setRosterEdit] = useState<Customer | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const rosterListScrollRef = useRef<HTMLDivElement>(null);
 
   /** 顧客削除（関連レコードの件数を見せて確認 → ON DELETE CASCADE で来院/物販/サブスクも一括削除） */
   const handleDeleteCustomer = async (customer: Customer) => {
@@ -372,6 +373,10 @@ export default function CustomerImport() {
   const displayedCustomers = sortedCustomers.slice(listPageStart, listPageStart + LIST_ROWS_PER_PAGE);
   const listRangeEnd =
     sortedCustomers.length === 0 ? 0 : Math.min(listPageStart + displayedCustomers.length, sortedCustomers.length);
+
+  useEffect(() => {
+    rosterListScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [effectiveListPage]);
 
   const downloadTemplate = () => {
     const csv = 'customer_number,name,name_kana,gender,birth_date,phone_number,referral_source,prefecture,city,town,chief_complaint_1,chief_complaint_2,chief_complaint_3,email,memo\n1001,田中太郎,たなかたろう,男性,1980/01/01,09012345678,ホームページ,大阪府,高槻市,芥川町,腰痛,肩こり,,tanaka@example.com,\n5001,山田花子,やまだはなこ,女性,1990/05/15,08098765432,紹介,兵庫県,川西市,栄町,首の痛み,頭痛,姿勢改善,yamada@example.com,';
@@ -1028,7 +1033,7 @@ export default function CustomerImport() {
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-inner border border-gray-200">
-            <div className="max-h-96 overflow-y-auto">
+            <div ref={rosterListScrollRef} className="panel-scrollbar max-h-[44rem] overflow-y-auto">
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white sticky top-0">
                   <tr>
