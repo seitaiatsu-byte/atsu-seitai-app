@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Calendar, CreditCard, Save, ShoppingBag, Upload, X } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Calendar, CreditCard, Save, ShoppingBag, Upload, X, History, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import CustomerSearchPanel from './CustomerSearchPanel';
@@ -16,6 +16,9 @@ type ProductMaster = Database['public']['Tables']['product_master']['Row'];
 type PaymentMethodMaster = Database['public']['Tables']['payment_method_master']['Row'];
 type StaffMaster = Database['public']['Tables']['staff_master']['Row'];
 type CustomerRow = Database['public']['Tables']['customers']['Row'];
+type ProductSaleRow = Database['public']['Tables']['product_sales']['Row'] & {
+  customers?: Pick<CustomerRow, 'id' | 'name' | 'customer_number'> | null;
+};
 
 type Line = { productId: string; quantity: string };
 
@@ -41,18 +44,27 @@ export default function ProductSaleForm() {
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState('');
+  const [recentRecords, setRecentRecords] = useState<ProductSaleRow[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [openDates, setOpenDates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadProducts();
     loadPaymentMethods();
     loadStaff();
+    void loadRecentRecords();
     const reloadMasters = () => {
       loadProducts();
       loadPaymentMethods();
       loadStaff();
     };
+    const reloadRecords = () => void loadRecentRecords();
     window.addEventListener('masters-updated', reloadMasters);
-    return () => window.removeEventListener('masters-updated', reloadMasters);
+    window.addEventListener('records-updated', reloadRecords);
+    return () => {
+      window.removeEventListener('masters-updated', reloadMasters);
+      window.removeEventListener('records-updated', reloadRecords);
+    };
   }, []);
 
   const loadProducts = async () => {
@@ -73,6 +85,37 @@ export default function ProductSaleForm() {
     setStaffList(data || []);
   };
 
+  const loadRecentRecords = async () => {
+    setListLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('product_sales')
+        .select('*')
+        .order('sale_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) {
+        console.error('物販履歴取得エラー:', error);
+        return;
+      }
+      const rows = (data || []) as ProductSaleRow[];
+      const ids = [...new Set(rows.map((r) => r.customer_id).filter(Boolean))];
+      const customerMap = new Map<string, Pick<CustomerRow, 'id' | 'name' | 'customer_number'>>();
+      if (ids.length > 0) {
+        const { data: customers } = await supabase
+          .from('customers')
+          .select('id,name,customer_number')
+          .in('id', ids);
+        for (const c of customers || []) customerMap.set(c.id, c);
+      }
+      for (const r of rows) r.customers = customerMap.get(r.customer_id) ?? null;
+      setRecentRecords(rows);
+      if (rows[0]?.sale_date) setOpenDates(new Set([rows[0].sale_date]));
+    } finally {
+      setListLoading(false);
+    }
+  };
+
   const getProduct = (id: string) => products.find((p) => p.id === id);
   const getStaffName = (id: string) => staffList.find((s) => s.id === id)?.name || '';
 
@@ -84,6 +127,24 @@ export default function ProductSaleForm() {
   };
 
   const totalAmount = lines.reduce((s, l) => s + lineAmount(l), 0);
+  const recordsByDate = useMemo(() => {
+    const grouped = new Map<string, ProductSaleRow[]>();
+    for (const r of recentRecords) {
+      const d = (r.sale_date || '').slice(0, 10) || '日付不明';
+      if (!grouped.has(d)) grouped.set(d, []);
+      grouped.get(d)!.push(r);
+    }
+    return [...grouped.entries()].sort(([a], [b]) => b.localeCompare(a));
+  }, [recentRecords]);
+
+  const toggleDate = (dateKey: string) => {
+    setOpenDates((prev) => {
+      const n = new Set(prev);
+      if (n.has(dateKey)) n.delete(dateKey);
+      else n.add(dateKey);
+      return n;
+    });
+  };
 
   const handleMedia = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -184,7 +245,8 @@ export default function ProductSaleForm() {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6">
+    <div className="space-y-6 pb-20">
+      <div className="bg-white rounded-2xl shadow-lg p-6">
       <h2 className="text-2xl font-bold text-orange-600 mb-4">物販記録（最大3商品）</h2>
 
       <CustomerSearchPanel
@@ -381,6 +443,59 @@ export default function ProductSaleForm() {
           {isSubmitting ? '登録中...' : '登録'}
         </button>
       </form>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-lg p-6 border border-orange-100">
+        <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+          <History className="text-orange-500" size={20} />
+          物販履歴（日付ごと）
+        </h3>
+        {listLoading ? (
+          <p className="text-sm text-gray-500 py-4">読み込み中…</p>
+        ) : recordsByDate.length === 0 ? (
+          <p className="text-sm text-gray-500 py-4">物販入力の履歴はまだありません</p>
+        ) : (
+          <div className="space-y-2">
+            {recordsByDate.map(([dateKey, dayRows]) => {
+              const isOpen = openDates.has(dateKey);
+              const dayTotal = dayRows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+              return (
+                <div key={dateKey} className="rounded-xl border border-gray-200 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleDate(dateKey)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-left bg-slate-50 hover:bg-slate-100"
+                  >
+                    <span className="flex items-center gap-2 font-bold text-slate-800">
+                      {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                      {dateKey}（{dayRows.length}件）
+                    </span>
+                    <span className="text-sm font-bold text-blue-700">計 ¥{dayTotal.toLocaleString()}</span>
+                  </button>
+                  {isOpen && (
+                    <div className="p-3 space-y-2 bg-white">
+                      {dayRows.map((r) => (
+                        <div key={r.id} className="rounded-lg border border-slate-200 px-3 py-2">
+                          <div className="font-bold text-gray-900">
+                            {r.customers?.customer_number ? `${r.customers.customer_number} ` : ''}
+                            {r.customers?.name || '（顧客不明）'}
+                          </div>
+                          <div className="text-sm text-gray-700">
+                            {r.product_name || '商品未設定'} / 数量 {r.quantity} / ¥{Number(r.amount || 0).toLocaleString()}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {r.staff_name ? `担当: ${r.staff_name} / ` : ''}院: {r.clinic_name || '-'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

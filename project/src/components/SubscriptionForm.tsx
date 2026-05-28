@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Calendar, CreditCard, Save, Repeat, History, Edit2, Trash2, X, Search, AlertTriangle } from 'lucide-react';
+import { Calendar, CreditCard, Save, Repeat, History, Edit2, Trash2, X, Search, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import CustomerSearchPanel from './CustomerSearchPanel';
@@ -67,6 +67,7 @@ export default function SubscriptionForm() {
   const [dbRecordCount, setDbRecordCount] = useState<number | null>(null);
   const [visitMisclassified, setVisitMisclassified] = useState<VisitMisclass[]>([]);
   const [visitMisclassLoading, setVisitMisclassLoading] = useState(false);
+  const [openHistoryDates, setOpenHistoryDates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadSubscriptions();
@@ -306,6 +307,30 @@ export default function SubscriptionForm() {
       return hay.includes(q);
     });
   }, [recentRecords, listFilter]);
+
+  const groupedHistory = useMemo(() => {
+    const m = new Map<string, SubRecord[]>();
+    for (const r of filteredRecords) {
+      const d = (r.start_date || '').slice(0, 10) || '日付不明';
+      if (!m.has(d)) m.set(d, []);
+      m.get(d)!.push(r);
+    }
+    return [...m.entries()].sort(([a], [b]) => b.localeCompare(a));
+  }, [filteredRecords]);
+
+  useEffect(() => {
+    const firstDate = groupedHistory[0]?.[0];
+    if (firstDate) setOpenHistoryDates(new Set([firstDate]));
+  }, [groupedHistory.length]);
+
+  const toggleHistoryDate = (dateKey: string) => {
+    setOpenHistoryDates((prev) => {
+      const n = new Set(prev);
+      if (n.has(dateKey)) n.delete(dateKey);
+      else n.add(dateKey);
+      return n;
+    });
+  };
 
   const handleSubmit = async () => {
     setDuplicateError('');
@@ -731,6 +756,58 @@ export default function SubscriptionForm() {
                       削除
                     </button>
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-lg p-6 border border-purple-100">
+        <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+          <History className="text-purple-500" size={20} />
+          サブスク履歴（日付ごと）
+        </h3>
+        {listLoading && recentRecords.length === 0 ? (
+          <p className="text-sm text-gray-500 py-4">読み込み中…</p>
+        ) : groupedHistory.length === 0 ? (
+          <p className="text-sm text-gray-500 py-4">サブスク入力の履歴はまだありません</p>
+        ) : (
+          <div className="space-y-2">
+            {groupedHistory.map(([dateKey, dayRows]) => {
+              const isOpen = openHistoryDates.has(dateKey);
+              const dayTotal = dayRows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+              return (
+                <div key={dateKey} className="rounded-xl border border-gray-200 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleHistoryDate(dateKey)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-left bg-slate-50 hover:bg-slate-100"
+                  >
+                    <span className="flex items-center gap-2 font-bold text-slate-800">
+                      {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                      {dateKey}（{dayRows.length}件）
+                    </span>
+                    <span className="text-sm font-bold text-blue-700">計 ¥{dayTotal.toLocaleString()}</span>
+                  </button>
+                  {isOpen && (
+                    <div className="p-3 space-y-2 bg-white">
+                      {dayRows.map((r) => (
+                        <div key={r.id} className="rounded-lg border border-slate-200 px-3 py-2">
+                          <div className="font-bold text-gray-900">
+                            {r.customers?.customer_number ? `${r.customers.customer_number} ` : ''}
+                            {r.customers?.name || '（顧客不明）'}
+                          </div>
+                          <div className="text-sm text-gray-700">
+                            {r.subscription_name || '（プラン名なし）'} / ¥{Number(r.amount || 0).toLocaleString()}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {r.staff_name ? `担当: ${r.staff_name} / ` : ''}院: {clinicShort(r.clinic_name)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
