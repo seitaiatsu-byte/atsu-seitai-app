@@ -23,6 +23,12 @@ interface InactiveRow {
   ltvApprox: number;
 }
 
+interface ActiveRow {
+  customer: Customer;
+  daysSince: number;
+  lastVisitDate: string;
+}
+
 /** 誕生日一覧の色分け境界（日数） */
 const BDAY_VISIT_3M = 90;
 const BDAY_VISIT_6M = 180;
@@ -81,9 +87,13 @@ export default function InactivePatientAlerts() {
   const [b3, setB3] = useState<InactiveRow[]>([]);
   const [birthThis, setBirthThis] = useState<BirthdayRow[]>([]);
   const [birthNext, setBirthNext] = useState<BirthdayRow[]>([]);
-  const [activeMembers, setActiveMembers] = useState<Customer[]>([]);
+  const [activeMembers, setActiveMembers] = useState<ActiveRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [redUpperDays, setRedUpperDays] = useState(365);
+  const [activeSort, setActiveSort] = useState<{ key: 'days' | 'name' | 'last'; dir: 'asc' | 'desc' }>({
+    key: 'days',
+    dir: 'asc',
+  });
 
   const loadAlerts = useCallback(async () => {
     setLoading(true);
@@ -106,7 +116,7 @@ export default function InactivePatientAlerts() {
     const bucket1: InactiveRow[] = [];
     const bucket2: InactiveRow[] = [];
     const bucket3: InactiveRow[] = [];
-    const active: Customer[] = [];
+    const active: ActiveRow[] = [];
     const a = followCfg.activeMaxExclusive;
     const t1 = followCfg.tier1End;
     const t2 = followCfg.tier2End;
@@ -117,7 +127,11 @@ export default function InactivePatientAlerts() {
         const last = new Date(vi.date);
         const daysSince = Math.floor((today.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
         if (daysSince < a) {
-          active.push(c);
+          active.push({
+            customer: c,
+            daysSince,
+            lastVisitDate: vi.date,
+          });
         }
         if (daysSince >= a && daysSince < t1) {
           bucket1.push({
@@ -150,7 +164,7 @@ export default function InactivePatientAlerts() {
     bucket1.sort((x, y) => y.daysSince - x.daysSince);
     bucket2.sort((x, y) => y.daysSince - x.daysSince);
     bucket3.sort((x, y) => y.daysSince - x.daysSince);
-    active.sort((x, y) => (x.name_kana || '').localeCompare(y.name_kana || ''));
+    active.sort((x, y) => (x.customer.name_kana || '').localeCompare(y.customer.name_kana || ''));
 
     const thisM = today.getMonth();
     const nextM = (thisM + 1) % 12;
@@ -227,6 +241,36 @@ export default function InactivePatientAlerts() {
     [b3, t2b, redUpperDays]
   );
   const redRangeTitle = `${t2b}日以上〜${redUpperDays}日以内 未来院`;
+  const activeMembersSorted = useMemo(() => {
+    const rows = [...activeMembers];
+    rows.sort((a, b) => {
+      let cmp = 0;
+      if (activeSort.key === 'days') cmp = a.daysSince - b.daysSince;
+      else if (activeSort.key === 'last') cmp = String(a.lastVisitDate).localeCompare(String(b.lastVisitDate));
+      else cmp = String(a.customer.name_kana || a.customer.name || '').localeCompare(String(b.customer.name_kana || b.customer.name || ''), 'ja');
+      return activeSort.dir === 'asc' ? cmp : -cmp;
+    });
+    return rows;
+  }, [activeMembers, activeSort]);
+
+  const activeRowColorClass = (daysSince: number) => {
+    const a = Math.max(1, cfg.activeMaxExclusive);
+    const ratio = daysSince / a;
+    if (ratio < 0.34) return 'bg-emerald-50 border-emerald-200';
+    if (ratio < 0.67) return 'bg-teal-50 border-teal-200';
+    return 'bg-yellow-50 border-yellow-200';
+  };
+
+  const toggleActiveSort = (key: 'days' | 'name' | 'last') => {
+    setActiveSort((prev) => {
+      if (prev.key === key) return { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
+      return { key, dir: 'asc' };
+    });
+  };
+
+  const sortMark = (key: 'days' | 'name' | 'last') =>
+    activeSort.key === key ? (activeSort.dir === 'asc' ? '▲' : '▼') : '↕';
+
   const hasBirth = birthThis.length + birthNext.length > 0;
   const allQuiet =
     b1.length === 0 && b2.length === 0 && filteredB3.length === 0 && !hasBirth;
@@ -370,15 +414,46 @@ export default function InactivePatientAlerts() {
 
       {activeMembers.length > 0 && (
         <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
             <UserCheck className="text-emerald-600" size={20} />
             アクティブ会員リスト（最終来院の経過が{labelActiveShort(cfg)}）
           </h3>
+          <div className="mb-2 flex flex-wrap gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => toggleActiveSort('days')}
+              className="px-2 py-1 rounded border border-gray-300 bg-white font-bold text-gray-700"
+            >
+              経過日数 {sortMark('days')}
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleActiveSort('name')}
+              className="px-2 py-1 rounded border border-gray-300 bg-white font-bold text-gray-700"
+            >
+              氏名 {sortMark('name')}
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleActiveSort('last')}
+              className="px-2 py-1 rounded border border-gray-300 bg-white font-bold text-gray-700"
+            >
+              最新来院日 {sortMark('last')}
+            </button>
+          </div>
           <div className="max-h-64 overflow-y-auto divide-y">
-            {activeMembers.map((c) => (
-              <div key={c.id} className="py-1.5 flex justify-between text-xs">
-                <span className="font-bold text-gray-800">{c.name}</span>
-                <span className="text-gray-500">{compactPhone(c.phone_number)}</span>
+            {activeMembersSorted.map((row) => (
+              <div key={row.customer.id} className={`py-1.5 px-2 text-xs border ${activeRowColorClass(row.daysSince)}`}>
+                <div className="flex justify-between gap-2">
+                  <span className="font-bold text-gray-800">
+                    {row.customer.name}
+                    <span className="ml-1 text-gray-500 font-normal">{row.customer.name_kana || ''}</span>
+                  </span>
+                  <span className="text-gray-500">{compactPhone(row.customer.phone_number)}</span>
+                </div>
+                <div className="text-[11px] text-gray-600">
+                  {row.daysSince}日経過 / 最新来院: {new Date(row.lastVisitDate).toLocaleDateString('ja-JP')}
+                </div>
               </div>
             ))}
           </div>
