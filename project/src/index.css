@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+input[lang="ja"],
+textarea[lang="ja"] {
+  ime-mode: active;
+}
+
 @layer utilities {
   .panel-scrollbar {
     scrollbar-width: thin;

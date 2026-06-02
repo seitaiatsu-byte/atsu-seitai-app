@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Home, Settings as SettingsIcon, BarChart3, AlertCircle, FileText, DollarSign } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
 import HomeButtons from './components/HomeButtons';
@@ -25,7 +25,39 @@ import SalesAggregationDashboard from './components/SalesAggregationDashboard';
 
 const __GIT_SHA__ = 'build-20260425';
 
+function useJapaneseTextInputs() {
+  useEffect(() => {
+    const numericTypes = new Set(['number', 'date', 'time', 'datetime-local', 'month', 'week', 'tel', 'email', 'url', 'password']);
+
+    const shouldUseJapaneseInput = (el: Element): el is HTMLInputElement | HTMLTextAreaElement => {
+      if (!(el instanceof HTMLInputElement) && !(el instanceof HTMLTextAreaElement)) return false;
+      if (el.getAttribute('data-ime') === 'off') return false;
+      if (el instanceof HTMLInputElement && numericTypes.has((el.type || '').toLowerCase())) return false;
+      const mode = (el.getAttribute('inputmode') || '').toLowerCase();
+      return mode !== 'numeric' && mode !== 'decimal';
+    };
+
+    const applyJapaneseInput = (root: ParentNode = document) => {
+      root.querySelectorAll('input, textarea').forEach((el) => {
+        if (!shouldUseJapaneseInput(el)) return;
+        el.setAttribute('lang', 'ja');
+        el.setAttribute('inputmode', 'text');
+      });
+    };
+
+    applyJapaneseInput();
+
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target;
+      if (target instanceof Element) applyJapaneseInput(target.parentElement || document);
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, []);
+}
+
 function App() {
+  useJapaneseTextInputs();
   const [currentTab, setCurrentTab] = useState<'home' | 'reports' | 'analysis' | 'alerts' | 'chart' | 'settings'>('home');
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
