@@ -32,12 +32,10 @@ export default function MasterManagement() {
   const [items, setItems] = useState<MasterItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
-  const [newMatchText, setNewMatchText] = useState('');
   const [newColorKey, setNewColorKey] = useState('red');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [editingPrice, setEditingPrice] = useState('');
-  const [editingMatchText, setEditingMatchText] = useState('');
   const [editingColorKey, setEditingColorKey] = useState('red');
   const [isLoading, setIsLoading] = useState(false);
   const isPriceTab = activeTab === 'product_master' || activeTab === 'subscription_master';
@@ -62,7 +60,6 @@ export default function MasterManagement() {
     setEditingId(null);
     setNewItemName('');
     setNewItemPrice('');
-    setNewMatchText('');
     setNewColorKey('red');
     fetchData(activeTab);
   }, [activeTab]);
@@ -89,10 +86,6 @@ export default function MasterManagement() {
       alert('価格は0以上の数値を入力してください');
       return;
     }
-    if (isCalendarColorTab && !newMatchText.trim()) {
-      alert('一致キーワードを入力してください');
-      return;
-    }
     const payload: { name: string; display_order: number; is_active: boolean; price?: number; match_text?: string; color_key?: string } = {
       name,
       display_order: maxOrder + 1,
@@ -100,7 +93,7 @@ export default function MasterManagement() {
     };
     if (isPriceTab) payload.price = Number(newItemPrice || 0);
     if (isCalendarColorTab) {
-      payload.match_text = newMatchText.trim();
+      payload.match_text = name;
       payload.color_key = newColorKey;
     }
 
@@ -111,7 +104,6 @@ export default function MasterManagement() {
     if (!error) {
       setNewItemName('');
       setNewItemPrice('');
-      setNewMatchText('');
       setNewColorKey('red');
       fetchData(targetTable);
       window.dispatchEvent(new Event('masters-updated'));
@@ -148,14 +140,10 @@ export default function MasterManagement() {
       alert('価格は0以上の数値を入力してください');
       return;
     }
-    if (isCalendarColorTab && !editingMatchText.trim()) {
-      alert('一致キーワードを入力してください');
-      return;
-    }
     const patch: { name: string; price?: number; match_text?: string; color_key?: string } = { name: editingName };
     if (isPriceTab) patch.price = Number(editingPrice || 0);
     if (isCalendarColorTab) {
-      patch.match_text = editingMatchText.trim();
+      patch.match_text = editingName;
       patch.color_key = editingColorKey;
     }
     const { error } = await supabase.from(activeTab).update(patch).eq('id', id);
@@ -195,18 +183,11 @@ export default function MasterManagement() {
             type="text"
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
-            placeholder={isCalendarColorTab ? '表示名（例: 新規）' : `${tabs.find(t => t.id === activeTab)?.label}に新規追加`}
+            placeholder={isCalendarColorTab ? 'メモに含まれる文字（例: 新規）' : `${tabs.find(t => t.id === activeTab)?.label}に新規追加`}
             className="flex-1 p-3 rounded-xl border-none outline-none shadow-sm"
           />
           {isCalendarColorTab && (
             <>
-              <input
-                type="text"
-                value={newMatchText}
-                onChange={(e) => setNewMatchText(e.target.value)}
-                placeholder="一致キーワード（例: 新規）"
-                className="flex-1 p-3 rounded-xl border-none outline-none shadow-sm"
-              />
               <select
                 value={newColorKey}
                 onChange={(e) => setNewColorKey(e.target.value)}
@@ -247,12 +228,6 @@ export default function MasterManagement() {
                     <input value={editingName} onChange={(e) => setEditingName(e.target.value)} className="flex-1 p-2 border-2 border-blue-400 rounded-lg outline-none" autoFocus />
                     {isCalendarColorTab && (
                       <>
-                        <input
-                          value={editingMatchText}
-                          onChange={(e) => setEditingMatchText(e.target.value)}
-                          className="flex-1 p-2 border-2 border-blue-300 rounded-lg outline-none"
-                          placeholder="一致キーワード"
-                        />
                         <select
                           value={editingColorKey}
                           onChange={(e) => setEditingColorKey(e.target.value)}
@@ -280,7 +255,7 @@ export default function MasterManagement() {
                     <span className="font-bold text-gray-700">{item.name}</span>
                     {isCalendarColorTab && (
                       <>
-                        <span className="text-xs text-gray-500">一致: {item.match_text || item.name}</span>
+                        <span className="text-xs text-gray-500">メモ文字: {item.match_text || item.name}</span>
                         <span className={`text-xs font-bold border rounded px-2 py-0.5 ${colorOptionClass(item.color_key)}`}>
                           {COLOR_OPTIONS.find((c) => c.key === item.color_key)?.label || item.color_key || '赤'}
                         </span>
@@ -299,9 +274,8 @@ export default function MasterManagement() {
                   type="button"
                   onClick={() => {
                     setEditingId(item.id);
-                    setEditingName(item.name);
+                    setEditingName(item.match_text || item.name);
                     setEditingPrice(String(Number(item.price || 0)));
-                    setEditingMatchText(item.match_text || item.name);
                     setEditingColorKey(item.color_key || 'red');
                   }}
                   className="p-2 text-gray-400 hover:text-blue-600"

@@ -48,14 +48,7 @@ function defaultAppointmentColorKey(r: ReservationWithCustomer): string {
 }
 
 function appointmentColorKey(r: ReservationWithCustomer, colorRules: CalendarColorRule[]): string {
-  const hay = normalizeSearchText([
-    r.memo,
-    r.staff_name,
-    r.customers?.name,
-    r.customers?.name_kana,
-    r.customers?.kana,
-    r.customers?.customer_number,
-  ].filter(Boolean).join(' '));
+  const hay = normalizeSearchText(r.memo);
   const hit = colorRules.find((rule) => {
     const q = normalizeSearchText(rule.match_text || rule.name);
     return q.length > 0 && hay.includes(q);
