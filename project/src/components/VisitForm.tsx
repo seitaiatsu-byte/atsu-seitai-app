@@ -17,7 +17,7 @@ import {
   hasVisitOnDate,
   validateExplicitAmount,
 } from '../lib/registrationValidation';
-import { markReservationVisited } from '../lib/appointmentReservations';
+import { markMatchingReservationVisited, markReservationVisited } from '../lib/appointmentReservations';
 import type { CustomerRow } from './CustomerSearchPanel';
 
 function normalizeSearchText(raw: unknown): string {
@@ -333,9 +333,13 @@ export default function VisitForm({
 
       await recalcBeEquivalentCountsForCustomers([selectedCustomer.id]);
 
-      if (pendingReservationId && !editingId) {
-        await markReservationVisited(pendingReservationId, visitId);
-        setPendingReservationId(null);
+      if (!editingId) {
+        if (pendingReservationId) {
+          await markReservationVisited(pendingReservationId, visitId);
+          setPendingReservationId(null);
+        } else {
+          await markMatchingReservationVisited(selectedCustomer.id, visitDate, visitId);
+        }
       }
 
       alert(editingId ? '内容と画像を修正しました' : '来院記録と画像を登録しました');
