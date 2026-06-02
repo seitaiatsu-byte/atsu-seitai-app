@@ -8,6 +8,7 @@ import FlexibleTimeInput from './FlexibleTimeInput';
 import { CLINIC_FULL, clinicMatchesRecord, resolveClinicNameByCustomerNumber, type ClinicFullName } from '../lib/clinic';
 import { getTodayLocalYmd } from '../lib/visitDateParse';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
+import { syncReservationsVisitedByExistingVisits } from '../lib/appointmentReservations';
 
 type ReservationRow = Database['public']['Tables']['appointment_reservations']['Row'];
 type StaffMaster = Database['public']['Tables']['staff_master']['Row'];
@@ -225,7 +226,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
   const loadReservations = useCallback(async () => {
     setLoading(true);
     setLoadError('');
-    const { data, error } = await supabase
+    const fetchRows = () => supabase
       .from('appointment_reservations')
       .select('*, customers(id, name, name_kana, kana, customer_number)')
       .gte('reservation_date', monthMeta.startYmd)
@@ -233,11 +234,25 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
       .order('reservation_date', { ascending: true })
       .order('start_time', { ascending: true });
 
+    const { data, error } = await fetchRows();
+
     if (error) {
       setLoadError(error.message);
       setRows([]);
     } else {
-      setRows((data || []) as ReservationWithCustomer[]);
+      try {
+        const synced = await syncReservationsVisitedByExistingVisits(monthMeta.startYmd, monthMeta.endYmd);
+        if (synced > 0) {
+          const refreshed = await fetchRows();
+          if (refreshed.error) throw refreshed.error;
+          setRows((refreshed.data || []) as ReservationWithCustomer[]);
+        } else {
+          setRows((data || []) as ReservationWithCustomer[]);
+        }
+      } catch (syncError) {
+        console.error('予約の来院済み同期エラー:', syncError);
+        setRows((data || []) as ReservationWithCustomer[]);
+      }
     }
     setLoading(false);
   }, [monthMeta.endYmd, monthMeta.startYmd]);
