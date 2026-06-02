@@ -3,6 +3,7 @@ import { Home, Settings as SettingsIcon, BarChart3, AlertCircle, FileText, Dolla
 import { isSupabaseConfigured } from './lib/supabase';
 import HomeButtons from './components/HomeButtons';
 import ReservationCalendar, { type VisitFromReservationPayload } from './components/ReservationCalendar';
+import type { CustomerRow } from './components/CustomerSearchPanel';
 import VisitForm from './components/VisitForm';
 import ProductSaleForm from './components/ProductSaleForm';
 import SubscriptionForm from './components/SubscriptionForm';
@@ -32,6 +33,7 @@ function App() {
   const [reportsClinic, setReportsClinic] = useState<ClinicScope>('all');
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [visitSeed, setVisitSeed] = useState<VisitFromReservationPayload | null>(null);
+  const [chartSeedCustomer, setChartSeedCustomer] = useState<CustomerRow | null>(null);
 
   const goHome = () => {
     setCurrentTab('home');
@@ -73,6 +75,13 @@ function App() {
             onOpenVisitWithReservation={(payload) => {
               setVisitSeed(payload);
               setShowVisitForm(true);
+            }}
+            onOpenCustomerChart={(customer) => {
+              setChartSeedCustomer(customer);
+              setShowVisitForm(false);
+              setShowProductForm(false);
+              setShowSubscriptionForm(false);
+              setCurrentTab('chart');
             }}
           />
           <HomeButtons
@@ -142,7 +151,7 @@ function App() {
       {currentTab === 'chart' && (
         <div className="max-w-7xl mx-auto p-4 space-y-6">
           <PageHeader title="個人カルテ" onBack={goHome} />
-          <IndividualChart />
+          <IndividualChart initialCustomer={chartSeedCustomer} />
         </div>
       )}
 

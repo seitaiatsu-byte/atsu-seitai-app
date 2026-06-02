@@ -66,8 +66,8 @@ function formatDateJaYmd(s: string | null | undefined): string {
   return new Date(`${t}T12:00:00`).toLocaleDateString('ja-JP');
 }
 
-export default function IndividualChart() {
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+export default function IndividualChart({ initialCustomer = null }: { initialCustomer?: Customer | null }) {
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(initialCustomer);
   const [visits, setVisits] = useState<VisitRow[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [subs, setSubs] = useState<SubRow[]>([]);
@@ -96,6 +96,10 @@ export default function IndividualChart() {
   useEffect(() => {
     fetchBusinessRules().then((r) => setExcludeKeywords(r.excludeKeywords));
   }, []);
+
+  useEffect(() => {
+    if (initialCustomer) setSelectedCustomer(initialCustomer);
+  }, [initialCustomer?.id]);
 
   useEffect(() => {
     if (!selectedCustomer) {

@@ -58,6 +58,7 @@ export type VisitFromReservationPayload = {
 
 interface ReservationCalendarProps {
   onOpenVisitWithReservation: (payload: VisitFromReservationPayload) => void;
+  onOpenCustomerChart: (customer: CustomerRow) => void;
 }
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'] as const;
@@ -131,7 +132,7 @@ function formatAmount(value: unknown): string {
   return `${n.toLocaleString('ja-JP')}円`;
 }
 
-export default function ReservationCalendar({ onOpenVisitWithReservation }: ReservationCalendarProps) {
+export default function ReservationCalendar({ onOpenVisitWithReservation, onOpenCustomerChart }: ReservationCalendarProps) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth() + 1);
@@ -790,13 +791,22 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
                   {visitHistoryCustomer.name_kana ? `（${visitHistoryCustomer.name_kana}）` : ''}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setVisitHistoryCustomer(null)}
-                className="text-gray-500 font-bold px-2"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenCustomerChart(visitHistoryCustomer)}
+                  className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-bold text-white shadow hover:bg-indigo-700"
+                >
+                  個人カルテへ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisitHistoryCustomer(null)}
+                  className="text-gray-500 font-bold px-2"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
             <div className="p-4 overflow-y-auto max-h-[76vh]">
               {visitHistoryLoading ? (
