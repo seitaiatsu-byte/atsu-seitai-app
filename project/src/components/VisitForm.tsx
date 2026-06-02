@@ -703,7 +703,7 @@ export default function VisitForm({
                       const customerName = r.import_customer_name || r.customers?.name || '—';
                       const customerNumber = r.customers?.customer_number || '—';
                       const paymentMethod = formatPaymentMethodLabel(r.payment_method, methodNameMap);
-                      const paymentDetail = formatPaymentDetailLabel(r.payment_detail_id, detailIdToNameMap, r.import_kind_text, r.memo);
+                      const paymentDetail = formatPaymentDetailLabel(r.payment_detail_id, detailNameMap, r.import_kind_text, r.memo);
                       return (
                         <li key={r.id} className="grid grid-cols-[5.8rem_4.6rem_7rem_minmax(8rem,1fr)_6.4rem_7.2rem_minmax(11rem,1.2fr)_5.4rem_5.2rem_5rem_5rem_6rem] items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-blue-50/50">
                           <div className="font-bold text-slate-800 whitespace-nowrap">{formatCompactDate(r.visit_date)}</div>
