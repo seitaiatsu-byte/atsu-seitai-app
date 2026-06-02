@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, CalendarDays, Stethoscope, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -164,6 +164,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   const [visitHistoryRows, setVisitHistoryRows] = useState<VisitRecordRow[]>([]);
   const [visitHistoryLoading, setVisitHistoryLoading] = useState(false);
   const [visitHistoryError, setVisitHistoryError] = useState('');
+  const headerResultsRef = useRef<HTMLDivElement>(null);
 
   const selectedStaff = useMemo(
     () => staffList.find((s) => s.id === formStaffId) || null,
@@ -298,6 +299,11 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   useEffect(() => {
     setHeaderCustomerHighlight(0);
   }, [searchQuery, headerCustomerResults.length]);
+
+  useEffect(() => {
+    const el = headerResultsRef.current?.querySelector(`[data-header-customer-idx="${headerCustomerHighlight}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [headerCustomerHighlight]);
 
   const byDate = useMemo(() => {
     const map = new Map<string, ReservationWithCustomer[]>();
@@ -583,11 +589,12 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
               lang="ja"
             />
             {calendarViewMode === 'appointment' && showHeaderCustomerResults && searchQuery.trim() && headerCustomerResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full z-[90] mt-1 max-h-80 overflow-y-auto rounded-xl border border-blue-200 bg-white shadow-xl">
+              <div ref={headerResultsRef} className="absolute left-0 right-0 top-full z-[90] mt-1 max-h-80 overflow-y-auto rounded-xl border border-blue-200 bg-white shadow-xl">
                 {headerCustomerResults.map((customer, idx) => (
                   <button
                     key={customer.id}
                     type="button"
+                    data-header-customer-idx={idx}
                     onMouseDown={(e) => e.preventDefault()}
                     onMouseEnter={() => setHeaderCustomerHighlight(idx)}
                     onClick={() => handleSelectHeaderCustomer(customer)}
