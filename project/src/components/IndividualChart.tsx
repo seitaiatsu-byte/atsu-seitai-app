@@ -754,8 +754,8 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                           .join(' / ')
                       : row.sublabel;
                     return (
-                      <li key={row.id} className="min-w-[58rem] px-2 py-1.5 hover:bg-white transition-colors">
-                        <div className="grid grid-cols-[5.8rem_5.5rem_minmax(13rem,1.4fr)_10rem_5.8rem_5.8rem] items-center gap-1.5 text-sm">
+                      <li key={row.id} className="min-w-[64rem] px-2 py-1.5 hover:bg-white transition-colors">
+                        <div className="grid grid-cols-[5.8rem_7rem_minmax(13rem,1.35fr)_5.8rem_5.8rem_minmax(10rem,0.9fr)] items-center gap-1.5 text-sm">
                           <div className="font-bold text-gray-800 whitespace-nowrap">
                             {new Date(row.date).toLocaleDateString('ja-JP')}
                           </div>
@@ -766,7 +766,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                             </span>
                             {row.kind === 'visit' && (
                               <span className="text-[11px] font-bold text-blue-700">
-                                {row.isFirstVisit ? '初回 / ' : ''}実{row.visitOrdinal || 0}回
+                                {row.isFirstVisit ? '初回 / ' : ''}実通院{row.visitOrdinal || 0}回
                               </span>
                             )}
                           </div>
@@ -776,10 +776,6 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                               {v ? v.menu_name || '—' : row.sublabel}
                             </div>
                             <div className="truncate text-[11px] text-gray-500">{detailLine || '—'}</div>
-                          </div>
-
-                          <div className="min-w-0 truncate text-xs text-gray-600" title={v?.memo || ''}>
-                            {v?.memo ? `メモ: ${compactMemo(v.memo)}` : '—'}
                           </div>
 
                           <div className="font-bold text-gray-900 text-right whitespace-nowrap">
@@ -807,6 +803,10 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                             ) : (
                               <span className="text-xs text-gray-300">—</span>
                             )}
+                          </div>
+
+                          <div className="min-w-0 truncate text-xs text-gray-600" title={v?.memo || ''}>
+                            {v?.memo ? `メモ: ${compactMemo(v.memo)}` : '—'}
                           </div>
                         </div>
                       </li>
