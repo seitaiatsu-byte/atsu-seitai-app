@@ -2,15 +2,14 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Upload, Edit2, Trash2, History, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import CustomerSearchPanel from './CustomerSearchPanel';
-import { CLINIC_OPTIONS, type ClinicFullName } from '../lib/clinic';
-import { buildIdToNameMap } from '../lib/paymentDisplay';
+import { CLINIC_OPTIONS, clinicNameToShortLabel, type ClinicFullName } from '../lib/clinic';
+import { buildIdToNameMap, formatPaymentDetailLabel, formatPaymentMethodLabel } from '../lib/paymentDisplay';
 import {
   legacyImportKindLabel,
   resolvePaymentDetailIdFromKindLabel,
   stripKindPrefixFromMemo,
 } from '../lib/visitRecordKindCompat';
 import { getTodayLocalYmd } from '../lib/visitDateParse';
-import VisitRecordDateAccordion from './VisitRecordDateAccordion';
 import { recalcBeEquivalentCountsForCustomers } from '../lib/beEquivalentRecalc';
 import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
 import {
@@ -33,6 +32,23 @@ function parseCustomerNumber(raw: unknown): number {
   const digits = String(raw ?? '').replace(/[^\d]/g, '');
   const n = Number(digits);
   return Number.isFinite(n) ? n : Number.NaN;
+}
+
+function formatCompactDate(raw: unknown): string {
+  const s = String(raw || '').slice(0, 10);
+  if (!s) return '—';
+  return s.replace(/-/g, '/');
+}
+
+function formatYen(raw: unknown): string {
+  const n = Number(raw || 0);
+  return `¥${Number.isFinite(n) ? Math.round(n).toLocaleString() : '0'}`;
+}
+
+function compactMemo(raw: unknown): string {
+  const s = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '—';
+  return s.length > 18 ? `${s.slice(0, 18)}…` : s;
 }
 
 function buildLegacyCustomerWarning(customerNumber: unknown): string | null {
@@ -392,6 +408,18 @@ export default function VisitForm({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const deleteRecentRecord = async (r: any) => {
+    if (!window.confirm('この記録を削除しますか？')) return;
+    const { error } = await supabase.from('visit_records').delete().eq('id', r.id);
+    if (error) {
+      alert(`削除失敗: ${error.message}`);
+      return;
+    }
+    await recalcBeEquivalentCountsForCustomers([r.customer_id]);
+    void loadRecentRecords();
+    window.dispatchEvent(new Event('records-updated'));
+  };
+
   const filteredRecentRecords = useMemo(() => {
     const q = normalizeSearchText(historyFilter);
     if (!q) return recentRecords;
@@ -629,67 +657,95 @@ export default function VisitForm({
           <span className="text-sm font-bold text-slate-600 shrink-0">{historyPanelOpen ? '▲' : '▼'}</span>
         </button>
         {historyPanelOpen && (
-          <div className="bg-white p-6 border-t border-slate-200">
-        <p className="text-xs text-gray-500 mb-2">日付をタップで開閉。カード内に 11 列＋院・維持費などを表示します。</p>
-        <p className="text-xs text-gray-500 mb-3">
-          受け付け履歴確認用: 顧客番号・氏名・担当・メニュー名・メモで検索できます（全{recentRecords.length}件
-          {historyFilter ? `／表示${filteredRecentRecords.length}件` : ''}）。
-        </p>
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            type="search"
-            inputMode="text"
-            lang="ja"
-            value={historyFilter}
-            onChange={(e) => setHistoryFilter(e.target.value)}
-            placeholder="顧客番号・氏名・担当・メニュー名で検索..."
-            className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none"
-          />
-        </div>
-        {recentRecords.length === 0 ? (
-          <p className="text-sm text-gray-500">履歴はまだありません</p>
-        ) : filteredRecentRecords.length === 0 ? (
-          <p className="text-sm text-gray-500 py-4">検索条件に一致する履歴はありません</p>
-        ) : (
-          <VisitRecordDateAccordion
-            visits={filteredRecentRecords}
-            customer={null}
-            methodIdToName={methodNameMap}
-            detailIdToName={detailNameMap}
-            defaultExpandFirst
-            renderCardActions={(v) => (
-              <>
-                <button
-                  type="button"
-                  onClick={() => startEdit(v)}
-                  className="p-2 text-gray-500 hover:text-blue-600 bg-slate-50 rounded-lg border border-slate-200"
-                  title="修正"
-                >
-                  <Edit2 size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!window.confirm('この記録を削除しますか？')) return;
-                    const { error } = await supabase.from('visit_records').delete().eq('id', v.id);
-                    if (error) {
-                      alert(`削除失敗: ${error.message}`);
-                      return;
-                    }
-                    await recalcBeEquivalentCountsForCustomers([v.customer_id]);
-                    void loadRecentRecords();
-                    window.dispatchEvent(new Event('records-updated'));
-                  }}
-                  className="p-2 text-gray-500 hover:text-red-600 bg-slate-50 rounded-lg border border-slate-200"
-                  title="削除"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </>
+          <div className="bg-white p-3 sm:p-4 border-t border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+              <p className="text-xs text-gray-500">
+                顧客番号・氏名・担当・メニュー名・メモで検索できます（全{recentRecords.length}件
+                {historyFilter ? `／表示${filteredRecentRecords.length}件` : ''}）。
+              </p>
+              <p className="text-xs font-bold text-slate-500">横1行表示 / 右端で修正・削除</p>
+            </div>
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="search"
+                inputMode="text"
+                lang="ja"
+                value={historyFilter}
+                onChange={(e) => setHistoryFilter(e.target.value)}
+                placeholder="顧客番号・氏名・担当・メニュー名で検索..."
+                className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none"
+              />
+            </div>
+            {recentRecords.length === 0 ? (
+              <p className="text-sm text-gray-500">履歴はまだありません</p>
+            ) : filteredRecentRecords.length === 0 ? (
+              <p className="text-sm text-gray-500 py-4">検索条件に一致する履歴はありません</p>
+            ) : (
+              <div className="border border-slate-200 rounded-xl overflow-auto max-h-[34rem] bg-white">
+                <div className="min-w-[86rem]">
+                  <div className="sticky top-0 z-10 grid grid-cols-[5.8rem_4.6rem_7rem_minmax(8rem,1fr)_6.4rem_7.2rem_minmax(11rem,1.2fr)_5.4rem_5.2rem_5rem_5rem_6rem] items-center gap-1.5 bg-slate-100 px-2 py-1.5 text-[11px] font-bold text-slate-600 border-b border-slate-200">
+                    <div>日付</div>
+                    <div>番号</div>
+                    <div>氏名</div>
+                    <div>メニュー</div>
+                    <div>金額</div>
+                    <div>支払/種類</div>
+                    <div>メモ</div>
+                    <div>担当</div>
+                    <div>院</div>
+                    <div>実通院</div>
+                    <div>維持費</div>
+                    <div className="text-right">操作</div>
+                  </div>
+                  <ul className="divide-y divide-slate-100">
+                    {filteredRecentRecords.map((r) => {
+                      const customerName = r.import_customer_name || r.customers?.name || '—';
+                      const customerNumber = r.customers?.customer_number || '—';
+                      const paymentMethod = formatPaymentMethodLabel(r.payment_method, methodNameMap);
+                      const paymentDetail = formatPaymentDetailLabel(r.payment_detail_id, detailIdToNameMap, r.import_kind_text, r.memo);
+                      return (
+                        <li key={r.id} className="grid grid-cols-[5.8rem_4.6rem_7rem_minmax(8rem,1fr)_6.4rem_7.2rem_minmax(11rem,1.2fr)_5.4rem_5.2rem_5rem_5rem_6rem] items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-blue-50/50">
+                          <div className="font-bold text-slate-800 whitespace-nowrap">{formatCompactDate(r.visit_date)}</div>
+                          <div className="font-bold text-blue-700 truncate" title={customerNumber}>{customerNumber}</div>
+                          <div className="font-bold text-slate-800 truncate" title={customerName}>{customerName}</div>
+                          <div className="truncate text-slate-800" title={r.menu_name || ''}>{r.menu_name || '—'}</div>
+                          <div className="font-bold text-slate-900 whitespace-nowrap">{formatYen(r.amount)}</div>
+                          <div className="truncate text-slate-600" title={`${paymentMethod} / ${paymentDetail}`}>
+                            {paymentMethod}{paymentDetail !== '-' ? ` / ${paymentDetail}` : ''}
+                          </div>
+                          <div className="truncate text-slate-600" title={r.memo || ''}>{compactMemo(r.memo)}</div>
+                          <div className="truncate text-slate-700" title={r.staff_name || ''}>{r.staff_name || '—'}</div>
+                          <div className="truncate text-slate-700" title={r.clinic_name || ''}>{clinicNameToShortLabel(r.clinic_name)}</div>
+                          <div className="font-bold text-blue-700 whitespace-nowrap">
+                            {r.be_equivalent_count == null ? '—' : `${r.be_equivalent_count}回`}
+                          </div>
+                          <div className="text-slate-700 whitespace-nowrap">{Number(r.maintenance_cost || 0) ? formatYen(r.maintenance_cost) : '—'}</div>
+                          <div className="flex justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(r)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap"
+                            >
+                              <Edit2 size={13} />
+                              修正
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void deleteRecentRecord(r)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap"
+                            >
+                              <Trash2 size={13} />
+                              削除
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
             )}
-          />
-        )}
           </div>
         )}
       </div>
