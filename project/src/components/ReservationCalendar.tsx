@@ -9,6 +9,7 @@ import { getTodayLocalYmd } from '../lib/visitDateParse';
 
 type ReservationRow = Database['public']['Tables']['appointment_reservations']['Row'];
 type StaffMaster = Database['public']['Tables']['staff_master']['Row'];
+type VisitRecordRow = Database['public']['Tables']['visit_records']['Row'];
 type ReservationStatus = 'scheduled' | 'visited' | 'cancelled';
 type EntryKind = 'appointment' | 'vacant' | 'other';
 type CalendarViewMode = 'appointment' | 'other';
@@ -123,6 +124,12 @@ function defaultStaffId(list: StaffMaster[]): string {
   return atsu?.id || list[0]?.id || '';
 }
 
+function formatAmount(value: unknown): string {
+  const n = Number(value || 0);
+  if (!Number.isFinite(n)) return '0円';
+  return `${n.toLocaleString('ja-JP')}円`;
+}
+
 export default function ReservationCalendar({ onOpenVisitWithReservation }: ReservationCalendarProps) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -149,6 +156,10 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [dayDetailDate, setDayDetailDate] = useState<string | null>(null);
+  const [visitHistoryCustomer, setVisitHistoryCustomer] = useState<CustomerRow | null>(null);
+  const [visitHistoryRows, setVisitHistoryRows] = useState<VisitRecordRow[]>([]);
+  const [visitHistoryLoading, setVisitHistoryLoading] = useState(false);
+  const [visitHistoryError, setVisitHistoryError] = useState('');
 
   const selectedStaff = useMemo(
     () => staffList.find((s) => s.id === formStaffId) || null,
@@ -305,6 +316,31 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
     setFormStaffId(r.staff_id || staffList.find((s) => s.name === r.staff_name)?.id || defaultStaffId(staffList));
     setSelectedCustomer(r.customers as CustomerRow | null);
     setEditorOpen(true);
+  };
+
+  const openVisitHistory = async (customer: CustomerRow) => {
+    setVisitHistoryCustomer(customer);
+    setVisitHistoryRows([]);
+    setVisitHistoryError('');
+    setVisitHistoryLoading(true);
+    const { data, error } = await supabase
+      .from('visit_records')
+      .select('*')
+      .eq('customer_id', customer.id)
+      .order('visit_date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    setVisitHistoryLoading(false);
+    if (error) {
+      setVisitHistoryError(error.message);
+      return;
+    }
+    setVisitHistoryRows((data || []) as VisitRecordRow[]);
+  };
+
+  const handleSelectCustomer = (customer: CustomerRow) => {
+    setSelectedCustomer(customer);
+    void openVisitHistory(customer);
   };
 
   const shiftMonth = (delta: number) => {
@@ -635,6 +671,74 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
         </div>
       )}
 
+      {visitHistoryCustomer && (
+        <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+          <div className="bg-white w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden">
+            <div className="sticky top-0 bg-white border-b px-4 py-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-bold text-gray-900">過去の来院一覧</h3>
+                <p className="text-xs text-gray-500">
+                  {visitHistoryCustomer.customer_number || '番号なし'} / {visitHistoryCustomer.name}
+                  {visitHistoryCustomer.name_kana ? `（${visitHistoryCustomer.name_kana}）` : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVisitHistoryCustomer(null)}
+                className="text-gray-500 font-bold px-2"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[76vh]">
+              {visitHistoryLoading ? (
+                <div className="py-8 text-center text-sm text-gray-500">読み込み中...</div>
+              ) : visitHistoryError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  来院履歴の取得に失敗しました: {visitHistoryError}
+                </div>
+              ) : visitHistoryRows.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-gray-500">
+                  来院履歴はありません。
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px] border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b bg-slate-50 text-xs text-gray-600">
+                        <th className="w-12 px-2 py-2 text-left">No.</th>
+                        <th className="px-2 py-2 text-left">来院日・内容</th>
+                        <th className="px-2 py-2 text-left">担当</th>
+                        <th className="w-32 px-2 py-2 text-right">支払金額</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visitHistoryRows.map((v, idx) => (
+                        <tr key={v.id} className="border-b last:border-0 align-top">
+                          <td className="px-2 py-2 font-bold text-gray-500">{idx + 1}</td>
+                          <td className="px-2 py-2">
+                            <div className="font-bold text-gray-900">{String(v.visit_date || '').slice(0, 10) || '-'}</div>
+                            <div className="text-xs text-gray-600">
+                              {v.menu_name || 'メニュー未設定'}
+                              {v.import_kind_text ? ` / ${v.import_kind_text}` : ''}
+                            </div>
+                            {v.memo && <div className="mt-1 text-xs text-gray-500 line-clamp-2">{v.memo}</div>}
+                          </td>
+                          <td className="px-2 py-2 text-gray-700">{v.staff_name || '-'}</td>
+                          <td className="px-2 py-2 text-right font-bold text-emerald-700">
+                            {formatAmount(v.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {editorOpen && (
         <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
           <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
@@ -658,9 +762,22 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
                   <CustomerSearchPanel
                     accent="blue"
                     selectedCustomer={selectedCustomer}
-                    onSelect={setSelectedCustomer}
-                    onClearSelection={() => setSelectedCustomer(null)}
+                    onSelect={handleSelectCustomer}
+                    onClearSelection={() => {
+                      setSelectedCustomer(null);
+                      setVisitHistoryCustomer(null);
+                      setVisitHistoryRows([]);
+                    }}
                   />
+                  {selectedCustomer && (
+                    <button
+                      type="button"
+                      onClick={() => void openVisitHistory(selectedCustomer)}
+                      className="w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
+                    >
+                      過去の来院一覧を別窓で見る
+                    </button>
+                  )}
                   <div>
                     <label className="block text-xs font-bold text-gray-600 mb-1">スタッフ</label>
                     {staffList.length > 0 ? (
