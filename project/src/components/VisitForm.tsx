@@ -94,6 +94,8 @@ export default function VisitForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState('');
   const [historyFilter, setHistoryFilter] = useState('');
+  const [inputPanelOpen, setInputPanelOpen] = useState(false);
+  const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
   const legacyNumberWarning = useMemo(
     () => buildLegacyCustomerWarning(selectedCustomer?.customer_number),
     [selectedCustomer?.customer_number]
@@ -176,7 +178,8 @@ export default function VisitForm() {
     }
   };
 
-  const resetForm = () => {
+  /** 登録後の連続入力用（パネルは閉じず、顧客選択も維持） */
+  const resetFieldsAfterSubmit = () => {
     setEditingId(null);
     setAmount('');
     setMemo('');
@@ -192,8 +195,8 @@ export default function VisitForm() {
     setSelectedFiles([]);
     setPreviewUrls([]);
     setCurrentMediaUrls([]);
-    setSelectedCustomer(null);
     setImportKindLegacy(null);
+    setDuplicateError('');
   };
 
   const handleSubmit = async () => {
@@ -293,7 +296,7 @@ export default function VisitForm() {
       await recalcBeEquivalentCountsForCustomers([selectedCustomer.id]);
 
       alert(editingId ? '内容と画像を修正しました' : '来院記録と画像を登録しました');
-      resetForm();
+      resetFieldsAfterSubmit();
       loadRecentRecords();
       window.dispatchEvent(new Event('records-updated'));
 
@@ -307,6 +310,7 @@ export default function VisitForm() {
   const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(s || '').trim());
 
   const startEdit = (r: any) => {
+    setInputPanelOpen(true);
     setEditingId(r.id);
     setSelectedCustomer(r.customers);
     setVisitDate((r.visit_date || '').slice(0, 10));
@@ -385,9 +389,28 @@ export default function VisitForm() {
   }, [recentRecords, historyFilter]);
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className={`bg-white rounded-2xl shadow-lg p-6 border-4 ${editingId ? 'border-orange-500' : 'border-blue-100'}`}>
-        <h2 className="text-xl font-bold mb-4">{editingId ? '【修正モード】' : '【来院入力】'}</h2>
+    <div className="space-y-4 pb-20">
+      <div
+        className={`rounded-2xl shadow-lg overflow-hidden border-4 ${
+          editingId ? 'border-orange-500' : 'border-blue-100'
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => setInputPanelOpen((v) => !v)}
+          className={`w-full px-4 py-3 flex items-center justify-between text-left ${
+            editingId ? 'bg-orange-50' : 'bg-blue-50'
+          }`}
+        >
+          <h2 className="text-lg font-bold text-gray-800">
+            {editingId ? '来院入力（修正モード）' : '来院入力'}
+          </h2>
+          <span className={`text-sm font-bold shrink-0 ${editingId ? 'text-orange-700' : 'text-blue-700'}`}>
+            {inputPanelOpen ? '▲' : '▼'}
+          </span>
+        </button>
+        {inputPanelOpen && (
+          <div className="bg-white p-6 border-t border-slate-200">
         <CustomerSearchPanel accent={editingId ? "orange" : "blue"} selectedCustomer={selectedCustomer} onSelect={setSelectedCustomer} onClearSelection={() => setSelectedCustomer(null)} />
         <form
           onSubmit={swallowFormSubmit}
@@ -562,12 +585,24 @@ export default function VisitForm() {
             {isSubmitting ? '画像を保存中...' : editingId ? '修正を保存する' : '登録する'}
           </button>
         </form>
+          </div>
+        )}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-lg p-6 border">
-        <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2 font-bold">
-          <History className="text-gray-400" /> 来院履歴（日付別・詳細展開 / 修正・削除）
-        </h3>
+      <div className="rounded-2xl shadow-lg overflow-hidden border border-slate-200">
+        <button
+          type="button"
+          onClick={() => setHistoryPanelOpen((v) => !v)}
+          className="w-full px-4 py-3 flex items-center justify-between text-left bg-slate-50"
+        >
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <History className="text-slate-500" size={20} />
+            来院履歴
+          </h3>
+          <span className="text-sm font-bold text-slate-600 shrink-0">{historyPanelOpen ? '▲' : '▼'}</span>
+        </button>
+        {historyPanelOpen && (
+          <div className="bg-white p-6 border-t border-slate-200">
         <p className="text-xs text-gray-500 mb-2">日付をタップで開閉。カード内に 11 列＋院・維持費などを表示します。</p>
         <p className="text-xs text-gray-500 mb-3">
           受け付け履歴確認用: 顧客番号・氏名・担当・メニュー名・メモで検索できます（全{recentRecords.length}件
@@ -627,6 +662,8 @@ export default function VisitForm() {
               </>
             )}
           />
+        )}
+          </div>
         )}
       </div>
     </div>
