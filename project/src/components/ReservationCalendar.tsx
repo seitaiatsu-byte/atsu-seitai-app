@@ -142,6 +142,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   const [staffList, setStaffList] = useState<StaffMaster[]>([]);
   const [allCustomers, setAllCustomers] = useState<CustomerRow[]>([]);
   const [showHeaderCustomerResults, setShowHeaderCustomerResults] = useState(false);
+  const [headerCustomerHighlight, setHeaderCustomerHighlight] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
 
@@ -294,6 +295,10 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
     return scored.slice(0, 10).map((s) => s.row);
   }, [allCustomers, calendarViewMode, searchQuery]);
 
+  useEffect(() => {
+    setHeaderCustomerHighlight(0);
+  }, [searchQuery, headerCustomerResults.length]);
+
   const byDate = useMemo(() => {
     const map = new Map<string, ReservationWithCustomer[]>();
     filteredRows.forEach((r) => {
@@ -390,6 +395,25 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
     setSearchQuery(customer.customer_number || customer.name || '');
     setShowHeaderCustomerResults(false);
     void openVisitHistory(customer);
+  };
+
+  const handleHeaderSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showHeaderCustomerResults || headerCustomerResults.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHeaderCustomerHighlight((i) => Math.min(i + 1, headerCustomerResults.length - 1));
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHeaderCustomerHighlight((i) => Math.max(i - 1, 0));
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const customer = headerCustomerResults[headerCustomerHighlight];
+      if (customer) handleSelectHeaderCustomer(customer);
+    }
   };
 
   const shiftMonth = (delta: number) => {
@@ -553,19 +577,23 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
                 setSearchQuery(e.target.value);
                 setShowHeaderCustomerResults(true);
               }}
+              onKeyDown={handleHeaderSearchKeyDown}
               placeholder={calendarViewMode === 'appointment' ? '氏名・かな・番号で絞り込み' : '表示名・メモで絞り込み'}
               className="w-full px-3 py-2 border rounded-lg text-sm"
               lang="ja"
             />
             {calendarViewMode === 'appointment' && showHeaderCustomerResults && searchQuery.trim() && headerCustomerResults.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-[90] mt-1 max-h-80 overflow-y-auto rounded-xl border border-blue-200 bg-white shadow-xl">
-                {headerCustomerResults.map((customer) => (
+                {headerCustomerResults.map((customer, idx) => (
                   <button
                     key={customer.id}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setHeaderCustomerHighlight(idx)}
                     onClick={() => handleSelectHeaderCustomer(customer)}
-                    className="w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-blue-50"
+                    className={`w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-blue-50 ${
+                      idx === headerCustomerHighlight ? 'bg-blue-50 ring-1 ring-blue-300' : ''
+                    }`}
                   >
                     <div className="font-bold text-gray-800">{customer.name}</div>
                     <div className="text-xs text-gray-600">{customer.name_kana || customer.kana || 'かな未登録'}</div>
@@ -746,7 +774,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
 
       {visitHistoryCustomer && (
         <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
-          <div className="bg-white w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden">
+          <div className="bg-white w-full sm:max-w-4xl rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden">
             <div className="sticky top-0 bg-white border-b px-4 py-3 flex items-center justify-between gap-3">
               <div>
                 <h3 className="font-bold text-gray-900">過去の来院一覧</h3>
@@ -775,33 +803,42 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
                   来院履歴はありません。
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[780px] border-collapse text-sm">
+                <div>
+                  <table className="w-full table-fixed border-collapse text-sm">
+                    <colgroup>
+                      <col className="w-10" />
+                      <col className="w-[34%]" />
+                      <col className="w-[24%]" />
+                      <col className="w-16" />
+                      <col className="w-24" />
+                    </colgroup>
                     <thead>
                       <tr className="border-b bg-slate-50 text-xs text-gray-600">
-                        <th className="w-12 px-2 py-2 text-left">No.</th>
+                        <th className="px-1 py-2 text-left">No.</th>
                         <th className="px-2 py-2 text-left">来院日・内容</th>
                         <th className="px-2 py-2 text-left">メモ</th>
                         <th className="px-2 py-2 text-left">担当</th>
-                        <th className="w-32 px-2 py-2 text-right">支払金額</th>
+                        <th className="px-2 py-2 text-right">支払金額</th>
                       </tr>
                     </thead>
                     <tbody>
                       {visitHistoryRows.map((v, idx) => (
                         <tr key={v.id} className="border-b last:border-0 align-top">
-                          <td className="px-2 py-2 font-bold text-gray-500">{idx + 1}</td>
-                          <td className="px-2 py-2">
+                          <td className="px-1 py-2 font-bold text-gray-500">{idx + 1}</td>
+                          <td className="px-2 py-2 overflow-hidden">
                             <div className="font-bold text-gray-900">{String(v.visit_date || '').slice(0, 10) || '-'}</div>
-                            <div className="text-xs text-gray-600">
+                            <div className="truncate text-xs text-gray-600">
                               {v.menu_name || 'メニュー未設定'}
                               {v.import_kind_text ? ` / ${v.import_kind_text}` : ''}
                             </div>
                           </td>
-                          <td className="max-w-[18rem] px-2 py-2 text-xs text-gray-700 whitespace-pre-wrap">
+                          <td className="px-2 py-2 text-xs text-gray-700">
+                            <div className="line-clamp-2 whitespace-pre-wrap break-words">
                             {String(v.memo || '').trim() || '-'}
+                            </div>
                           </td>
-                          <td className="px-2 py-2 text-gray-700">{v.staff_name || '-'}</td>
-                          <td className="px-2 py-2 text-right font-bold text-emerald-700">
+                          <td className="truncate px-2 py-2 text-gray-700">{v.staff_name || '-'}</td>
+                          <td className="whitespace-nowrap px-2 py-2 text-right font-bold text-emerald-700">
                             {formatAmount(v.amount)}
                           </td>
                         </tr>
