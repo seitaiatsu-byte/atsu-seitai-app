@@ -5,6 +5,7 @@ import type { Database } from '../lib/database.types';
 import { fetchAllCustomersByCreatedDesc, fetchCustomerCountExact } from '../lib/fetchAllCustomers';
 import { fetchExistingCustomerNameBirthKeySet } from '../lib/fetchNameBirthKeys';
 import { normalizeCsvHeaderLabel, resolveCsvColumnMap, normalizePhoneDigitsForDb } from '../lib/customerImportHelpers';
+import { applyPhoneToCustomerPayload } from '../lib/customerPhoneFields';
 import {
   getAgeYearsFromCustomer,
   getPhoneWithMemoFallback,
@@ -22,7 +23,7 @@ import NewCustomerForm from './NewCustomerForm';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
 
 /** name / name_kana / customer_number は誤検知でも除外しない */
-const PROTECTED_CUSTOMER_COLUMNS = new Set(['name', 'name_kana', 'customer_number']);
+const PROTECTED_CUSTOMER_COLUMNS = new Set(['name', 'name_kana', 'customer_number', 'phone_number', 'phone']);
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 
@@ -85,7 +86,9 @@ function buildCustomerUpdateFromImport(
     u.birthday = d.birthday as string | null;
     u.age = d.age as number | null;
   }
-  if (present.phone) u.phone_number = d.phone_number as string | null;
+  if (present.phone) {
+    applyPhoneToCustomerPayload(u as Record<string, unknown>, d.phone_number as string | null);
+  }
   if (present.referral1) u.referral_source = d.referral_source as string | null;
   if (present.referral2) u.referral_source_2 = d.referral_source_2 as string | null;
   if (present.referral3) u.referral_source_3 = d.referral_source_3 as string | null;
@@ -582,7 +585,6 @@ export default function CustomerImport() {
           birth_date: birthDate,
           birthday: birthDate,
           age: age,
-          phone_number: phoneIndex !== -1 ? normalizePhoneDigitsForDb(row[phoneIndex]) : null,
           referral_source: referralIndex !== -1 ? row[referralIndex]?.trim() || null : null,
           referral_source_2: referral2Index !== -1 ? row[referral2Index]?.trim() || null : null,
           referral_source_3: referral3Index !== -1 ? row[referral3Index]?.trim() || null : null,
@@ -597,6 +599,9 @@ export default function CustomerImport() {
           memo: memoIndex !== -1 ? row[memoIndex]?.trim() || null : null,
           clinic_name: clinicName || null,
         };
+        if (phoneIndex !== -1) {
+          applyPhoneToCustomerPayload(customerData, row[phoneIndex]);
+        }
         candidates.push({ line, name, customerData });
       }
 

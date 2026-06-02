@@ -5,7 +5,7 @@ import type { Database } from '../lib/database.types';
 import { CLINIC_FULL } from '../lib/clinic';
 import { ClinicNameDisplay } from './ClinicNameDisplay';
 import { fetchAllCustomerNumbers } from '../lib/fetchAllCustomers';
-import { normalizePhoneDigitsForDb } from '../lib/customerImportHelpers';
+import { applyPhoneToCustomerPayload, readPhoneFromCustomerRow } from '../lib/customerPhoneFields';
 import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
 import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
 import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
@@ -138,7 +138,7 @@ export default function NewCustomerForm({
       ...prev,
       name: String(row.name ?? '').trim(),
       name_kana: String(row.name_kana ?? row.kana ?? '').trim(),
-      phone_number: String(row.phone_number ?? '').replace(/\D/g, ''),
+      phone_number: readPhoneFromCustomerRow(row),
       customer_number: String(row.customer_number ?? '').replace(/\D/g, ''),
       email: String(row.email ?? '').trim(),
       address: String(row.address ?? '').trim(),
@@ -327,8 +327,7 @@ export default function NewCustomerForm({
         // 別名列 kana にも併記（CustomerRosterEditModal と同じ運用にして表記揺れに強くする）
         if (kanaTrimmed) payload.kana = kanaTrimmed;
         if (resolvedCustomerNumber) payload.customer_number = resolvedCustomerNumber;
-        const phoneNorm = normalizePhoneDigitsForDb(formData.phone_number);
-        if (phoneNorm) payload.phone_number = phoneNorm;
+        applyPhoneToCustomerPayload(payload as Record<string, unknown>, formData.phone_number);
         if (formData.email.trim()) payload.email = formData.email.trim();
         if (formData.address.trim()) payload.address = formData.address.trim();
         if (birth) {
@@ -673,11 +672,14 @@ export default function NewCustomerForm({
               </label>
               <input
                 type="tel"
+                inputMode="tel"
                 value={formData.phone_number}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone_number: e.target.value.replace(/\D/g, '') })
-                }
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                onBlur={(e) => {
+                  const row = readPhoneFromCustomerRow({ phone_number: e.target.value });
+                  if (row) setFormData((prev) => ({ ...prev, phone_number: row }));
+                }}
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none font-mono"
                 placeholder="09012345678"
               />
             </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { X, Save } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
-import { normalizePhoneDigitsForDb } from '../lib/customerImportHelpers';
+import { applyPhoneToCustomerPayload, readPhoneFromCustomerRow } from '../lib/customerPhoneFields';
 import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
 import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
 
@@ -62,7 +62,7 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
     setName(String(r.name ?? '').trim());
     setNameKana(String(r.name_kana ?? r.kana ?? '').trim());
     setCustomerNumber(String(r.customer_number ?? '').trim());
-    setPhone(String(r.phone_number ?? '').trim());
+    setPhone(readPhoneFromCustomerRow(r));
     setEmail(String(r.email ?? '').trim());
     setGender(String(r.gender ?? '').trim());
     setBirthDate(String(r.birth_date ?? r.birthday ?? '').trim());
@@ -115,7 +115,6 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
       return;
     }
 
-    const phoneNorm = normalizePhoneDigitsForDb(phone) ?? null;
     const ref1Name = inflow1.trim() || null;
     const ref2Name = inflow2.trim() || null;
     const ref3Name = inflow3.trim() || null;
@@ -129,7 +128,6 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
       name_kana: nameKana.trim() || null,
       kana: nameKana.trim() || null,
       customer_number: customerNumber.trim() || null,
-      phone_number: phoneNorm,
       email: email.trim() || null,
       gender: gender || null,
       birth_date: birthDate || null,
@@ -153,6 +151,7 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
       complaint_3: c3Text,
       memo: memo.trim() || null,
     };
+    applyPhoneToCustomerPayload(base, phone);
 
     let work: Record<string, unknown> = { ...base };
     for (let a = 0; a < 18; a++) {
@@ -243,7 +242,16 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
             </div>
             <div>
               <label className="block font-bold text-gray-800 mb-1">電話番号</label>
-              <input className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 font-mono" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />
+              <input
+                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 font-mono"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                onBlur={(e) => {
+                  const digits = readPhoneFromCustomerRow({ phone_number: e.target.value });
+                  if (digits) setPhone(digits);
+                }}
+                inputMode="tel"
+              />
             </div>
             <div>
               <label className="block font-bold text-gray-800 mb-1">メール</label>
