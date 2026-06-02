@@ -754,8 +754,8 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                           .join(' / ')
                       : row.sublabel;
                     return (
-                      <li key={row.id} className="min-w-[64rem] px-2 py-1.5 hover:bg-white transition-colors">
-                        <div className="grid grid-cols-[5.8rem_7rem_minmax(13rem,1.35fr)_5.8rem_5.8rem_minmax(10rem,0.9fr)] items-center gap-1.5 text-sm">
+                      <li key={row.id} className="min-w-[68rem] px-2 py-1.5 hover:bg-white transition-colors">
+                        <div className="grid grid-cols-[5.8rem_7rem_minmax(12rem,1.1fr)_6rem_minmax(9rem,0.8fr)_minmax(11rem,1fr)_5.8rem] items-center gap-1.5 text-sm">
                           <div className="font-bold text-gray-800 whitespace-nowrap">
                             {new Date(row.date).toLocaleDateString('ja-JP')}
                           </div>
@@ -775,11 +775,18 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                             <div className="truncate font-bold text-gray-800">
                               {v ? v.menu_name || '—' : row.sublabel}
                             </div>
-                            <div className="truncate text-[11px] text-gray-500">{detailLine || '—'}</div>
                           </div>
 
-                          <div className="font-bold text-gray-900 text-right whitespace-nowrap">
+                          <div className="font-bold text-gray-900 whitespace-nowrap">
                             ¥{Math.round(row.amount).toLocaleString()}
+                          </div>
+
+                          <div className="min-w-0 truncate text-xs text-gray-600" title={v?.memo || ''}>
+                            {v?.memo ? `メモ: ${compactMemo(v.memo)}` : '—'}
+                          </div>
+
+                          <div className="min-w-0 truncate text-[11px] text-gray-500" title={detailLine || ''}>
+                            {detailLine || '—'}
                           </div>
 
                           <div className="flex justify-end gap-1">
@@ -803,10 +810,6 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                             ) : (
                               <span className="text-xs text-gray-300">—</span>
                             )}
-                          </div>
-
-                          <div className="min-w-0 truncate text-xs text-gray-600" title={v?.memo || ''}>
-                            {v?.memo ? `メモ: ${compactMemo(v.memo)}` : '—'}
                           </div>
                         </div>
                       </li>
