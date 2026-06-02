@@ -59,6 +59,7 @@ interface ReservationCalendarProps {
 }
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'] as const;
+const DAY_CELL_VISIBLE_LIMIT = 6;
 
 function normalizeSearchText(raw: unknown): string {
   const s = String(raw ?? '')
@@ -147,6 +148,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   const [formStaffId, setFormStaffId] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [saving, setSaving] = useState(false);
+  const [dayDetailDate, setDayDetailDate] = useState<string | null>(null);
 
   const selectedStaff = useMemo(
     () => staffList.find((s) => s.id === formStaffId) || null,
@@ -253,6 +255,11 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
     return map;
   }, [filteredRows]);
 
+  const dayDetailRows = useMemo(() => {
+    if (!dayDetailDate) return [];
+    return byDate.get(dayDetailDate) || [];
+  }, [byDate, dayDetailDate]);
+
   const calendarCells = useMemo(() => {
     const cells: Array<{ kind: 'blank' } | { kind: 'day'; ymd: string; day: number }> = [];
     for (let i = 0; i < monthMeta.startWeekday; i++) cells.push({ kind: 'blank' });
@@ -264,6 +271,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   }, [monthMeta.daysInMonth, monthMeta.startWeekday, viewMonth, viewYear]);
 
   const openCreate = (ymd: string) => {
+    setDayDetailDate(null);
     setEditing(null);
     setFormDate(ymd);
     setFormStart('10:00');
@@ -284,6 +292,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   };
 
   const openEdit = (r: ReservationWithCustomer) => {
+    setDayDetailDate(null);
     setEditing(r);
     setFormDate(String(r.reservation_date).slice(0, 10));
     setFormStart(String(r.start_time).slice(0, 5));
@@ -507,25 +516,29 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
         {loading ? (
           <div className="text-center text-sm text-gray-500 py-8">読み込み中...</div>
         ) : (
-          <div className="grid grid-cols-7 gap-1 panel-scrollbar max-h-[28rem] overflow-y-auto">
+          <div className="grid grid-cols-7 gap-1 panel-scrollbar max-h-[36rem] overflow-y-auto">
             {calendarCells.map((cell, idx) => {
               if (cell.kind === 'blank') {
-                return <div key={`blank-${idx}`} className="min-h-[5.5rem] bg-slate-50/50 rounded-lg" />;
+                return <div key={`blank-${idx}`} className="min-h-[8rem] bg-slate-50/50 rounded-lg" />;
               }
               const list = byDate.get(cell.ymd) || [];
               const isToday = cell.ymd === getTodayLocalYmd();
               return (
-                <button
+                <div
                   key={cell.ymd}
-                  type="button"
-                  onClick={() => openCreate(cell.ymd)}
-                  className={`min-h-[5.5rem] rounded-lg border p-1 text-left hover:ring-2 hover:ring-teal-300 transition-shadow ${
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setDayDetailDate(cell.ymd)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setDayDetailDate(cell.ymd);
+                  }}
+                  className={`min-h-[8rem] rounded-lg border p-1 text-left hover:ring-2 hover:ring-teal-300 transition-shadow cursor-pointer ${
                     isToday ? 'border-teal-400 bg-teal-50/40' : 'border-slate-200 bg-white'
                   }`}
                 >
                   <div className={`text-xs font-bold mb-1 ${isToday ? 'text-teal-800' : 'text-gray-700'}`}>{cell.day}</div>
                   <div className="space-y-0.5">
-                    {list.slice(0, 3).map((r) => (
+                    {list.slice(0, DAY_CELL_VISIBLE_LIMIT).map((r) => (
                       <div
                         key={r.id}
                         role="button"
@@ -546,16 +559,81 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
                         {chipLabel(r)}
                       </div>
                     ))}
-                    {list.length > 3 && (
-                      <div className="text-[10px] text-gray-500 px-1">他{list.length - 3}件</div>
+                    {list.length > DAY_CELL_VISIBLE_LIMIT && (
+                      <div className="text-[10px] font-bold text-teal-700 px-1">
+                        全{list.length}件を見る
+                      </div>
                     )}
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {dayDetailDate && (
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+          <div className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden">
+            <div className="sticky top-0 bg-white border-b px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="font-bold text-gray-900">
+                  {dayDetailDate} の{calendarViewMode === 'appointment' ? '予約' : '予約以外'}一覧
+                </h3>
+                <p className="text-xs text-gray-500">
+                  {clinicScope === 'all' ? '全院' : clinicScope === 'takatsuki' ? '高槻院' : '川西'} / {dayDetailRows.length}件
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openCreate(dayDetailDate)}
+                  className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-white text-sm font-bold ${
+                    calendarViewMode === 'appointment' ? 'bg-teal-600' : 'bg-violet-600'
+                  }`}
+                >
+                  <Plus size={16} />
+                  この日に{calendarViewMode === 'appointment' ? '予約追加' : '枠追加'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDayDetailDate(null)}
+                  className="text-gray-500 font-bold px-2"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="p-4 space-y-2 overflow-y-auto max-h-[72vh]">
+              {dayDetailRows.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-gray-500">
+                  この日の表示対象はありません。
+                </div>
+              ) : (
+                dayDetailRows.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => openEdit(r)}
+                    className={`w-full rounded-xl border px-3 py-2 text-left shadow-sm ${chipClass(r)}`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="font-bold text-sm">
+                        {String(r.start_time).slice(0, 5)}〜{String(r.end_time).slice(0, 5)} {chipLabel(r).replace(String(r.start_time).slice(0, 5), '').trim()}
+                      </div>
+                      <div className="text-xs font-bold">
+                        {isAppointmentEntry(r) ? statusLabel(r.status) : entryKindLabel(r.entry_kind || 'other')}
+                      </div>
+                    </div>
+                    {r.memo && <div className="mt-1 text-xs opacity-80 whitespace-pre-wrap">{r.memo}</div>}
+                    <div className="mt-1 text-[11px] opacity-70">タップで編集</div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {editorOpen && (
         <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
