@@ -61,7 +61,6 @@ function chipClass(r: ReservationWithCustomer, colorRules: CalendarColorRule[]):
     if (r.entry_kind === 'vacant') return 'bg-amber-100 border-amber-400 text-amber-950';
     return 'bg-violet-100 border-violet-300 text-violet-900';
   }
-  if (r.status === 'visited') return 'bg-emerald-100 border-emerald-300 text-emerald-900';
   if (r.status === 'cancelled') return 'bg-slate-100 border-slate-300 text-slate-500 line-through';
   return colorClassByKey(appointmentColorKey(r, colorRules));
 }
