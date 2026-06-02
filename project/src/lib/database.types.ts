@@ -82,6 +82,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      calendar_color_master: {
+        Row: {
+          id: string;
+          name: string;
+          match_text: string;
+          color_key: string;
+          display_order: number;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          match_text: string;
+          color_key?: string;
+          display_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          match_text?: string;
+          color_key?: string;
+          display_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       customers: {
         Row: {
           id: string;

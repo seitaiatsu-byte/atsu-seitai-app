@@ -11,6 +11,7 @@ import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 type ReservationRow = Database['public']['Tables']['appointment_reservations']['Row'];
 type StaffMaster = Database['public']['Tables']['staff_master']['Row'];
 type VisitRecordRow = Database['public']['Tables']['visit_records']['Row'];
+type CalendarColorRule = Database['public']['Tables']['calendar_color_master']['Row'];
 type ReservationStatus = 'scheduled' | 'visited' | 'cancelled';
 type EntryKind = 'appointment' | 'vacant' | 'other';
 type CalendarViewMode = 'appointment' | 'other';
@@ -30,14 +31,46 @@ function entryKindLabel(kind: string): string {
   return '予約';
 }
 
-function chipClass(r: ReservationWithCustomer): string {
+function colorClassByKey(colorKey: string): string {
+  if (colorKey === 'red') return 'bg-red-100 border-red-300 text-red-900';
+  if (colorKey === 'purple') return 'bg-purple-100 border-purple-300 text-purple-900';
+  if (colorKey === 'amber') return 'bg-amber-100 border-amber-300 text-amber-950';
+  if (colorKey === 'green') return 'bg-green-100 border-green-300 text-green-900';
+  if (colorKey === 'slate') return 'bg-slate-100 border-slate-300 text-slate-700';
+  if (colorKey === 'teal') return 'bg-teal-100 border-teal-300 text-teal-900';
+  return 'bg-blue-50 border-blue-200 text-blue-900';
+}
+
+function defaultAppointmentColorKey(r: ReservationWithCustomer): string {
+  const clinic = String(r.clinic_name || '');
+  if (clinic.includes('川西')) return 'green';
+  return 'blue';
+}
+
+function appointmentColorKey(r: ReservationWithCustomer, colorRules: CalendarColorRule[]): string {
+  const hay = normalizeSearchText([
+    r.memo,
+    r.staff_name,
+    r.customers?.name,
+    r.customers?.name_kana,
+    r.customers?.kana,
+    r.customers?.customer_number,
+  ].filter(Boolean).join(' '));
+  const hit = colorRules.find((rule) => {
+    const q = normalizeSearchText(rule.match_text || rule.name);
+    return q.length > 0 && hay.includes(q);
+  });
+  return hit?.color_key || defaultAppointmentColorKey(r);
+}
+
+function chipClass(r: ReservationWithCustomer, colorRules: CalendarColorRule[]): string {
   if (!isAppointmentEntry(r)) {
     if (r.entry_kind === 'vacant') return 'bg-amber-100 border-amber-400 text-amber-950';
     return 'bg-violet-100 border-violet-300 text-violet-900';
   }
   if (r.status === 'visited') return 'bg-emerald-100 border-emerald-300 text-emerald-900';
   if (r.status === 'cancelled') return 'bg-slate-100 border-slate-300 text-slate-500 line-through';
-  return 'bg-blue-50 border-blue-200 text-blue-900';
+  return colorClassByKey(appointmentColorKey(r, colorRules));
 }
 
 function chipLabel(r: ReservationWithCustomer): string {
@@ -47,7 +80,8 @@ function chipLabel(r: ReservationWithCustomer): string {
     return `${t} ${title}`;
   }
   const staff = r.staff_name ? ` / ${r.staff_name}` : '';
-  return `${t} ${r.customers?.customer_number || '—'} ${r.customers?.name || ''}${staff}`;
+  const number = r.customers?.customer_number ? ` #${r.customers.customer_number}` : '';
+  return `${r.customers?.name || '名前未設定'} ${t}${number}${staff}`;
 }
 
 export type VisitFromReservationPayload = {
@@ -141,6 +175,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
   const [searchQuery, setSearchQuery] = useState('');
   const [rows, setRows] = useState<ReservationWithCustomer[]>([]);
   const [staffList, setStaffList] = useState<StaffMaster[]>([]);
+  const [colorRules, setColorRules] = useState<CalendarColorRule[]>([]);
   const [allCustomers, setAllCustomers] = useState<CustomerRow[]>([]);
   const [showHeaderCustomerResults, setShowHeaderCustomerResults] = useState(false);
   const [headerCustomerHighlight, setHeaderCustomerHighlight] = useState(0);
@@ -206,6 +241,22 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
   useEffect(() => {
     void loadReservations();
   }, [loadReservations]);
+
+  const loadColorRules = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('calendar_color_master')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
+    if (!error) setColorRules((data || []) as CalendarColorRule[]);
+  }, []);
+
+  useEffect(() => {
+    void loadColorRules();
+    const onUpdated = () => void loadColorRules();
+    window.addEventListener('masters-updated', onUpdated);
+    return () => window.removeEventListener('masters-updated', onUpdated);
+  }, [loadColorRules]);
 
   useEffect(() => {
     const loadStaff = async () => {
@@ -698,7 +749,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                             openEdit(r);
                           }
                         }}
-                        className={`text-[10px] leading-tight px-1 py-0.5 rounded border truncate ${chipClass(r)}`}
+                        className={`text-[10px] leading-tight px-1 py-0.5 rounded border truncate ${chipClass(r, colorRules)}`}
                         title={`${r.start_time}-${r.end_time} ${chipLabel(r)}`}
                       >
                         {chipLabel(r)}
@@ -760,7 +811,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                     key={r.id}
                     type="button"
                     onClick={() => openEdit(r)}
-                    className={`w-full rounded-xl border px-3 py-2 text-left shadow-sm ${chipClass(r)}`}
+                    className={`w-full rounded-xl border px-3 py-2 text-left shadow-sm ${chipClass(r, colorRules)}`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="font-bold text-sm">
