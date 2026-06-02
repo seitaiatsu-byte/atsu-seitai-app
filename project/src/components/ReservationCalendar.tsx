@@ -776,11 +776,12 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] border-collapse text-sm">
+                  <table className="w-full min-w-[780px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b bg-slate-50 text-xs text-gray-600">
                         <th className="w-12 px-2 py-2 text-left">No.</th>
                         <th className="px-2 py-2 text-left">来院日・内容</th>
+                        <th className="px-2 py-2 text-left">メモ</th>
                         <th className="px-2 py-2 text-left">担当</th>
                         <th className="w-32 px-2 py-2 text-right">支払金額</th>
                       </tr>
@@ -795,7 +796,9 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
                               {v.menu_name || 'メニュー未設定'}
                               {v.import_kind_text ? ` / ${v.import_kind_text}` : ''}
                             </div>
-                            {v.memo && <div className="mt-1 text-xs text-gray-500 line-clamp-2">{v.memo}</div>}
+                          </td>
+                          <td className="max-w-[18rem] px-2 py-2 text-xs text-gray-700 whitespace-pre-wrap">
+                            {String(v.memo || '').trim() || '-'}
                           </td>
                           <td className="px-2 py-2 text-gray-700">{v.staff_name || '-'}</td>
                           <td className="px-2 py-2 text-right font-bold text-emerald-700">
