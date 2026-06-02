@@ -729,73 +729,77 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                     const v = row.visitRecord;
                     const pm = v ? formatPaymentMethodLabel(v.payment_method, paymentMethodNames) : null;
                     const pd = v ? formatPaymentDetailLabel(v.payment_detail_id, paymentDetailNames, v.import_kind_text, v.memo) : null;
+                    const typeClass =
+                      row.kind === 'visit'
+                        ? 'bg-blue-100 text-blue-700'
+                        : row.kind === 'product'
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-purple-100 text-purple-700';
+                    const detailLine = v
+                      ? [
+                          pd && pd !== '-' ? pd : null,
+                          pm && pm !== '-' ? pm : null,
+                          v.staff_name ? `担:${v.staff_name}` : null,
+                          v.clinic_name ? clinicNameToShortLabel(v.clinic_name) : null,
+                          Number(v.maintenance_cost || 0) ? `維持¥${Math.round(Number(v.maintenance_cost || 0)).toLocaleString()}` : null,
+                          Array.isArray(v.media_urls) && v.media_urls.length > 0 ? `画像${v.media_urls.length}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' / ')
+                      : row.sublabel;
                     return (
-                      <li key={row.id} className="px-3 py-2 hover:bg-white transition-colors">
-                        <div className="flex items-start justify-between gap-3 text-sm">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${
-                                row.kind === 'visit' ? 'bg-blue-100 text-blue-700' : 
-                                row.kind === 'product' ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'
-                              }`}>
-                                {row.label}
+                      <li key={row.id} className="px-2 py-1.5 hover:bg-white transition-colors">
+                        <div className="grid grid-cols-1 md:grid-cols-[5.8rem_5.5rem_minmax(9rem,1.35fr)_minmax(7rem,0.9fr)_5.8rem_5.8rem] md:items-center gap-1.5 text-sm">
+                          <div className="font-bold text-gray-800 md:whitespace-nowrap">
+                            {new Date(row.date).toLocaleDateString('ja-JP')}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1 md:block">
+                            <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded ${typeClass}`}>
+                              {row.label}
+                            </span>
+                            {row.kind === 'visit' && (
+                              <span className="ml-1 text-[11px] font-bold text-blue-700 md:ml-0 md:mt-0.5 md:block">
+                                {row.isFirstVisit ? '初回 / ' : ''}実{row.visitOrdinal || 0}回
                               </span>
-                              <span className="font-bold text-gray-800 shrink-0">
-                                {new Date(row.date).toLocaleDateString('ja-JP')}
-                              </span>
-                              {row.kind === 'visit' && (
-                                <>
-                                  {row.isFirstVisit && (
-                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-700">初回</span>
-                                  )}
-                                  <span className="text-xs font-bold text-blue-700">
-                                    実通院{row.visitOrdinal || 0}回
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                            {v ? (
-                              <div className="mt-1 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-gray-700">
-                                <div><span className="font-bold text-gray-600">メニュー:</span> {v.menu_name || '—'}</div>
-                                <div><span className="font-bold text-gray-600">支払:</span> {pm && pm !== '-' ? pm : '—'}</div>
-                                <div><span className="font-bold text-gray-600">種類:</span> {pd && pd !== '-' ? pd : '—'}</div>
-                                <div><span className="font-bold text-gray-600">担当:</span> {v.staff_name || '—'}</div>
-                                <div><span className="font-bold text-gray-600">院:</span> {v.clinic_name ? clinicNameToShortLabel(v.clinic_name) : '—'}</div>
-                                <div><span className="font-bold text-gray-600">維持費:</span> ¥{Math.round(Number(v.maintenance_cost || 0)).toLocaleString()}</div>
-                                {v.memo && (
-                                  <div className="md:col-span-2 whitespace-pre-wrap break-words">
-                                    <span className="font-bold text-gray-600">メモ:</span> {v.memo}
-                                  </div>
-                                )}
-                                {Array.isArray(v.media_urls) && v.media_urls.length > 0 && (
-                                  <div className="md:col-span-2 text-blue-700 font-bold">
-                                    画像 {v.media_urls.length}件
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="mt-1 text-xs text-gray-500 truncate">{row.sublabel}</div>
                             )}
                           </div>
-                          <div className="shrink-0 text-right">
-                            <div className="font-bold text-gray-900">¥{Math.round(row.amount).toLocaleString()}</div>
-                            {v && (
-                              <div className="mt-2 flex justify-end gap-1">
+
+                          <div className="min-w-0">
+                            <div className="truncate font-bold text-gray-800">
+                              {v ? v.menu_name || '—' : row.sublabel}
+                            </div>
+                            <div className="truncate text-[11px] text-gray-500">{detailLine || '—'}</div>
+                          </div>
+
+                          <div className="min-w-0 truncate text-xs text-gray-600" title={v?.memo || ''}>
+                            {v?.memo ? `メモ: ${v.memo}` : '—'}
+                          </div>
+
+                          <div className="font-bold text-gray-900 md:text-right md:whitespace-nowrap">
+                            ¥{Math.round(row.amount).toLocaleString()}
+                          </div>
+
+                          <div className="flex gap-1 md:justify-end">
+                            {v ? (
+                              <>
                                 <button
                                   type="button"
                                   onClick={() => openVisitEdit(v)}
-                                  className="px-2 py-1 text-xs font-bold rounded border border-blue-300 text-blue-700 hover:bg-blue-50"
+                                  className="px-2 py-1 text-xs font-bold rounded border border-blue-300 text-blue-700 hover:bg-blue-50 whitespace-nowrap"
                                 >
                                   修正
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => void deleteVisit(v)}
-                                  className="px-2 py-1 text-xs font-bold rounded border border-red-300 text-red-700 hover:bg-red-50"
+                                  className="px-2 py-1 text-xs font-bold rounded border border-red-300 text-red-700 hover:bg-red-50 whitespace-nowrap"
                                 >
                                   削除
                                 </button>
-                              </div>
+                              </>
+                            ) : (
+                              <span className="text-xs text-gray-300">—</span>
                             )}
                           </div>
                         </div>
