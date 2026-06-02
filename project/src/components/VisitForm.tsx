@@ -18,6 +18,8 @@ import {
   hasVisitOnDate,
   validateExplicitAmount,
 } from '../lib/registrationValidation';
+import { markReservationVisited } from '../lib/appointmentReservations';
+import type { CustomerRow } from './CustomerSearchPanel';
 
 function normalizeSearchText(raw: unknown): string {
   const s = String(raw ?? '')
@@ -60,8 +62,18 @@ function isNumericOnlyFieldTarget(el: EventTarget | null): boolean {
   return inputMode === 'numeric' || inputMode === 'decimal' || el.getAttribute('data-ime') === 'off';
 }
 
-export default function VisitForm() {
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+export default function VisitForm({
+  initialCustomer = null,
+  initialVisitDate,
+  linkedReservationId = null,
+  onVisitSeedConsumed,
+}: {
+  initialCustomer?: CustomerRow | null;
+  initialVisitDate?: string;
+  linkedReservationId?: string | null;
+  onVisitSeedConsumed?: () => void;
+} = {}) {
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(initialCustomer);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [menus, setMenus] = useState<any[]>([]);
   const [paymentDetails, setPaymentDetails] = useState<any[]>([]);
@@ -69,7 +81,7 @@ export default function VisitForm() {
   const [recentRecords, setRecentRecords] = useState<any[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [visitDate, setVisitDate] = useState(getTodayLocalYmd);
+  const [visitDate, setVisitDate] = useState(initialVisitDate || getTodayLocalYmd);
   const [clinicName, setClinicName] = useState<ClinicFullName>('高槻あつ整体院');
   const [amount, setAmount] = useState('');
   const [staffId, setStaffId] = useState('');
@@ -94,8 +106,18 @@ export default function VisitForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState('');
   const [historyFilter, setHistoryFilter] = useState('');
-  const [inputPanelOpen, setInputPanelOpen] = useState(false);
+  const [inputPanelOpen, setInputPanelOpen] = useState(Boolean(initialCustomer));
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
+  const [pendingReservationId, setPendingReservationId] = useState<string | null>(linkedReservationId);
+
+  useEffect(() => {
+    if (!initialCustomer) return;
+    setSelectedCustomer(initialCustomer);
+    setInputPanelOpen(true);
+    if (initialVisitDate) setVisitDate(initialVisitDate);
+    if (linkedReservationId) setPendingReservationId(linkedReservationId);
+    onVisitSeedConsumed?.();
+  }, [initialCustomer, initialVisitDate, linkedReservationId, onVisitSeedConsumed]);
   const legacyNumberWarning = useMemo(
     () => buildLegacyCustomerWarning(selectedCustomer?.customer_number),
     [selectedCustomer?.customer_number]
@@ -294,6 +316,11 @@ export default function VisitForm() {
       if (updateError) throw new Error(`URL保存失敗: ${updateError.message}`);
 
       await recalcBeEquivalentCountsForCustomers([selectedCustomer.id]);
+
+      if (pendingReservationId && !editingId) {
+        await markReservationVisited(pendingReservationId, visitId);
+        setPendingReservationId(null);
+      }
 
       alert(editingId ? '内容と画像を修正しました' : '来院記録と画像を登録しました');
       resetFieldsAfterSubmit();

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Home, Settings as SettingsIcon, BarChart3, AlertCircle, FileText, DollarSign } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
 import HomeButtons from './components/HomeButtons';
+import ReservationCalendar, { type VisitFromReservationPayload } from './components/ReservationCalendar';
 import VisitForm from './components/VisitForm';
 import ProductSaleForm from './components/ProductSaleForm';
 import SubscriptionForm from './components/SubscriptionForm';
@@ -30,12 +31,14 @@ function App() {
   const [showSubscriptionForm, setShowSubscriptionForm] = useState(false);
   const [reportsClinic, setReportsClinic] = useState<ClinicScope>('all');
   const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [visitSeed, setVisitSeed] = useState<VisitFromReservationPayload | null>(null);
 
   const goHome = () => {
     setCurrentTab('home');
     setShowVisitForm(false);
     setShowProductForm(false);
     setShowSubscriptionForm(false);
+    setVisitSeed(null);
   };
 
   if (!isSupabaseConfigured) {
@@ -64,20 +67,34 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-24">
       {currentTab === 'home' && !showVisitForm && !showProductForm && !showSubscriptionForm && (
-        <>
+        <div className="max-w-7xl mx-auto p-4 space-y-4">
           <PageHeader title="あつ整体院・TOP" onBack={goHome} hideBack />
+          <ReservationCalendar
+            onOpenVisitWithReservation={(payload) => {
+              setVisitSeed(payload);
+              setShowVisitForm(true);
+            }}
+          />
           <HomeButtons
-            onVisitClick={() => setShowVisitForm(true)}
+            onVisitClick={() => {
+              setVisitSeed(null);
+              setShowVisitForm(true);
+            }}
             onProductClick={() => setShowProductForm(true)}
             onSubscriptionClick={() => setShowSubscriptionForm(true)}
           />
-        </>
+        </div>
       )}
 
       {currentTab === 'home' && showVisitForm && (
         <div className="max-w-4xl mx-auto p-4 pt-2">
           <PageHeader title="来院入力" onBack={goHome} />
-          <VisitForm />
+          <VisitForm
+            initialCustomer={visitSeed?.customer ?? null}
+            initialVisitDate={visitSeed?.visitDate}
+            linkedReservationId={visitSeed?.reservationId ?? null}
+            onVisitSeedConsumed={() => setVisitSeed(null)}
+          />
         </div>
       )}
 

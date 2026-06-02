@@ -28,6 +28,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      appointment_reservations: {
+        Row: {
+          id: string;
+          customer_id: string;
+          reservation_date: string;
+          start_time: string;
+          end_time: string;
+          clinic_name: string | null;
+          memo: string | null;
+          status: string;
+          visit_record_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          customer_id: string;
+          reservation_date: string;
+          start_time: string;
+          end_time: string;
+          clinic_name?: string | null;
+          memo?: string | null;
+          status?: string;
+          visit_record_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          customer_id?: string;
+          reservation_date?: string;
+          start_time?: string;
+          end_time?: string;
+          clinic_name?: string | null;
+          memo?: string | null;
+          status?: string;
+          visit_record_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       customers: {
         Row: {
           id: string;
