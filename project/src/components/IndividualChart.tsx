@@ -741,40 +741,33 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                         : row.kind === 'product'
                           ? 'bg-orange-100 text-orange-700'
                           : 'bg-purple-100 text-purple-700';
-                    const detailLine = v
-                      ? [
-                          pd && pd !== '-' ? pd : null,
-                          pm && pm !== '-' ? pm : null,
-                          v.staff_name ? `担:${v.staff_name}` : null,
-                          v.clinic_name ? clinicNameToShortLabel(v.clinic_name) : null,
-                          Number(v.maintenance_cost || 0) ? `維持¥${Math.round(Number(v.maintenance_cost || 0)).toLocaleString()}` : null,
-                          Array.isArray(v.media_urls) && v.media_urls.length > 0 ? `画像${v.media_urls.length}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' / ')
-                      : row.sublabel;
                     return (
-                      <li key={row.id} className="min-w-[68rem] px-2 py-1.5 hover:bg-white transition-colors">
-                        <div className="grid grid-cols-[5.8rem_7rem_minmax(12rem,1.1fr)_6rem_minmax(9rem,0.8fr)_minmax(11rem,1fr)_5.8rem] items-center gap-1.5 text-sm">
+                      <li key={row.id} className="min-w-[78rem] px-2 py-1.5 hover:bg-white transition-colors">
+                        <div className="grid grid-cols-[5.8rem_3.8rem_7rem_minmax(12rem,1.2fr)_6.5rem_8rem_6rem_minmax(9rem,0.75fr)_5rem_4.5rem_5.8rem] items-center gap-1.5 text-sm">
                           <div className="font-bold text-gray-800 whitespace-nowrap">
                             {new Date(row.date).toLocaleDateString('ja-JP')}
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-1">
-                            <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded ${typeClass}`}>
-                              {row.label}
-                            </span>
-                            {row.kind === 'visit' && (
-                              <span className="text-[11px] font-bold text-blue-700">
-                                {row.isFirstVisit ? '初回 / ' : ''}実通院{row.visitOrdinal || 0}回
-                              </span>
-                            )}
+                          <div>
+                            <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded ${typeClass}`}>{row.label}</span>
+                          </div>
+
+                          <div className="whitespace-nowrap text-[11px] font-bold text-blue-700">
+                            {v ? `${row.isFirstVisit ? '初回 / ' : ''}実通院${row.visitOrdinal || 0}回` : '—'}
                           </div>
 
                           <div className="min-w-0">
                             <div className="truncate font-bold text-gray-800">
                               {v ? v.menu_name || '—' : row.sublabel}
                             </div>
+                          </div>
+
+                          <div className="min-w-0 truncate text-xs text-gray-700" title={pm || ''}>
+                            {pm && pm !== '-' ? pm : '—'}
+                          </div>
+
+                          <div className="min-w-0 truncate text-xs text-gray-700" title={pd || ''}>
+                            {pd && pd !== '-' ? pd : '—'}
                           </div>
 
                           <div className="font-bold text-gray-900 whitespace-nowrap">
@@ -785,8 +778,12 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                             {v?.memo ? `メモ: ${compactMemo(v.memo)}` : '—'}
                           </div>
 
-                          <div className="min-w-0 truncate text-[11px] text-gray-500" title={detailLine || ''}>
-                            {detailLine || '—'}
+                          <div className="min-w-0 truncate text-xs text-gray-700" title={v?.staff_name || ''}>
+                            {v?.staff_name || '—'}
+                          </div>
+
+                          <div className="min-w-0 truncate text-xs text-gray-700" title={v?.clinic_name || ''}>
+                            {v?.clinic_name ? clinicNameToShortLabel(v.clinic_name) : '—'}
                           </div>
 
                           <div className="flex justify-end gap-1">
