@@ -19,8 +19,7 @@ import {
   firstQualifyingVisitDate,
   qualifyingVisitRepeatCount,
 } from '../lib/repeatMetrics';
-import { buildIdToNameMap, formatPaymentDetailLabel, formatPaymentMethodLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
-import VisitRecordDateAccordion from './VisitRecordDateAccordion';
+import { formatPaymentDetailLabel, formatPaymentMethodLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
 import { clinicNameToShortLabel } from '../lib/clinic';
 
@@ -39,6 +38,7 @@ type TimelineItem = {
   amount: number;
   visitOrdinal?: number;
   isFirstVisit?: boolean;
+  visitRecord?: VisitRow;
 };
 
 type MediaEntry = {
@@ -76,8 +76,6 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
   const [paymentDetailNames, setPaymentDetailNames] = useState<Record<string, string>>({});
   const [paymentMethodOptions, setPaymentMethodOptions] = useState<{ id: string; name: string }[]>([]);
   const [menuOptions, setMenuOptions] = useState<MenuMaster[]>([]);
-  const [methodNameMap, setMethodNameMap] = useState<Record<string, string>>({});
-  const [detailNameMap, setDetailNameMap] = useState<Record<string, string>>({});
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([]);
   const [referral1FromMaster, setReferral1FromMaster] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState<ChartSummaryPanel>(null);
@@ -169,8 +167,6 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
     const merged = mergeIdNameMaps(pm as { id: string; name: string }[], pd as { id: string; name: string }[]);
     setPaymentMethodNames(merged);
     setPaymentDetailNames(merged);
-    setMethodNameMap(buildIdToNameMap(pm as { id: string; name: string }[]));
-    setDetailNameMap(buildIdToNameMap(pd as { id: string; name: string }[]));
     setPaymentMethodOptions((pm || []) as { id: string; name: string }[]);
     setMenuOptions((menus || []) as MenuMaster[]);
   }, [selectedCustomer]);
@@ -304,6 +300,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
         amount: Number(v.amount || 0),
         visitOrdinal: visitOrdinalById.get(v.id),
         isFirstVisit: firstVisitId === v.id,
+        visitRecord: v,
       });
     });
     products.forEach((p) => {
@@ -714,71 +711,100 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
           </div>
 
           <div>
-            <h3 className="text-sm font-bold text-gray-700 mb-3 underline decoration-blue-200">全履歴タイムライン</h3>
-            <div className="border-2 border-gray-100 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto bg-gray-50/30">
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-gray-700 underline decoration-blue-200">全履歴タイムライン</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  来院{visits.length}件 / 実通院最大{visitOrdinalById.size}回 / 物販{products.length}件 / サブスク{subs.length}件
+                </p>
+              </div>
+              <p className="text-xs text-slate-500">来院行から修正・削除できます</p>
+            </div>
+            <div className="border-2 border-gray-100 rounded-xl overflow-hidden max-h-[34rem] overflow-y-auto bg-gray-50/30">
               {timeline.length === 0 ? (
                 <div className="p-8 text-center text-gray-400">履歴がありません</div>
               ) : (
                 <ul className="divide-y divide-gray-100">
-                  {timeline.map((row) => (
-                    <li key={row.id} className="px-3 py-2 hover:bg-white transition-colors">
-                      <div className="flex items-center justify-between gap-2 text-sm">
-                        <div className="min-w-0 flex items-center gap-2">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${
-                            row.kind === 'visit' ? 'bg-blue-100 text-blue-700' : 
-                            row.kind === 'product' ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'
-                          }`}>
-                            {row.label}
-                          </span>
-                          <span className="font-bold text-gray-800 shrink-0">
-                            {new Date(row.date).toLocaleDateString('ja-JP')}
-                          </span>
-                          <span className="text-xs text-gray-500 truncate">{row.sublabel}</span>
+                  {timeline.map((row) => {
+                    const v = row.visitRecord;
+                    const pm = v ? formatPaymentMethodLabel(v.payment_method, paymentMethodNames) : null;
+                    const pd = v ? formatPaymentDetailLabel(v.payment_detail_id, paymentDetailNames, v.import_kind_text, v.memo) : null;
+                    return (
+                      <li key={row.id} className="px-3 py-2 hover:bg-white transition-colors">
+                        <div className="flex items-start justify-between gap-3 text-sm">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${
+                                row.kind === 'visit' ? 'bg-blue-100 text-blue-700' : 
+                                row.kind === 'product' ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'
+                              }`}>
+                                {row.label}
+                              </span>
+                              <span className="font-bold text-gray-800 shrink-0">
+                                {new Date(row.date).toLocaleDateString('ja-JP')}
+                              </span>
+                              {row.kind === 'visit' && (
+                                <>
+                                  {row.isFirstVisit && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-700">初回</span>
+                                  )}
+                                  <span className="text-xs font-bold text-blue-700">
+                                    実通院{row.visitOrdinal || 0}回
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            {v ? (
+                              <div className="mt-1 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-gray-700">
+                                <div><span className="font-bold text-gray-600">メニュー:</span> {v.menu_name || '—'}</div>
+                                <div><span className="font-bold text-gray-600">支払:</span> {pm && pm !== '-' ? pm : '—'}</div>
+                                <div><span className="font-bold text-gray-600">種類:</span> {pd && pd !== '-' ? pd : '—'}</div>
+                                <div><span className="font-bold text-gray-600">担当:</span> {v.staff_name || '—'}</div>
+                                <div><span className="font-bold text-gray-600">院:</span> {v.clinic_name ? clinicNameToShortLabel(v.clinic_name) : '—'}</div>
+                                <div><span className="font-bold text-gray-600">維持費:</span> ¥{Math.round(Number(v.maintenance_cost || 0)).toLocaleString()}</div>
+                                {v.memo && (
+                                  <div className="md:col-span-2 whitespace-pre-wrap break-words">
+                                    <span className="font-bold text-gray-600">メモ:</span> {v.memo}
+                                  </div>
+                                )}
+                                {Array.isArray(v.media_urls) && v.media_urls.length > 0 && (
+                                  <div className="md:col-span-2 text-blue-700 font-bold">
+                                    画像 {v.media_urls.length}件
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="mt-1 text-xs text-gray-500 truncate">{row.sublabel}</div>
+                            )}
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <div className="font-bold text-gray-900">¥{Math.round(row.amount).toLocaleString()}</div>
+                            {v && (
+                              <div className="mt-2 flex justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => openVisitEdit(v)}
+                                  className="px-2 py-1 text-xs font-bold rounded border border-blue-300 text-blue-700 hover:bg-blue-50"
+                                >
+                                  修正
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void deleteVisit(v)}
+                                  className="px-2 py-1 text-xs font-bold rounded border border-red-300 text-red-700 hover:bg-red-50"
+                                >
+                                  削除
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="font-bold text-gray-900 shrink-0">¥{Math.round(row.amount).toLocaleString()}</div>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
-          </div>
-
-          <div className="mt-6">
-            <h3 className="text-sm font-bold text-gray-700 mb-1 underline decoration-blue-200">来院記録（日付別に展開 / 全項目表示）</h3>
-            <p className="text-xs text-slate-500 mb-2">
-              来院履歴カウント: 全{visits.length}件 / 初回あり{firstVisitId ? '（1件）' : '（0件）'} / 実通院最大{visitOrdinalById.size}回
-            </p>
-            <p className="text-xs text-slate-500 mb-3">同じ日に複数来院がある場合は、日付見出しの下に並びます。</p>
-            <VisitRecordDateAccordion
-              visits={visits}
-              customer={
-                selectedCustomer
-                  ? { customer_number: selectedCustomer.customer_number, name: selectedCustomer.name }
-                  : null
-              }
-              methodIdToName={methodNameMap}
-              detailIdToName={detailNameMap}
-              defaultExpandFirst
-              renderCardActions={(v) => (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => openVisitEdit(v)}
-                    className="px-2 py-1 text-xs font-bold rounded border border-blue-300 text-blue-700 hover:bg-blue-50"
-                  >
-                    修正
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void deleteVisit(v)}
-                    className="px-2 py-1 text-xs font-bold rounded border border-red-300 text-red-700 hover:bg-red-50"
-                  >
-                    削除
-                  </button>
-                </>
-              )}
-            />
           </div>
 
           {/* 来院画像一覧（あつさん指示：日付付きで上下に並べる） */}
