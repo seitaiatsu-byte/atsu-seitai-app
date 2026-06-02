@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import CustomerSearchPanel, { type CustomerRow } from './CustomerSearchPanel';
 import ClinicScopeToggle, { type ClinicScope } from './ClinicScopeToggle';
+import FlexibleTimeInput from './FlexibleTimeInput';
 import { CLINIC_FULL, clinicMatchesRecord, resolveClinicNameByCustomerNumber, type ClinicFullName } from '../lib/clinic';
 import { getTodayLocalYmd } from '../lib/visitDateParse';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
@@ -1026,11 +1027,21 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1">開始</label>
-                  <input type="time" value={formStart} onChange={(e) => setFormStart(e.target.value)} className="w-full border rounded-lg px-2 py-2" />
+                  <FlexibleTimeInput
+                    value={formStart}
+                    onChange={setFormStart}
+                    ariaLabel="予約開始時刻"
+                    className="w-full border rounded-lg px-2 py-2"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1">終了</label>
-                  <input type="time" value={formEnd} onChange={(e) => setFormEnd(e.target.value)} className="w-full border rounded-lg px-2 py-2" />
+                  <FlexibleTimeInput
+                    value={formEnd}
+                    onChange={setFormEnd}
+                    ariaLabel="予約終了時刻"
+                    className="w-full border rounded-lg px-2 py-2"
+                  />
                 </div>
               </div>
               {editing && isAppointmentEntry(editing) && (
