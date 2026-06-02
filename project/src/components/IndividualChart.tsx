@@ -98,6 +98,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
   const [editVisitMenu, setEditVisitMenu] = useState('');
   const [editVisitPaymentMethod, setEditVisitPaymentMethod] = useState('');
   const [editVisitMemo, setEditVisitMemo] = useState('');
+  const [previewMedia, setPreviewMedia] = useState<MediaEntry | null>(null);
 
   useEffect(() => {
     fetchBusinessRules().then((r) => setExcludeKeywords(r.excludeKeywords));
@@ -805,69 +806,6 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
             </div>
           </div>
 
-          {/* 来院画像一覧（あつさん指示：日付付きで上下に並べる） */}
-          <div className="mt-8">
-            <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-              <ImageIcon size={18} className="text-blue-500" /> 
-              来院画像一覧（日付順）
-            </h3>
-            {allMediaEntries.length === 0 ? (
-              <div className="rounded-xl border-2 border-dashed border-gray-200 p-10 text-center text-sm text-gray-400">
-                画像はまだありません
-              </div>
-            ) : (
-              <div className="flex flex-col gap-10">
-                {allMediaEntries.map((m) => (
-                  <div key={`${m.visitId}-${m.url}`} className="space-y-3">
-                    {/* 日付ラベル */}
-                    <div className="flex items-center gap-2">
-                      <span className="bg-slate-800 text-white px-4 py-1 rounded-full text-xs font-bold shadow-sm">
-                        📅 {new Date(m.visitDate).toLocaleDateString('ja-JP')} 来院画像
-                      </span>
-                    </div>
-                    
-                    {/* 画像本体：大きく表示 */}
-                    <div className="group relative rounded-2xl border-4 border-white shadow-xl bg-black overflow-hidden">
-                      <img 
-                        src={m.url} 
-                        alt="visit-media" 
-                        className="w-full h-auto block mx-auto hover:opacity-95 transition-opacity" 
-                      />
-                      
-                      {/* 操作ボタン */}
-                      <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 p-2 rounded-xl backdrop-blur-sm">
-                        <button
-                          type="button"
-                          onClick={() => window.open(m.url, '_blank')}
-                          className="p-2 text-white hover:bg-white/20 rounded-lg"
-                          title="全画面"
-                        >
-                          <ImageIcon size={20} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => downloadMedia(m.url)}
-                          className="p-2 text-blue-300 hover:bg-white/20 rounded-lg"
-                          title="ダウンロード"
-                        >
-                          <Download size={20} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeMediaUrl(m.visitId, m.url)}
-                          className="p-2 text-red-400 hover:bg-white/20 rounded-lg"
-                          title="削除"
-                        >
-                          <Trash2 size={20} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
           <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-3 pt-6 border-t border-gray-100">
             {/* 維持費用 */}
             <div className="rounded-xl border border-amber-200 bg-amber-50 overflow-hidden shadow-sm">
@@ -1037,6 +975,78 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+              <ImageIcon size={18} className="text-blue-500" />
+              来院画像一覧（日付順）
+            </h3>
+            {allMediaEntries.length === 0 ? (
+              <div className="rounded-xl border-2 border-dashed border-gray-200 p-8 text-center text-sm text-gray-400">
+                画像はまだありません
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-3">
+                {allMediaEntries.map((m) => (
+                  <div key={`${m.visitId}-${m.url}`} className="group rounded-xl border bg-white p-2 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewMedia(m)}
+                      className="block w-full overflow-hidden rounded-lg bg-slate-100 aspect-square"
+                      title="拡大表示"
+                    >
+                      <img
+                        src={m.url}
+                        alt="visit-media"
+                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                      />
+                    </button>
+                    <div className="mt-1 truncate text-center text-[11px] font-bold text-gray-700">
+                      {formatDateJaYmd(m.visitDate)}
+                    </div>
+                    <div className="mt-1 flex justify-center gap-1 opacity-80 group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => downloadMedia(m.url)}
+                        className="px-1.5 py-0.5 text-[10px] font-bold rounded border border-blue-200 text-blue-700 hover:bg-blue-50"
+                      >
+                        DL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeMediaUrl(m.visitId, m.url)}
+                        className="px-1.5 py-0.5 text-[10px] font-bold rounded border border-red-200 text-red-700 hover:bg-red-50"
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {previewMedia && (
+        <div className="fixed inset-0 z-[150] bg-black/80 flex items-center justify-center p-4">
+          <div className="relative max-w-5xl w-full">
+            <div className="mb-2 flex items-center justify-between text-white">
+              <div className="text-sm font-bold">{formatDateJaYmd(previewMedia.visitDate)}</div>
+              <button
+                type="button"
+                onClick={() => setPreviewMedia(null)}
+                className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-bold hover:bg-white/20"
+              >
+                閉じる
+              </button>
+            </div>
+            <img
+              src={previewMedia.url}
+              alt="visit-media-preview"
+              className="max-h-[82vh] w-full object-contain rounded-xl bg-black shadow-2xl"
+            />
           </div>
         </div>
       )}
