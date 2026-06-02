@@ -67,6 +67,12 @@ function formatDateJaYmd(s: string | null | undefined): string {
   return new Date(`${t}T12:00:00`).toLocaleDateString('ja-JP');
 }
 
+function compactMemo(raw: string | null | undefined): string {
+  const s = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '—';
+  return s.length > 18 ? `${s.slice(0, 18)}…` : s;
+}
+
 export default function IndividualChart({ initialCustomer = null }: { initialCustomer?: Customer | null }) {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(initialCustomer);
   const [visits, setVisits] = useState<VisitRow[]>([]);
@@ -720,7 +726,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
               </div>
               <p className="text-xs text-slate-500">来院行から修正・削除できます</p>
             </div>
-            <div className="border-2 border-gray-100 rounded-xl overflow-hidden max-h-[34rem] overflow-y-auto bg-gray-50/30">
+            <div className="border-2 border-gray-100 rounded-xl overflow-auto max-h-[34rem] bg-gray-50/30">
               {timeline.length === 0 ? (
                 <div className="p-8 text-center text-gray-400">履歴がありません</div>
               ) : (
@@ -748,18 +754,18 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                           .join(' / ')
                       : row.sublabel;
                     return (
-                      <li key={row.id} className="px-2 py-1.5 hover:bg-white transition-colors">
-                        <div className="grid grid-cols-1 md:grid-cols-[5.8rem_5.5rem_minmax(9rem,1.35fr)_minmax(7rem,0.9fr)_5.8rem_5.8rem] md:items-center gap-1.5 text-sm">
-                          <div className="font-bold text-gray-800 md:whitespace-nowrap">
+                      <li key={row.id} className="min-w-[58rem] px-2 py-1.5 hover:bg-white transition-colors">
+                        <div className="grid grid-cols-[5.8rem_5.5rem_minmax(13rem,1.4fr)_10rem_5.8rem_5.8rem] items-center gap-1.5 text-sm">
+                          <div className="font-bold text-gray-800 whitespace-nowrap">
                             {new Date(row.date).toLocaleDateString('ja-JP')}
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-1 md:block">
+                          <div className="flex flex-wrap items-center gap-1">
                             <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded ${typeClass}`}>
                               {row.label}
                             </span>
                             {row.kind === 'visit' && (
-                              <span className="ml-1 text-[11px] font-bold text-blue-700 md:ml-0 md:mt-0.5 md:block">
+                              <span className="text-[11px] font-bold text-blue-700">
                                 {row.isFirstVisit ? '初回 / ' : ''}実{row.visitOrdinal || 0}回
                               </span>
                             )}
@@ -773,14 +779,14 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                           </div>
 
                           <div className="min-w-0 truncate text-xs text-gray-600" title={v?.memo || ''}>
-                            {v?.memo ? `メモ: ${v.memo}` : '—'}
+                            {v?.memo ? `メモ: ${compactMemo(v.memo)}` : '—'}
                           </div>
 
-                          <div className="font-bold text-gray-900 md:text-right md:whitespace-nowrap">
+                          <div className="font-bold text-gray-900 text-right whitespace-nowrap">
                             ¥{Math.round(row.amount).toLocaleString()}
                           </div>
 
-                          <div className="flex gap-1 md:justify-end">
+                          <div className="flex justify-end gap-1">
                             {v ? (
                               <>
                                 <button
