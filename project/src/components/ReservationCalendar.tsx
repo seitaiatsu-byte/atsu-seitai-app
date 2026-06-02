@@ -9,10 +9,42 @@ import { getTodayLocalYmd } from '../lib/visitDateParse';
 
 type ReservationRow = Database['public']['Tables']['appointment_reservations']['Row'];
 type ReservationStatus = 'scheduled' | 'visited' | 'cancelled';
+type EntryKind = 'appointment' | 'vacant' | 'other';
+type CalendarViewMode = 'appointment' | 'other';
 
 type ReservationWithCustomer = ReservationRow & {
   customers: Pick<CustomerRow, 'id' | 'name' | 'name_kana' | 'kana' | 'customer_number'> | null;
 };
+
+function isAppointmentEntry(r: { entry_kind?: string | null }): boolean {
+  const k = r.entry_kind || 'appointment';
+  return k === 'appointment';
+}
+
+function entryKindLabel(kind: string): string {
+  if (kind === 'vacant') return '空き';
+  if (kind === 'other') return 'その他';
+  return '予約';
+}
+
+function chipClass(r: ReservationWithCustomer): string {
+  if (!isAppointmentEntry(r)) {
+    if (r.entry_kind === 'vacant') return 'bg-amber-100 border-amber-400 text-amber-950';
+    return 'bg-violet-100 border-violet-300 text-violet-900';
+  }
+  if (r.status === 'visited') return 'bg-emerald-100 border-emerald-300 text-emerald-900';
+  if (r.status === 'cancelled') return 'bg-slate-100 border-slate-300 text-slate-500 line-through';
+  return 'bg-blue-50 border-blue-200 text-blue-900';
+}
+
+function chipLabel(r: ReservationWithCustomer): string {
+  const t = String(r.start_time).slice(0, 5);
+  if (!isAppointmentEntry(r)) {
+    const title = String(r.block_title || '').trim() || entryKindLabel(r.entry_kind || 'other');
+    return `${t} ${title}`;
+  }
+  return `${t} ${r.customers?.customer_number || '—'} ${r.customers?.name || ''}`;
+}
 
 export type VisitFromReservationPayload = {
   customer: CustomerRow;
@@ -47,10 +79,31 @@ function statusLabel(status: string): string {
   return '予約';
 }
 
-function statusClass(status: string): string {
-  if (status === 'visited') return 'bg-emerald-100 border-emerald-300 text-emerald-900';
-  if (status === 'cancelled') return 'bg-slate-100 border-slate-300 text-slate-500 line-through';
-  return 'bg-blue-50 border-blue-200 text-blue-900';
+function CalendarViewModeToggle({
+  value,
+  onChange,
+}: {
+  value: CalendarViewMode;
+  onChange: (v: CalendarViewMode) => void;
+}) {
+  const btn = (v: CalendarViewMode, label: string, active: string) => (
+    <button
+      type="button"
+      onClick={() => onChange(v)}
+      className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
+        value === v ? active : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      }`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-sm font-bold text-gray-600 mr-1">表示:</span>
+      {btn('appointment', '予約', 'bg-teal-600 text-white shadow')}
+      {btn('other', '予約以外', 'bg-violet-600 text-white shadow')}
+    </div>
+  );
 }
 
 function timeToMinutes(t: string): number {
@@ -62,6 +115,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth() + 1);
+  const [calendarViewMode, setCalendarViewMode] = useState<CalendarViewMode>('appointment');
   const [clinicScope, setClinicScope] = useState<ClinicScope>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [rows, setRows] = useState<ReservationWithCustomer[]>([]);
@@ -76,6 +130,8 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   const [formClinic, setFormClinic] = useState<ClinicFullName>(CLINIC_FULL.takatsuki);
   const [formMemo, setFormMemo] = useState('');
   const [formStatus, setFormStatus] = useState<ReservationStatus>('scheduled');
+  const [formEntryKind, setFormEntryKind] = useState<EntryKind>('appointment');
+  const [formBlockTitle, setFormBlockTitle] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -129,16 +185,26 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   const filteredRows = useMemo(() => {
     const q = normalizeSearchText(searchQuery);
     return rows.filter((r) => {
+      const appt = isAppointmentEntry(r);
+      if (calendarViewMode === 'appointment' && !appt) return false;
+      if (calendarViewMode === 'other' && appt) return false;
       if (!clinicMatchesRecord(clinicScope, r.clinic_name)) return false;
       if (!q) return true;
-      const c = r.customers;
-      const hay = [c?.name, c?.name_kana, c?.kana, c?.customer_number, r.memo]
+      if (appt) {
+        const c = r.customers;
+        const hay = [c?.name, c?.name_kana, c?.kana, c?.customer_number, r.memo]
+          .filter(Boolean)
+          .map(normalizeSearchText)
+          .join(' ');
+        return hay.includes(q);
+      }
+      const hay = [r.block_title, r.memo, entryKindLabel(r.entry_kind || 'other')]
         .filter(Boolean)
         .map(normalizeSearchText)
         .join(' ');
       return hay.includes(q);
     });
-  }, [rows, clinicScope, searchQuery]);
+  }, [rows, clinicScope, searchQuery, calendarViewMode]);
 
   const byDate = useMemo(() => {
     const map = new Map<string, ReservationWithCustomer[]>();
@@ -174,6 +240,13 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
     setFormMemo('');
     setFormStatus('scheduled');
     setSelectedCustomer(null);
+    if (calendarViewMode === 'other') {
+      setFormEntryKind('vacant');
+      setFormBlockTitle('空き');
+    } else {
+      setFormEntryKind('appointment');
+      setFormBlockTitle('');
+    }
     setEditorOpen(true);
   };
 
@@ -185,6 +258,8 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
     setFormClinic((r.clinic_name as ClinicFullName) || CLINIC_FULL.takatsuki);
     setFormMemo(String(r.memo || ''));
     setFormStatus((r.status as ReservationStatus) || 'scheduled');
+    setFormEntryKind((r.entry_kind as EntryKind) || 'appointment');
+    setFormBlockTitle(String(r.block_title || ''));
     setSelectedCustomer(r.customers as CustomerRow | null);
     setEditorOpen(true);
   };
@@ -196,8 +271,13 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   };
 
   const saveReservation = async () => {
-    if (!selectedCustomer) {
+    const isAppt = formEntryKind === 'appointment';
+    if (isAppt && !selectedCustomer) {
       alert('顧客を選んでください');
+      return;
+    }
+    if (!isAppt && !formBlockTitle.trim() && !formMemo.trim()) {
+      alert('表示名またはメモを入力してください');
       return;
     }
     if (!formDate || !formStart || !formEnd) {
@@ -210,15 +290,19 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
     }
 
     setSaving(true);
-    const autoClinic = resolveClinicNameByCustomerNumber(selectedCustomer.customer_number);
+    const autoClinic = selectedCustomer
+      ? resolveClinicNameByCustomerNumber(selectedCustomer.customer_number)
+      : null;
     const payload = {
-      customer_id: selectedCustomer.id,
+      customer_id: isAppt ? selectedCustomer!.id : null,
       reservation_date: formDate,
       start_time: formStart,
       end_time: formEnd,
       clinic_name: autoClinic || formClinic,
       memo: formMemo.trim() || null,
-      status: formStatus,
+      status: isAppt ? formStatus : 'scheduled',
+      entry_kind: formEntryKind,
+      block_title: isAppt ? null : formBlockTitle.trim() || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -252,6 +336,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   };
 
   const openVisit = (r: ReservationWithCustomer) => {
+    if (!isAppointmentEntry(r)) return;
     const c = r.customers;
     if (!c) {
       alert('顧客情報が見つかりません');
@@ -285,26 +370,41 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
+          <CalendarViewModeToggle value={calendarViewMode} onChange={setCalendarViewMode} />
           <ClinicScopeToggle value={clinicScope} onChange={setClinicScope} />
           <input
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="氏名・かな・番号で絞り込み"
+            placeholder={calendarViewMode === 'appointment' ? '氏名・かな・番号で絞り込み' : '表示名・メモで絞り込み'}
             className="flex-1 min-w-[200px] px-3 py-2 border rounded-lg text-sm"
             lang="ja"
           />
           <button
             type="button"
             onClick={() => openCreate(getTodayLocalYmd())}
-            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-teal-600 text-white text-sm font-bold"
+            className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-white text-sm font-bold ${
+              calendarViewMode === 'appointment' ? 'bg-teal-600' : 'bg-violet-600'
+            }`}
           >
             <Plus size={16} />
-            予約追加
+            {calendarViewMode === 'appointment' ? '予約追加' : '枠を追加'}
           </button>
         </div>
         <p className="mt-2 text-xs text-gray-600">
-          日付をタップで予約追加。予約行をタップで編集。来院入力へ連携できます（時間は予約ごとに可変）。
+          {calendarViewMode === 'appointment' ? (
+            <>
+              患者さんの<strong>予約</strong>のみ表示します。
+              <strong className="text-amber-800">来院入力の記録は自動では載りません</strong>
+              （予約として登録した分だけ表示）。
+            </>
+          ) : (
+            <>
+              <span className="text-amber-800 font-bold">空き</span>・
+              <span className="text-violet-800 font-bold">その他</span>
+              の枠（顧客なし）。日付タップで登録。
+            </>
+          )}
         </p>
       </div>
 
@@ -363,10 +463,10 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
                             openEdit(r);
                           }
                         }}
-                        className={`text-[10px] leading-tight px-1 py-0.5 rounded border truncate ${statusClass(r.status)}`}
-                        title={`${r.start_time}-${r.end_time} ${r.customers?.name || ''}`}
+                        className={`text-[10px] leading-tight px-1 py-0.5 rounded border truncate ${chipClass(r)}`}
+                        title={`${r.start_time}-${r.end_time} ${chipLabel(r)}`}
                       >
-                        {r.start_time.slice(0, 5)} {r.customers?.customer_number || '—'} {r.customers?.name || ''}
+                        {chipLabel(r)}
                       </div>
                     ))}
                     {list.length > 3 && (
@@ -384,18 +484,57 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
         <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
           <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b px-4 py-3 flex items-center justify-between">
-              <h3 className="font-bold text-gray-900">{editing ? '予約を修正' : '予約を追加'}</h3>
+              <h3 className="font-bold text-gray-900">
+                {editing
+                  ? isAppointmentEntry(editing)
+                    ? '予約を修正'
+                    : '枠を修正'
+                  : formEntryKind === 'appointment'
+                    ? '予約を追加'
+                    : '枠を追加（予約以外）'}
+              </h3>
               <button type="button" onClick={() => setEditorOpen(false)} className="text-gray-500 font-bold px-2">
                 ✕
               </button>
             </div>
             <div className="p-4 space-y-3 text-sm">
-              <CustomerSearchPanel
-                accent="blue"
-                selectedCustomer={selectedCustomer}
-                onSelect={setSelectedCustomer}
-                onClearSelection={() => setSelectedCustomer(null)}
-              />
+              {formEntryKind === 'appointment' ? (
+                <CustomerSearchPanel
+                  accent="blue"
+                  selectedCustomer={selectedCustomer}
+                  onSelect={setSelectedCustomer}
+                  onClearSelection={() => setSelectedCustomer(null)}
+                />
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">種類</label>
+                    <select
+                      value={formEntryKind}
+                      onChange={(e) => {
+                        const k = e.target.value as EntryKind;
+                        setFormEntryKind(k);
+                        if (k === 'vacant' && !formBlockTitle.trim()) setFormBlockTitle('空き');
+                      }}
+                      className="w-full border rounded-lg px-2 py-2"
+                    >
+                      <option value="vacant">空き（Vacant）</option>
+                      <option value="other">その他</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">表示名（カレンダーに出る文字）</label>
+                    <input
+                      type="text"
+                      value={formBlockTitle}
+                      onChange={(e) => setFormBlockTitle(e.target.value)}
+                      placeholder="例: 空き / 昼休み / 会議"
+                      className="w-full border rounded-lg px-2 py-2"
+                      lang="ja"
+                    />
+                  </div>
+                </>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1">予約日</label>
@@ -423,7 +562,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
                   <input type="time" value={formEnd} onChange={(e) => setFormEnd(e.target.value)} className="w-full border rounded-lg px-2 py-2" />
                 </div>
               </div>
-              {editing && (
+              {editing && isAppointmentEntry(editing) && (
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1">状態</label>
                   <select
@@ -434,6 +573,19 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
                     <option value="scheduled">予約</option>
                     <option value="visited">来院済</option>
                     <option value="cancelled">取消</option>
+                  </select>
+                </div>
+              )}
+              {editing && !isAppointmentEntry(editing) && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">種類</label>
+                  <select
+                    value={formEntryKind}
+                    onChange={(e) => setFormEntryKind(e.target.value as EntryKind)}
+                    className="w-full border rounded-lg px-2 py-2"
+                  >
+                    <option value="vacant">空き（Vacant）</option>
+                    <option value="other">その他</option>
                   </select>
                 </div>
               )}
@@ -450,7 +602,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
                 >
                   {saving ? '保存中…' : '保存'}
                 </button>
-                {editing && (
+                {editing && isAppointmentEntry(editing) && (
                   <>
                     <button
                       type="button"

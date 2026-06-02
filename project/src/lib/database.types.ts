@@ -31,7 +31,7 @@ export type Database = {
       appointment_reservations: {
         Row: {
           id: string;
-          customer_id: string;
+          customer_id: string | null;
           reservation_date: string;
           start_time: string;
           end_time: string;
@@ -39,12 +39,14 @@ export type Database = {
           memo: string | null;
           status: string;
           visit_record_id: string | null;
+          entry_kind: string;
+          block_title: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
-          customer_id: string;
+          customer_id?: string | null;
           reservation_date: string;
           start_time: string;
           end_time: string;
@@ -52,12 +54,14 @@ export type Database = {
           memo?: string | null;
           status?: string;
           visit_record_id?: string | null;
+          entry_kind?: string;
+          block_title?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
-          customer_id?: string;
+          customer_id?: string | null;
           reservation_date?: string;
           start_time?: string;
           end_time?: string;
@@ -65,6 +69,8 @@ export type Database = {
           memo?: string | null;
           status?: string;
           visit_record_id?: string | null;
+          entry_kind?: string;
+          block_title?: string | null;
           created_at?: string;
           updated_at?: string;
         };
