@@ -673,46 +673,34 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
             </button>
           </div>
 
-          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-3 mb-4 space-y-2">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <div className="text-xs text-gray-600 font-bold">顧客番号</div>
-                <div className="text-lg font-bold text-gray-900">{selectedCustomer.customer_number}</div>
-                <div className="text-lg font-bold text-gray-900 mt-0.5 leading-tight">
-                  {selectedCustomer.name}
-                  <span className="ml-2 text-sm font-normal text-gray-600">
-                    {getKanaForRoster(selectedCustomer as CustomerRowRecord) ?? '—'}
-                  </span>
+          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-2.5 mb-3 space-y-1.5">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5">
+                <div className="sm:col-span-2 flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-bold text-gray-600">顧客番号:</span>
+                  <span className="font-bold text-gray-900">{selectedCustomer.customer_number || '—'}</span>
+                  <span className="text-base font-bold text-gray-900">{selectedCustomer.name}</span>
+                  <span className="text-xs text-gray-600">{getKanaForRoster(selectedCustomer as CustomerRowRecord) ?? '—'}</span>
                 </div>
+                <div><span className="font-bold text-gray-600">性別:</span> <span className="font-bold">{selectedCustomer.gender || '-'}</span> / <span className="font-bold text-gray-600">年齢:</span> <span className="font-bold">{age != null ? `${age}歳` : '—'}</span></div>
+                <div><span className="font-bold text-gray-600">生年月日:</span> <span className="font-bold">{birth ? new Date(birth).toLocaleDateString('ja-JP') : '-'}</span> / <span className="font-bold text-gray-600">電話:</span> <span className="font-bold">{phoneForChart.value ?? '—'}</span></div>
+                <div className="sm:col-span-2 truncate"><span className="font-bold text-gray-600">住所:</span> <span className="font-bold">{[selectedCustomer.prefecture, selectedCustomer.city, selectedCustomer.town].filter(Boolean).join(' ') || '-'}</span></div>
+                <div className="truncate"><span className="font-bold text-gray-600">主訴:</span> <span className="font-bold">{formatTableCell(chiefLines[0], '—')} / {formatTableCell(chiefLines[1], '—')} / {formatTableCell(chiefLines[2], '—')}</span></div>
+                <div className="truncate"><span className="font-bold text-gray-600">流入:</span> <span className="font-bold">{inflowFromVisits.line ?? '—'}</span></div>
+                <div><span className="font-bold text-gray-600">ポイント:</span> <span className="font-bold text-blue-600">{selectedCustomer.points ?? 0} pt</span> / <span className="font-bold text-gray-600">院:</span> <span className="font-bold"><ClinicNameFromCustomer customer={selectedCustomer} emptyLabel="—" /></span></div>
+                {rosterMemo && (
+                  <div className="truncate"><span className="font-bold text-gray-600">メモ:</span> <span className="font-bold text-gray-800">{rosterMemo}</span></div>
+                )}
               </div>
-              <div className="text-right text-sm">
+              <div className="md:text-right">
                 <div className="font-bold text-pink-700">総LTV</div>
-                <div className="text-2xl font-bold text-pink-900">¥{Math.round(totalLtv).toLocaleString()}</div>
+                <div className="text-xl font-bold text-pink-900">¥{Math.round(totalLtv).toLocaleString()}</div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-xs">
-              <div><span className="font-bold text-gray-600">性別:</span> <span className="font-bold">{selectedCustomer.gender || '-'}</span></div>
-              <div><span className="font-bold text-gray-600">年齢:</span> <span className="font-bold">{age != null ? `${age}歳` : '—'}</span></div>
-              <div><span className="font-bold text-gray-600">生年月日:</span> <span className="font-bold">{birth ? new Date(birth).toLocaleDateString('ja-JP') : '-'}</span></div>
-              <div><span className="font-bold text-gray-600">電話:</span> <span className="font-bold">{phoneForChart.value ?? '—'}</span></div>
-              <div className="md:col-span-2"><span className="font-bold text-gray-600">住所:</span> <span className="font-bold">{[selectedCustomer.prefecture, selectedCustomer.city, selectedCustomer.town].filter(Boolean).join(' ') || '-'}</span></div>
-              <div className="md:col-span-2"><span className="font-bold text-gray-600">流入経路:</span> <span className="font-bold">{inflowFromVisits.line ?? '—'}</span></div>
-              <div className="md:col-span-2"><span className="font-bold text-gray-600">主訴:</span> <span className="font-bold">{formatTableCell(chiefLines[0], '—')} / {formatTableCell(chiefLines[1], '—')} / {formatTableCell(chiefLines[2], '—')}</span></div>
-              <div><span className="font-bold text-gray-600">ポイント:</span> <span className="font-bold text-blue-600">{selectedCustomer.points ?? 0} pt</span></div>
-              <div><span className="font-bold text-gray-600">院:</span> <span className="font-bold"><ClinicNameFromCustomer customer={selectedCustomer} emptyLabel="—" /></span></div>
-            </div>
-
-            {rosterMemo && (
-              <div className="rounded-lg p-2.5 bg-white/90 border border-gray-200 text-sm">
-                <div className="text-xs text-gray-600 font-bold mb-1">メモ</div>
-                <div className="text-gray-800 whitespace-pre-wrap break-words">{rosterMemo}</div>
-              </div>
-            )}
-
-            <div className="bg-white/80 rounded-lg p-2.5 border border-blue-200 text-xs text-gray-700">
-              <span className="font-bold text-gray-800">リピート・来院（設定連動）:</span>{' '}
-              対象来院 {qualifyingCount}回 / リピート {repeatVisitCount}回 / 初診日 {firstQDate ? new Date(firstQDate).toLocaleDateString('ja-JP') : '—'} / 初診当日物販 {firstDayProductCount}件
+            <div className="bg-white/80 rounded-lg px-2.5 py-1.5 border border-blue-200 text-xs text-gray-700 truncate">
+              <span className="font-bold text-gray-800">リピート・来院:</span>{' '}
+              対象来院{qualifyingCount}回 / リピート{repeatVisitCount}回 / 初診日{firstQDate ? new Date(firstQDate).toLocaleDateString('ja-JP') : '—'} / 初診当日物販{firstDayProductCount}件
             </div>
           </div>
 
