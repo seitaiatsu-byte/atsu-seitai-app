@@ -41,6 +41,8 @@ export type Database = {
           visit_record_id: string | null;
           entry_kind: string;
           block_title: string | null;
+          staff_id: string | null;
+          staff_name: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -56,6 +58,8 @@ export type Database = {
           visit_record_id?: string | null;
           entry_kind?: string;
           block_title?: string | null;
+          staff_id?: string | null;
+          staff_name?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -71,6 +75,8 @@ export type Database = {
           visit_record_id?: string | null;
           entry_kind?: string;
           block_title?: string | null;
+          staff_id?: string | null;
+          staff_name?: string | null;
           created_at?: string;
           updated_at?: string;
         };

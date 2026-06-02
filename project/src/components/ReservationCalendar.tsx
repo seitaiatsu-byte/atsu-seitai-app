@@ -8,6 +8,7 @@ import { CLINIC_FULL, clinicMatchesRecord, resolveClinicNameByCustomerNumber, ty
 import { getTodayLocalYmd } from '../lib/visitDateParse';
 
 type ReservationRow = Database['public']['Tables']['appointment_reservations']['Row'];
+type StaffMaster = Database['public']['Tables']['staff_master']['Row'];
 type ReservationStatus = 'scheduled' | 'visited' | 'cancelled';
 type EntryKind = 'appointment' | 'vacant' | 'other';
 type CalendarViewMode = 'appointment' | 'other';
@@ -43,7 +44,8 @@ function chipLabel(r: ReservationWithCustomer): string {
     const title = String(r.block_title || '').trim() || entryKindLabel(r.entry_kind || 'other');
     return `${t} ${title}`;
   }
-  return `${t} ${r.customers?.customer_number || '—'} ${r.customers?.name || ''}`;
+  const staff = r.staff_name ? ` / ${r.staff_name}` : '';
+  return `${t} ${r.customers?.customer_number || '—'} ${r.customers?.name || ''}${staff}`;
 }
 
 export type VisitFromReservationPayload = {
@@ -111,6 +113,15 @@ function timeToMinutes(t: string): number {
   return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
 }
 
+function rangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  return timeToMinutes(aStart) < timeToMinutes(bEnd) && timeToMinutes(aEnd) > timeToMinutes(bStart);
+}
+
+function defaultStaffId(list: StaffMaster[]): string {
+  const atsu = list.find((s) => s.name === 'あつ');
+  return atsu?.id || list[0]?.id || '';
+}
+
 export default function ReservationCalendar({ onOpenVisitWithReservation }: ReservationCalendarProps) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -119,6 +130,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   const [clinicScope, setClinicScope] = useState<ClinicScope>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [rows, setRows] = useState<ReservationWithCustomer[]>([]);
+  const [staffList, setStaffList] = useState<StaffMaster[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
 
@@ -132,8 +144,14 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   const [formStatus, setFormStatus] = useState<ReservationStatus>('scheduled');
   const [formEntryKind, setFormEntryKind] = useState<EntryKind>('appointment');
   const [formBlockTitle, setFormBlockTitle] = useState('');
+  const [formStaffId, setFormStaffId] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const selectedStaff = useMemo(
+    () => staffList.find((s) => s.id === formStaffId) || null,
+    [formStaffId, staffList]
+  );
 
   const monthMeta = useMemo(() => {
     const first = new Date(viewYear, viewMonth - 1, 1);
@@ -169,6 +187,20 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   useEffect(() => {
     void loadReservations();
   }, [loadReservations]);
+
+  useEffect(() => {
+    const loadStaff = async () => {
+      const { data } = await supabase
+        .from('staff_master')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order');
+      const list = (data || []) as StaffMaster[];
+      setStaffList(list);
+      setFormStaffId((current) => current || defaultStaffId(list));
+    };
+    void loadStaff();
+  }, []);
 
   useEffect(() => {
     const onUpdated = () => void loadReservations();
@@ -239,6 +271,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
     setFormClinic(CLINIC_FULL.takatsuki);
     setFormMemo('');
     setFormStatus('scheduled');
+    setFormStaffId(defaultStaffId(staffList));
     setSelectedCustomer(null);
     if (calendarViewMode === 'other') {
       setFormEntryKind('vacant');
@@ -260,6 +293,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
     setFormStatus((r.status as ReservationStatus) || 'scheduled');
     setFormEntryKind((r.entry_kind as EntryKind) || 'appointment');
     setFormBlockTitle(String(r.block_title || ''));
+    setFormStaffId(r.staff_id || staffList.find((s) => s.name === r.staff_name)?.id || defaultStaffId(staffList));
     setSelectedCustomer(r.customers as CustomerRow | null);
     setEditorOpen(true);
   };
@@ -270,10 +304,37 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
     setViewMonth(d.getMonth() + 1);
   };
 
+  const findStaffConflict = async (staff: StaffMaster) => {
+    const { data, error } = await supabase
+      .from('appointment_reservations')
+      .select('*, customers(id, name, name_kana, kana, customer_number)')
+      .eq('reservation_date', formDate);
+
+    if (error) {
+      alert(`スタッフ重複確認に失敗しました: ${error.message}\nSupabase の予約スタッフ用 SQL を実行してください。`);
+      return { blocked: true as const, conflict: null };
+    }
+
+    const staffNameKey = normalizeSearchText(staff.name);
+    const conflict = ((data || []) as ReservationWithCustomer[]).find((r) => {
+      if (editing && r.id === editing.id) return false;
+      if (!isAppointmentEntry(r)) return false;
+      if (r.status === 'cancelled') return false;
+      const sameStaff = r.staff_id === staff.id || normalizeSearchText(r.staff_name) === staffNameKey;
+      return sameStaff && rangesOverlap(formStart, formEnd, String(r.start_time), String(r.end_time));
+    });
+
+    return { blocked: Boolean(conflict), conflict };
+  };
+
   const saveReservation = async () => {
     const isAppt = formEntryKind === 'appointment';
     if (isAppt && !selectedCustomer) {
       alert('顧客を選んでください');
+      return;
+    }
+    if (isAppt && !selectedStaff) {
+      alert('スタッフを選んでください');
       return;
     }
     if (!isAppt && !formBlockTitle.trim() && !formMemo.trim()) {
@@ -287,6 +348,20 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
     if (timeToMinutes(formEnd) <= timeToMinutes(formStart)) {
       alert('終了時間は開始時間より後にしてください');
       return;
+    }
+
+    if (isAppt && selectedStaff) {
+      const { blocked, conflict } = await findStaffConflict(selectedStaff);
+      if (blocked) {
+        if (conflict) {
+          alert(
+            `同じスタッフ（${selectedStaff.name}）の時間が重なっています。\n` +
+              `${String(conflict.start_time).slice(0, 5)}〜${String(conflict.end_time).slice(0, 5)} ` +
+              `${conflict.customers?.customer_number || ''} ${conflict.customers?.name || ''}`
+          );
+        }
+        return;
+      }
     }
 
     setSaving(true);
@@ -303,6 +378,8 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
       status: isAppt ? formStatus : 'scheduled',
       entry_kind: formEntryKind,
       block_title: isAppt ? null : formBlockTitle.trim() || null,
+      staff_id: isAppt ? selectedStaff?.id || null : null,
+      staff_name: isAppt ? selectedStaff?.name || null : null,
       updated_at: new Date().toISOString(),
     };
 
@@ -499,12 +576,39 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
             </div>
             <div className="p-4 space-y-3 text-sm">
               {formEntryKind === 'appointment' ? (
-                <CustomerSearchPanel
-                  accent="blue"
-                  selectedCustomer={selectedCustomer}
-                  onSelect={setSelectedCustomer}
-                  onClearSelection={() => setSelectedCustomer(null)}
-                />
+                <>
+                  <CustomerSearchPanel
+                    accent="blue"
+                    selectedCustomer={selectedCustomer}
+                    onSelect={setSelectedCustomer}
+                    onClearSelection={() => setSelectedCustomer(null)}
+                  />
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">スタッフ</label>
+                    {staffList.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {staffList.map((staff) => (
+                          <button
+                            key={staff.id}
+                            type="button"
+                            onClick={() => setFormStaffId(staff.id)}
+                            className={`py-2 rounded-lg text-xs font-bold border transition-all ${
+                              formStaffId === staff.id
+                                ? 'bg-indigo-600 border-indigo-600 text-white shadow'
+                                : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {staff.name}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        スタッフマスターが未登録、または読み込み中です。
+                      </div>
+                    )}
+                  </div>
+                </>
               ) : (
                 <>
                   <div>
