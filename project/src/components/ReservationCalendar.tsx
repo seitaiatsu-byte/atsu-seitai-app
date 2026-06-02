@@ -438,7 +438,6 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
 
   const handleSelectCustomer = (customer: CustomerRow) => {
     setSelectedCustomer(customer);
-    void openVisitHistory(customer);
   };
 
   const handleSelectHeaderCustomer = (customer: CustomerRow) => {
@@ -948,7 +947,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                       onClick={() => void openVisitHistory(selectedCustomer)}
                       className="w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
                     >
-                      過去の来院一覧を別窓で見る
+                      履歴を確認する
                     </button>
                   )}
                   <div>
