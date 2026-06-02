@@ -6,6 +6,7 @@ import CustomerSearchPanel, { type CustomerRow } from './CustomerSearchPanel';
 import ClinicScopeToggle, { type ClinicScope } from './ClinicScopeToggle';
 import { CLINIC_FULL, clinicMatchesRecord, resolveClinicNameByCustomerNumber, type ClinicFullName } from '../lib/clinic';
 import { getTodayLocalYmd } from '../lib/visitDateParse';
+import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 
 type ReservationRow = Database['public']['Tables']['appointment_reservations']['Row'];
 type StaffMaster = Database['public']['Tables']['staff_master']['Row'];
@@ -139,6 +140,8 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   const [searchQuery, setSearchQuery] = useState('');
   const [rows, setRows] = useState<ReservationWithCustomer[]>([]);
   const [staffList, setStaffList] = useState<StaffMaster[]>([]);
+  const [allCustomers, setAllCustomers] = useState<CustomerRow[]>([]);
+  const [showHeaderCustomerResults, setShowHeaderCustomerResults] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
 
@@ -216,6 +219,20 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
   }, []);
 
   useEffect(() => {
+    const loadCustomers = async () => {
+      try {
+        setAllCustomers(await fetchAllCustomersByCreatedDesc());
+      } catch (error) {
+        console.error('顧客一覧の取得エラー:', error);
+      }
+    };
+    void loadCustomers();
+    const onCustomersUpdated = () => void loadCustomers();
+    window.addEventListener('customers-updated', onCustomersUpdated);
+    return () => window.removeEventListener('customers-updated', onCustomersUpdated);
+  }, []);
+
+  useEffect(() => {
     const onUpdated = () => void loadReservations();
     window.addEventListener('records-updated', onUpdated);
     window.addEventListener('customers-updated', onUpdated);
@@ -250,6 +267,32 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
       return hay.includes(q);
     });
   }, [rows, clinicScope, searchQuery, calendarViewMode]);
+
+  const headerCustomerResults = useMemo(() => {
+    if (calendarViewMode !== 'appointment') return [];
+    const q = normalizeSearchText(searchQuery);
+    if (!q) return [];
+    const digits = q.replace(/\D/g, '');
+    const scored: Array<{ row: CustomerRow; tier: number }> = [];
+
+    for (const c of allCustomers) {
+      const number = normalizeSearchText(c.customer_number);
+      const name = normalizeSearchText(c.name);
+      const kana = normalizeSearchText(c.name_kana || c.kana);
+      let tier: number | null = null;
+      if (digits && number.replace(/\D/g, '') === digits) tier = 0;
+      else if (digits && number.replace(/\D/g, '').startsWith(digits)) tier = 1;
+      else if (name.includes(q) || kana.includes(q)) tier = 2;
+      else if (number.includes(q)) tier = 3;
+      if (tier !== null) scored.push({ row: c, tier });
+    }
+
+    scored.sort((a, b) => {
+      if (a.tier !== b.tier) return a.tier - b.tier;
+      return String(a.row.customer_number || '').localeCompare(String(b.row.customer_number || ''), undefined, { numeric: true });
+    });
+    return scored.slice(0, 10).map((s) => s.row);
+  }, [allCustomers, calendarViewMode, searchQuery]);
 
   const byDate = useMemo(() => {
     const map = new Map<string, ReservationWithCustomer[]>();
@@ -340,6 +383,12 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
 
   const handleSelectCustomer = (customer: CustomerRow) => {
     setSelectedCustomer(customer);
+    void openVisitHistory(customer);
+  };
+
+  const handleSelectHeaderCustomer = (customer: CustomerRow) => {
+    setSearchQuery(customer.customer_number || customer.name || '');
+    setShowHeaderCustomerResults(false);
     void openVisitHistory(customer);
   };
 
@@ -494,14 +543,38 @@ export default function ReservationCalendar({ onOpenVisitWithReservation }: Rese
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <CalendarViewModeToggle value={calendarViewMode} onChange={setCalendarViewMode} />
           <ClinicScopeToggle value={clinicScope} onChange={setClinicScope} />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={calendarViewMode === 'appointment' ? '氏名・かな・番号で絞り込み' : '表示名・メモで絞り込み'}
-            className="flex-1 min-w-[200px] px-3 py-2 border rounded-lg text-sm"
-            lang="ja"
-          />
+          <div className="relative flex-1 min-w-[220px]">
+            <input
+              type="search"
+              value={searchQuery}
+              onFocus={() => setShowHeaderCustomerResults(true)}
+              onBlur={() => window.setTimeout(() => setShowHeaderCustomerResults(false), 120)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowHeaderCustomerResults(true);
+              }}
+              placeholder={calendarViewMode === 'appointment' ? '氏名・かな・番号で絞り込み' : '表示名・メモで絞り込み'}
+              className="w-full px-3 py-2 border rounded-lg text-sm"
+              lang="ja"
+            />
+            {calendarViewMode === 'appointment' && showHeaderCustomerResults && searchQuery.trim() && headerCustomerResults.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-[90] mt-1 max-h-80 overflow-y-auto rounded-xl border border-blue-200 bg-white shadow-xl">
+                {headerCustomerResults.map((customer) => (
+                  <button
+                    key={customer.id}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSelectHeaderCustomer(customer)}
+                    className="w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-blue-50"
+                  >
+                    <div className="font-bold text-gray-800">{customer.name}</div>
+                    <div className="text-xs text-gray-600">{customer.name_kana || customer.kana || 'かな未登録'}</div>
+                    <div className="text-[11px] text-gray-500">顧客番号: {customer.customer_number || '-'}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => openCreate(getTodayLocalYmd())}
