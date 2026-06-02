@@ -81,7 +81,7 @@ function chipLabel(r: ReservationWithCustomer): string {
   }
   const staff = r.staff_name ? ` / ${r.staff_name}` : '';
   const number = r.customers?.customer_number ? ` #${r.customers.customer_number}` : '';
-  return `${r.customers?.name || '名前未設定'} ${t}${number}${staff}`;
+  return `${t} ${r.customers?.name || '名前未設定'}${number}${staff}`;
 }
 
 export type VisitFromReservationPayload = {

@@ -28,6 +28,7 @@ type Customer = Database['public']['Tables']['customers']['Row'];
 type VisitRow = Database['public']['Tables']['visit_records']['Row'];
 type ProductRow = Database['public']['Tables']['product_sales']['Row'];
 type SubRow = Database['public']['Tables']['subscription_records']['Row'];
+type MenuMaster = Database['public']['Tables']['menu_master']['Row'];
 
 type TimelineItem = {
   id: string;
@@ -74,6 +75,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
   const [paymentMethodNames, setPaymentMethodNames] = useState<Record<string, string>>({});
   const [paymentDetailNames, setPaymentDetailNames] = useState<Record<string, string>>({});
   const [paymentMethodOptions, setPaymentMethodOptions] = useState<{ id: string; name: string }[]>([]);
+  const [menuOptions, setMenuOptions] = useState<MenuMaster[]>([]);
   const [methodNameMap, setMethodNameMap] = useState<Record<string, string>>({});
   const [detailNameMap, setDetailNameMap] = useState<Record<string, string>>({});
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([]);
@@ -153,12 +155,13 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
 
   const loadCustomerData = useCallback(async () => {
     if (!selectedCustomer) return;
-    const [{ data: v }, { data: p }, { data: s }, { data: pm }, { data: pd }] = await Promise.all([
+    const [{ data: v }, { data: p }, { data: s }, { data: pm }, { data: pd }, { data: menus }] = await Promise.all([
       supabase.from('visit_records').select('*').eq('customer_id', selectedCustomer.id).order('visit_date', { ascending: false }),
       supabase.from('product_sales').select('*').eq('customer_id', selectedCustomer.id).order('sale_date', { ascending: false }),
       supabase.from('subscription_records').select('*').eq('customer_id', selectedCustomer.id).order('start_date', { ascending: false }),
       supabase.from('payment_method_master').select('id, name'),
       supabase.from('payment_detail_master').select('id, name'),
+      supabase.from('menu_master').select('*').eq('is_active', true).order('display_order'),
     ]);
     setVisits(v || []);
     setProducts(p || []);
@@ -169,6 +172,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
     setMethodNameMap(buildIdToNameMap(pm as { id: string; name: string }[]));
     setDetailNameMap(buildIdToNameMap(pd as { id: string; name: string }[]));
     setPaymentMethodOptions((pm || []) as { id: string; name: string }[]);
+    setMenuOptions((menus || []) as MenuMaster[]);
   }, [selectedCustomer]);
 
   const loadActiveChartRows = useCallback(async () => {
@@ -416,11 +420,13 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
       alert('来院日と金額を正しく入力してください');
       return;
     }
+    const menu = menuOptions.find((m) => m.name === editVisitMenu);
     const { error } = await supabase
       .from('visit_records')
       .update({
         visit_date: editVisitDate,
         amount,
+        menu_id: menu?.id || null,
         menu_name: editVisitMenu || null,
         payment_method: editVisitPaymentMethod || null,
         memo: editVisitMemo || null,
@@ -1035,12 +1041,21 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1">メニュー</label>
-              <input
-                type="text"
+              <select
                 value={editVisitMenu}
                 onChange={(e) => setEditVisitMenu(e.target.value)}
-                className="w-full border rounded px-2 py-1.5 text-sm"
-              />
+                className="w-full border rounded px-2 py-1.5 text-sm bg-white"
+              >
+                <option value="">未設定</option>
+                {editVisitMenu && !menuOptions.some((m) => m.name === editVisitMenu) && (
+                  <option value={editVisitMenu}>{editVisitMenu}</option>
+                )}
+                {menuOptions.map((m) => (
+                  <option key={m.id} value={m.name}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1">支払方法</label>
