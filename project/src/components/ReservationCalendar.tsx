@@ -107,9 +107,20 @@ function formatYmd(d: Date): string {
 }
 
 function statusLabel(status: string): string {
-  if (status === 'visited') return '来院済';
+  if (status === 'visited') return '済';
   if (status === 'cancelled') return '取消';
-  return '予約';
+  return '未処理';
+}
+
+function processStatusBadge(r: ReservationWithCustomer): JSX.Element | null {
+  if (!isAppointmentEntry(r)) return null;
+  if (r.status === 'visited') {
+    return <span className="shrink-0 font-black text-blue-700">済</span>;
+  }
+  if (r.status === 'cancelled') {
+    return <span className="shrink-0 font-black text-slate-500">取消</span>;
+  }
+  return <span className="shrink-0 font-black text-red-700">未処理</span>;
 }
 
 function CalendarViewModeToggle({
@@ -741,10 +752,11 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                             openEdit(r);
                           }
                         }}
-                        className={`text-[10px] leading-tight px-1 py-0.5 rounded border truncate ${chipClass(r, colorRules)}`}
-                        title={`${r.start_time}-${r.end_time} ${chipLabel(r)}`}
+                        className={`flex items-center gap-1 text-[10px] leading-tight px-1 py-0.5 rounded border ${chipClass(r, colorRules)}`}
+                        title={`${r.start_time}-${r.end_time} ${statusLabel(r.status)} ${chipLabel(r)}`}
                       >
-                        {chipLabel(r)}
+                        {processStatusBadge(r)}
+                        <span className="min-w-0 truncate">{chipLabel(r)}</span>
                       </div>
                     ))}
                     {list.length > DAY_CELL_VISIBLE_LIMIT && (
@@ -810,7 +822,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                         {String(r.start_time).slice(0, 5)}〜{String(r.end_time).slice(0, 5)} {chipLabel(r).replace(String(r.start_time).slice(0, 5), '').trim()}
                       </div>
                       <div className="text-xs font-bold">
-                        {isAppointmentEntry(r) ? statusLabel(r.status) : entryKindLabel(r.entry_kind || 'other')}
+                        {isAppointmentEntry(r) ? processStatusBadge(r) : entryKindLabel(r.entry_kind || 'other')}
                       </div>
                     </div>
                     {r.memo && <div className="mt-1 text-xs opacity-80 whitespace-pre-wrap">{r.memo}</div>}
@@ -1052,8 +1064,8 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                     onChange={(e) => setFormStatus(e.target.value as ReservationStatus)}
                     className="w-full border rounded-lg px-2 py-2"
                   >
-                    <option value="scheduled">予約</option>
-                    <option value="visited">来院済</option>
+                    <option value="scheduled">未処理</option>
+                    <option value="visited">済（来院入力済）</option>
                     <option value="cancelled">取消</option>
                   </select>
                 </div>
