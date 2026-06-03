@@ -912,9 +912,9 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
               （予約として登録した分だけ表示）。
               <span className="ml-2">
                 <span className="px-1 rounded border bg-slate-200 border-slate-400 text-slate-700 font-bold">Vac.</span>
-                ＝空白（5分以上）、
+                ＝担当「あつ」の空白（5分以上）、
                 <span className="px-1 rounded border bg-zinc-800 border-zinc-950 text-zinc-100 font-bold">不可</span>
-                ＝休憩（予約不可）。曜日営業時間マスターで設定。
+                ＝休憩（予約不可）。他担当の Vac. は出しません。
               </span>
             </>
           ) : (

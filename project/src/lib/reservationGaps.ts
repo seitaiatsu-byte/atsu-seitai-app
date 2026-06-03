@@ -8,6 +8,9 @@ import {
 /** カレンダーに表示する空白時間の最小分（これ未満は表示しない。密着0分は除く） */
 export const GAP_DISPLAY_MIN_MINUTES = 5;
 
+/** Vac. を出す担当者名（このスタッフの予約枠だけで空白を計算。他担当は出さない） */
+export const VAC_DISPLAY_STAFF_NAMES = ['あつ'] as const;
+
 export type AppointmentGap = {
   id: string;
   staffKey: string;
@@ -44,7 +47,14 @@ export type GapComputeOptions = {
   minGapMinutes?: number;
   dateYmd?: string;
   weekdayHours?: WeekdayBusinessHour[];
+  /** 未指定時は VAC_DISPLAY_STAFF_NAMES（あつ） */
+  vacStaffNames?: readonly string[];
 };
+
+function isVacDisplayStaff(r: ReservationLike, names: readonly string[]): boolean {
+  const n = (r.staff_name || '').trim();
+  return n.length > 0 && names.includes(n);
+}
 
 function timeToMinutes(t: string): number {
   const [h, m] = String(t || '0:0').split(':').map((x) => parseInt(x, 10));
@@ -161,7 +171,10 @@ export function computeAppointmentGapsForDay(
       ? breakIntervalsMinutes(breaksForDate(dateYmd, options.weekdayHours))
       : [];
 
-  const appts = reservations.filter((r) => isAppointmentEntry(r) && r.status !== 'cancelled');
+  const vacNames = options?.vacStaffNames ?? VAC_DISPLAY_STAFF_NAMES;
+  const appts = reservations.filter(
+    (r) => isAppointmentEntry(r) && r.status !== 'cancelled' && isVacDisplayStaff(r, vacNames)
+  );
   const byStaff = new Map<string, ReservationLike[]>();
 
   for (const r of appts) {
