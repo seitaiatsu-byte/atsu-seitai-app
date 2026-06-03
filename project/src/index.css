@@ -2,9 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-input[lang="ja"],
-textarea[lang="ja"] {
+input[lang="ja"]:not([data-ime="off"]),
+textarea[lang="ja"]:not([data-ime="off"]) {
   ime-mode: active;
+}
+
+input[data-ime="off"],
+input[inputmode="numeric"],
+input[inputmode="decimal"] {
+  ime-mode: inactive;
 }
 
 @layer utilities {

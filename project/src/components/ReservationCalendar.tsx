@@ -658,7 +658,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
           <ClinicScopeToggle value={clinicScope} onChange={setClinicScope} />
           <div className="relative flex-1 min-w-[220px]">
             <input
-              type="search"
+              type="text"
               value={searchQuery}
               onFocus={() => setShowHeaderCustomerResults(true)}
               onBlur={() => window.setTimeout(() => setShowHeaderCustomerResults(false), 120)}

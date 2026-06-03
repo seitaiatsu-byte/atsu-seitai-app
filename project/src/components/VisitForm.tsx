@@ -719,7 +719,7 @@ export default function VisitForm({
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
-                type="search"
+                type="text"
                 inputMode="text"
                 lang="ja"
                 value={historyFilter}

@@ -708,7 +708,9 @@ export default function SubscriptionForm() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
-              type="search"
+              type="text"
+              inputMode="text"
+              lang="ja"
               value={listFilter}
               onChange={(e) => setListFilter(e.target.value)}
               placeholder="顧客番号・氏名・プラン名で絞り込み..."
