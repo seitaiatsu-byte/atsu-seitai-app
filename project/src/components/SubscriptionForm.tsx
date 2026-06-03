@@ -42,6 +42,22 @@ function clinicShort(name: string | null | undefined): string {
   return name;
 }
 
+function formatCompactDate(raw: unknown): string {
+  const s = String(raw || '').slice(0, 10);
+  return s ? s.replace(/-/g, '/') : '—';
+}
+
+function formatYen(raw: unknown): string {
+  const n = Number(raw || 0);
+  return `¥${Number.isFinite(n) ? Math.round(n).toLocaleString() : '0'}`;
+}
+
+function compactMemo(raw: unknown): string {
+  const s = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '—';
+  return s.length > 18 ? `${s.slice(0, 18)}…` : s;
+}
+
 export default function SubscriptionForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [subscriptions, setSubscriptions] = useState<SubscriptionMaster[]>([]);
@@ -694,7 +710,7 @@ export default function SubscriptionForm() {
         ) : groupedHistory.length === 0 ? (
           <p className="text-sm text-gray-500 py-4">サブスク入力の履歴はまだありません</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[34rem] overflow-y-auto pr-1">
             {groupedHistory.map(([dateKey, dayRows]) => {
               const isOpen = openHistoryDates.has(dateKey);
               const dayTotal = dayRows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
@@ -705,63 +721,73 @@ export default function SubscriptionForm() {
                     onClick={() => toggleHistoryDate(dateKey)}
                     className="w-full flex items-center justify-between px-3 py-2 text-left bg-slate-50 hover:bg-slate-100"
                   >
-                    <span className="flex items-center gap-2 font-bold text-slate-800">
+                    <span className="flex items-center gap-2 font-bold text-slate-800 min-w-0">
                       {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                      {dateKey}（{dayRows.length}件）
+                      {formatCompactDate(dateKey)}
+                      <span className="text-xs font-bold text-slate-500">{dayRows.length}件</span>
                     </span>
-                    <span className="text-sm font-bold text-blue-700">計 ¥{dayTotal.toLocaleString()}</span>
+                    <span className="text-sm font-bold text-blue-700 whitespace-nowrap">計 {formatYen(dayTotal)}</span>
                   </button>
                   {isOpen && (
-                    <div className="p-3 space-y-2 bg-white">
+                    <div className="overflow-auto border-t border-slate-200 bg-white">
+                      <div className="min-w-[80rem]">
+                        <div className="grid grid-cols-[5.8rem_4.6rem_7rem_minmax(10rem,1fr)_6.4rem_7rem_minmax(10rem,1fr)_5.2rem_5.4rem_6rem] items-center gap-1.5 bg-slate-100 px-2 py-1.5 text-[11px] font-bold text-slate-600 border-b border-slate-200">
+                          <div>日付</div>
+                          <div>番号</div>
+                          <div>氏名</div>
+                          <div>プラン</div>
+                          <div>金額</div>
+                          <div>支払</div>
+                          <div>メモ</div>
+                          <div>担当</div>
+                          <div>院</div>
+                          <div className="text-right">操作</div>
+                        </div>
+                        <ul className="divide-y divide-slate-100">
                       {dayRows.map((r) => {
                         const c = r.customers;
                         const payLabel = formatPaymentMethodLabel(r.payment_method, paymentNameMap);
                         return (
-                          <div
+                          <li
                             key={r.id}
-                            className={`rounded-lg border px-3 py-2 flex flex-col sm:flex-row sm:items-center gap-3 ${
-                              editingId === r.id ? 'border-orange-400 bg-orange-50/50' : 'border-slate-200'
+                            className={`grid grid-cols-[5.8rem_4.6rem_7rem_minmax(10rem,1fr)_6.4rem_7rem_minmax(10rem,1fr)_5.2rem_5.4rem_6rem] items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-purple-50/50 ${
+                              editingId === r.id ? 'bg-orange-50' : ''
                             }`}
                           >
-                            <div className="flex-1 min-w-0">
-                              <div className="font-bold text-gray-900">
-                                {c?.customer_number ? `${c.customer_number} ` : ''}
-                                {c?.name || '（顧客不明）'}
-                              </div>
-                              <div className="text-sm text-gray-700">
-                                <span className="font-bold text-purple-700">{r.subscription_name || '（プラン名なし）'}</span>
-                                <span className="mx-2">¥{Number(r.amount || 0).toLocaleString()}</span>
-                                <span className="text-gray-500">{payLabel}</span>
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                登録: {(r.created_at || '').slice(0, 10)} / 院: {clinicShort(r.clinic_name)}
-                                {r.staff_name ? ` / 担当: ${r.staff_name}` : ''}
-                                {r.memo ? ` / メモ: ${r.memo}` : ''}
-                              </div>
-                            </div>
-                            <div className="flex gap-2 shrink-0 sm:flex-col sm:gap-1">
+                            <div className="font-bold text-slate-800 whitespace-nowrap">{formatCompactDate(r.start_date)}</div>
+                            <div className="font-bold text-blue-700 truncate" title={c?.customer_number || ''}>{c?.customer_number || '—'}</div>
+                            <div className="font-bold text-slate-800 truncate" title={c?.name || ''}>{c?.name || '（顧客不明）'}</div>
+                            <div className="truncate font-bold text-purple-700" title={r.subscription_name || ''}>{r.subscription_name || '（プラン名なし）'}</div>
+                            <div className="font-bold text-slate-900 whitespace-nowrap">{formatYen(r.amount)}</div>
+                            <div className="truncate text-slate-600" title={payLabel}>{payLabel}</div>
+                            <div className="truncate text-slate-600" title={r.memo || ''}>{compactMemo(r.memo)}</div>
+                            <div className="truncate text-slate-700" title={r.staff_name || ''}>{r.staff_name || '—'}</div>
+                            <div className="truncate text-slate-700" title={r.clinic_name || ''}>{clinicShort(r.clinic_name)}</div>
+                            <div className="flex justify-end gap-1">
                               <button
                                 type="button"
                                 onClick={() => startEdit(r)}
-                                className="flex items-center justify-center gap-1 px-3 py-2 text-sm font-bold text-blue-700 bg-white border-2 border-blue-200 rounded-lg hover:bg-blue-50"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap"
                                 title="修正"
                               >
-                                <Edit2 size={16} />
+                                <Edit2 size={13} />
                                 修正
                               </button>
                               <button
                                 type="button"
                                 onClick={() => void handleDelete(r)}
-                                className="flex items-center justify-center gap-1 px-3 py-2 text-sm font-bold text-red-700 bg-white border-2 border-red-200 rounded-lg hover:bg-red-50"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap"
                                 title="削除"
                               >
-                                <Trash2 size={16} />
+                                <Trash2 size={13} />
                                 削除
                               </button>
                             </div>
-                          </div>
+                          </li>
                         );
                       })}
+                        </ul>
+                      </div>
                     </div>
                   )}
                 </div>

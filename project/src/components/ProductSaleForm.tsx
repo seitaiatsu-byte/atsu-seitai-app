@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, CreditCard, Save, ShoppingBag, Upload, X, History, ChevronDown, ChevronRight } from 'lucide-react';
+import { Calendar, CreditCard, Save, ShoppingBag, Upload, X, History, ChevronDown, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import CustomerSearchPanel from './CustomerSearchPanel';
@@ -28,12 +28,29 @@ const emptyLines = (): Line[] => [
   { productId: '', quantity: '1' },
 ];
 
+function formatCompactDate(raw: unknown): string {
+  const s = String(raw || '').slice(0, 10);
+  return s ? s.replace(/-/g, '/') : '—';
+}
+
+function formatYen(raw: unknown): string {
+  const n = Number(raw || 0);
+  return `¥${Number.isFinite(n) ? Math.round(n).toLocaleString() : '0'}`;
+}
+
+function compactMemo(raw: unknown): string {
+  const s = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '—';
+  return s.length > 18 ? `${s.slice(0, 18)}…` : s;
+}
+
 export default function ProductSaleForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [products, setProducts] = useState<ProductMaster[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodMaster[]>([]);
   const [staffList, setStaffList] = useState<StaffMaster[]>([]);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [lines, setLines] = useState<Line[]>(emptyLines);
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMethodId, setPaymentMethodId] = useState('');
@@ -118,6 +135,46 @@ export default function ProductSaleForm() {
 
   const getProduct = (id: string) => products.find((p) => p.id === id);
   const getStaffName = (id: string) => staffList.find((s) => s.id === id)?.name || '';
+  const paymentNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    paymentMethods.forEach((m) => map.set(m.id, m.name));
+    return map;
+  }, [paymentMethods]);
+  const paymentLabel = (raw: string | null | undefined) => (raw && paymentNameMap.get(raw)) || raw || '-';
+
+  const resetForm = () => {
+    setEditingId(null);
+    setSelectedCustomer(null);
+    setLines(emptyLines());
+    setAmount('');
+    setMemo('');
+    setStaffId('');
+    setMediaFiles([]);
+    setDuplicateError('');
+    if (paymentMethods.length) setPaymentMethodId(paymentMethods[0]!.id);
+  };
+
+  const startEdit = (r: ProductSaleRow) => {
+    setEditingId(r.id);
+    setSelectedCustomer((r.customers as CustomerRow) || null);
+    setSaleDate((r.sale_date || '').slice(0, 10));
+    setLines([
+      { productId: r.product_id || '', quantity: String(r.quantity || 1) },
+      { productId: '', quantity: '1' },
+      { productId: '', quantity: '1' },
+    ]);
+    setPaymentMethodId(
+      paymentMethods.find((m) => m.id === r.payment_method || m.name === String(r.payment_method || ''))?.id ||
+        paymentMethods[0]?.id ||
+        ''
+    );
+    setAmount(r.amount != null ? String(r.amount) : '0');
+    setMemo(r.memo || '');
+    setClinicName((r.clinic_name as ClinicFullName) || '高槻あつ整体院');
+    setStaffId(staffList.find((s) => s.name === r.staff_name)?.id || '');
+    setDuplicateError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const lineAmount = (line: Line) => {
     const p = line.productId ? getProduct(line.productId) : null;
@@ -194,7 +251,20 @@ export default function ProductSaleForm() {
       return;
     }
 
-    if (await hasProductSaleOnDate(selectedCustomer.id, saleDate)) {
+    const duplicateExists = editingId
+      ? await (async () => {
+          const { data } = await supabase
+            .from('product_sales')
+            .select('id')
+            .eq('customer_id', selectedCustomer.id)
+            .eq('sale_date', saleDate)
+            .neq('id', editingId)
+            .limit(1)
+            .maybeSingle();
+          return !!data;
+        })()
+      : await hasProductSaleOnDate(selectedCustomer.id, saleDate);
+    if (duplicateExists) {
       const cn = formatCustomerNumberForMessage(selectedCustomer.customer_number);
       setDuplicateError(
         `顧客番号 ${cn}・販売日 ${saleDate} の物販記録は既に登録されています。重複登録はできません。`
@@ -205,7 +275,7 @@ export default function ProductSaleForm() {
     setIsSubmitting(true);
     const staffNameResolved = staffId ? getStaffName(staffId) : '';
     const amountValue = Number(amount.trim());
-    const lineAmounts = splitAmountAcrossLines(amountValue, activeLines.length);
+    const lineAmounts = editingId ? [amountValue] : splitAmountAcrossLines(amountValue, activeLines.length);
 
     const rows = activeLines.map((line, idx) => {
       const p = getProduct(line.productId)!;
@@ -224,30 +294,56 @@ export default function ProductSaleForm() {
       };
     });
 
-    const { error } = await supabase.from('product_sales').insert(rows);
+    const { error } = editingId
+      ? await supabase.from('product_sales').update(rows[0]).eq('id', editingId)
+      : await supabase.from('product_sales').insert(rows);
 
     if (error) {
       console.error(error);
-      alert(`登録に失敗しました: ${error.message}`);
+      alert(`${editingId ? '修正' : '登録'}に失敗しました: ${error.message}`);
       setIsSubmitting(false);
       return;
     }
 
-    alert('登録完了しました');
-    setSelectedCustomer(null);
-    setLines(emptyLines());
-    setAmount('');
-    setMemo('');
-    setStaffId('');
-    setMediaFiles([]);
+    alert(editingId ? '修正しました' : '登録完了しました');
+    resetForm();
     setIsSubmitting(false);
+    void loadRecentRecords();
+    window.dispatchEvent(new Event('records-updated'));
+  };
+
+  const handleDelete = async (r: ProductSaleRow) => {
+    const c = r.customers;
+    const label = c ? `${c.customer_number || ''} ${c.name}`.trim() : '（顧客不明）';
+    if (!window.confirm(`${label} の物販記録（${r.sale_date}・${r.product_name || '商品'}）を削除しますか？`)) return;
+    const { error } = await supabase.from('product_sales').delete().eq('id', r.id);
+    if (error) {
+      alert(`削除に失敗しました: ${error.message}`);
+      return;
+    }
+    if (editingId === r.id) resetForm();
+    void loadRecentRecords();
     window.dispatchEvent(new Event('records-updated'));
   };
 
   return (
     <div className="space-y-6 pb-20">
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-      <h2 className="text-2xl font-bold text-orange-600 mb-4">物販記録（最大3商品）</h2>
+      <div className={`bg-white rounded-2xl shadow-lg p-6 border-4 ${editingId ? 'border-orange-400' : 'border-transparent'}`}>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <h2 className="text-2xl font-bold text-orange-600">
+          {editingId ? '【修正モード】物販記録' : '物販記録（最大3商品）'}
+        </h2>
+        {editingId && (
+          <button
+            type="button"
+            onClick={resetForm}
+            className="flex items-center gap-1 px-3 py-2 text-sm font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+          >
+            <X size={16} />
+            修正をやめる
+          </button>
+        )}
+      </div>
 
       <CustomerSearchPanel
         accent="orange"
@@ -440,7 +536,7 @@ export default function ProductSaleForm() {
           className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-lg disabled:opacity-50"
         >
           <Save size={24} />
-          {isSubmitting ? '登録中...' : '登録'}
+          {isSubmitting ? '保存中...' : editingId ? '修正を保存' : '登録'}
         </button>
       </form>
       </div>
@@ -455,7 +551,7 @@ export default function ProductSaleForm() {
         ) : recordsByDate.length === 0 ? (
           <p className="text-sm text-gray-500 py-4">物販入力の履歴はまだありません</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[34rem] overflow-y-auto pr-1">
             {recordsByDate.map(([dateKey, dayRows]) => {
               const isOpen = openDates.has(dateKey);
               const dayTotal = dayRows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
@@ -466,28 +562,73 @@ export default function ProductSaleForm() {
                     onClick={() => toggleDate(dateKey)}
                     className="w-full flex items-center justify-between px-3 py-2 text-left bg-slate-50 hover:bg-slate-100"
                   >
-                    <span className="flex items-center gap-2 font-bold text-slate-800">
+                    <span className="flex items-center gap-2 font-bold text-slate-800 min-w-0">
                       {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                      {dateKey}（{dayRows.length}件）
+                      {formatCompactDate(dateKey)}
+                      <span className="text-xs font-bold text-slate-500">{dayRows.length}件</span>
                     </span>
-                    <span className="text-sm font-bold text-blue-700">計 ¥{dayTotal.toLocaleString()}</span>
+                    <span className="text-sm font-bold text-blue-700 whitespace-nowrap">計 {formatYen(dayTotal)}</span>
                   </button>
                   {isOpen && (
-                    <div className="p-3 space-y-2 bg-white">
-                      {dayRows.map((r) => (
-                        <div key={r.id} className="rounded-lg border border-slate-200 px-3 py-2">
-                          <div className="font-bold text-gray-900">
-                            {r.customers?.customer_number ? `${r.customers.customer_number} ` : ''}
-                            {r.customers?.name || '（顧客不明）'}
-                          </div>
-                          <div className="text-sm text-gray-700">
-                            {r.product_name || '商品未設定'} / 数量 {r.quantity} / ¥{Number(r.amount || 0).toLocaleString()}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {r.staff_name ? `担当: ${r.staff_name} / ` : ''}院: {r.clinic_name || '-'}
-                          </div>
+                    <div className="overflow-auto border-t border-slate-200 bg-white">
+                      <div className="min-w-[76rem]">
+                        <div className="grid grid-cols-[5.8rem_4.6rem_7rem_minmax(10rem,1fr)_4.5rem_6.4rem_7rem_minmax(10rem,1fr)_5.2rem_5.4rem_6rem] items-center gap-1.5 bg-slate-100 px-2 py-1.5 text-[11px] font-bold text-slate-600 border-b border-slate-200">
+                          <div>日付</div>
+                          <div>番号</div>
+                          <div>氏名</div>
+                          <div>商品</div>
+                          <div>数量</div>
+                          <div>金額</div>
+                          <div>支払</div>
+                          <div>メモ</div>
+                          <div>担当</div>
+                          <div>院</div>
+                          <div className="text-right">操作</div>
                         </div>
-                      ))}
+                        <ul className="divide-y divide-slate-100">
+                          {dayRows.map((r) => {
+                            const customerName = r.customers?.name || '（顧客不明）';
+                            const customerNumber = r.customers?.customer_number || '—';
+                            return (
+                              <li
+                                key={r.id}
+                                className={`grid grid-cols-[5.8rem_4.6rem_7rem_minmax(10rem,1fr)_4.5rem_6.4rem_7rem_minmax(10rem,1fr)_5.2rem_5.4rem_6rem] items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-orange-50/50 ${
+                                  editingId === r.id ? 'bg-orange-50' : ''
+                                }`}
+                              >
+                                <div className="font-bold text-slate-800 whitespace-nowrap">{formatCompactDate(r.sale_date)}</div>
+                                <div className="font-bold text-blue-700 truncate" title={customerNumber}>{customerNumber}</div>
+                                <div className="font-bold text-slate-800 truncate" title={customerName}>{customerName}</div>
+                                <div className="truncate text-slate-800" title={r.product_name || ''}>{r.product_name || '商品未設定'}</div>
+                                <div className="font-bold text-slate-700 whitespace-nowrap">{r.quantity || 1}</div>
+                                <div className="font-bold text-slate-900 whitespace-nowrap">{formatYen(r.amount)}</div>
+                                <div className="truncate text-slate-600" title={paymentLabel(r.payment_method)}>{paymentLabel(r.payment_method)}</div>
+                                <div className="truncate text-slate-600" title={r.memo || ''}>{compactMemo(r.memo)}</div>
+                                <div className="truncate text-slate-700" title={r.staff_name || ''}>{r.staff_name || '—'}</div>
+                                <div className="truncate text-slate-700" title={r.clinic_name || ''}>{r.clinic_name?.includes('川西') ? '川西' : r.clinic_name?.includes('高槻') ? '高槻' : r.clinic_name || '—'}</div>
+                                <div className="flex justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => startEdit(r)}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap"
+                                  >
+                                    <Edit2 size={13} />
+                                    修正
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleDelete(r)}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap"
+                                  >
+                                    <Trash2 size={13} />
+                                    削除
+                                  </button>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
                     </div>
                   )}
                 </div>
