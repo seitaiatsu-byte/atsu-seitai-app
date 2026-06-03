@@ -126,6 +126,9 @@ interface ReservationCalendarProps {
 }
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'] as const;
+/** 日曜列は半分幅、月〜土に配分（休診日が多いため） */
+const CALENDAR_MONTH_GRID =
+  'grid gap-px sm:gap-1 [grid-template-columns:minmax(0,0.5fr)_repeat(6,minmax(0,1fr))]';
 const DAY_CELL_VISIBLE_LIMIT = 10;
 
 function gapChipClass(): string {
@@ -899,7 +902,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
       )}
 
       <div className="p-0.5 sm:p-3 max-sm:-mx-0.5">
-        <div className="grid grid-cols-7 gap-px sm:gap-1 mb-px sm:mb-1">
+        <div className={`${CALENDAR_MONTH_GRID} mb-px sm:mb-1`}>
           {WEEKDAY_LABELS.map((w, i) => (
             <div
               key={w}
@@ -915,7 +918,9 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
         {loading ? (
           <div className="text-center text-sm text-gray-500 py-8">読み込み中...</div>
         ) : (
-          <div className="grid grid-cols-7 gap-px sm:gap-1 panel-scrollbar max-sm:max-h-[calc(100dvh-14rem)] sm:max-h-[36rem] overflow-y-auto">
+          <div
+            className={`${CALENDAR_MONTH_GRID} panel-scrollbar max-sm:max-h-[calc(100dvh-14rem)] sm:max-h-[36rem] overflow-y-auto`}
+          >
             {calendarCells.map((cell, idx) => {
               if (cell.kind === 'blank') {
                 return (
