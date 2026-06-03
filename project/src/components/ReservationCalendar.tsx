@@ -77,6 +77,28 @@ function chipClass(r: ReservationWithCustomer, colorRules: CalendarColorRule[]):
   return colorClassByKey(appointmentColorKey(r, colorRules));
 }
 
+function appointmentStatusSuffix(r: ReservationWithCustomer): string {
+  if (r.status === 'visited') return '済';
+  if (r.status === 'cancelled') return '消';
+  return '未';
+}
+
+/** 月間マス用（スマホ）：時刻・番号・別バッジをやめて名前を最大表示 */
+function chipLabelCompact(r: ReservationWithCustomer): string {
+  if (!isAppointmentEntry(r)) {
+    return personalScheduleTitle(r);
+  }
+  const mark = appointmentStatusSuffix(r);
+  const staff = r.staff_name ? `·${String(r.staff_name).charAt(0)}` : '';
+  if (isPlaceholderCustomerNumber(r.customers?.customer_number)) {
+    const memo = String(r.memo || '').trim();
+    const hint = memo ? memo.slice(0, 4) : '';
+    return `新規${hint}${staff}${mark}`;
+  }
+  const name = r.customers?.name || '？';
+  return `${name}${staff}${mark}`;
+}
+
 function chipLabel(r: ReservationWithCustomer): string {
   const t = String(r.start_time).slice(0, 5);
   if (!isAppointmentEntry(r)) {
@@ -104,7 +126,7 @@ interface ReservationCalendarProps {
 }
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'] as const;
-const DAY_CELL_VISIBLE_LIMIT = 8;
+const DAY_CELL_VISIBLE_LIMIT = 10;
 
 function gapChipClass(): string {
   return 'bg-slate-200 border-slate-400 text-slate-700';
@@ -118,16 +140,20 @@ function renderTimelineItem(
 ) {
   if (item.kind === 'gap') {
     const label = gapChipLabel(item.gap);
+    const gapCompactLabel = `空${item.gap.minutes}`;
     return (
       <div
         key={item.gap.id}
-        className={`flex items-center gap-1 leading-tight px-1 py-0.5 rounded border ${gapChipClass()} ${
-          compact ? 'text-[10px]' : 'text-xs'
+        className={`flex items-center min-w-0 leading-none border ${gapChipClass()} ${
+          compact
+            ? 'max-sm:gap-0 max-sm:px-[2px] max-sm:py-0 max-sm:rounded-[2px] max-sm:border-l-2 max-sm:border-t-0 max-sm:border-r-0 max-sm:border-b-0 max-sm:text-[9px] sm:gap-1 sm:leading-tight sm:px-1 sm:py-0.5 sm:rounded sm:text-[10px]'
+            : 'gap-1 leading-tight px-1 py-0.5 rounded text-xs'
         }`}
-        title={`空白 ${item.gap.minutes}分`}
+        title={`空白 ${item.gap.minutes}分 ${item.gap.startTime}〜${item.gap.endTime}`}
       >
-        <span className="shrink-0 font-black text-slate-600">空</span>
-        <span className="min-w-0 truncate">{label}</span>
+        <span className="shrink-0 font-black text-slate-600 hidden sm:inline">空</span>
+        <span className="min-w-0 truncate sm:hidden">{gapCompactLabel}</span>
+        <span className="min-w-0 truncate hidden sm:inline">{label}</span>
       </div>
     );
   }
@@ -147,8 +173,10 @@ function renderTimelineItem(
           onEditReservation(r);
         }
       }}
-      className={`flex items-center gap-1 leading-tight px-1 py-0.5 rounded border cursor-pointer ${chipClass(r, colorRules)} ${
-        compact ? 'text-[10px]' : 'text-sm'
+      className={`flex items-center min-w-0 cursor-pointer border ${chipClass(r, colorRules)} ${
+        compact
+          ? 'max-sm:gap-0 max-sm:px-[2px] max-sm:py-0 max-sm:rounded-[2px] max-sm:border-l-2 max-sm:border-t-0 max-sm:border-r-0 max-sm:border-b-0 max-sm:leading-none max-sm:text-[9px] sm:gap-1 sm:leading-tight sm:px-1 sm:py-0.5 sm:rounded sm:text-[10px]'
+          : 'gap-1 leading-tight px-1 py-0.5 rounded text-sm'
       }`}
       title={
         isAppointmentEntry(r)
@@ -158,8 +186,13 @@ function renderTimelineItem(
             }`
       }
     >
-      {isAppointmentEntry(r) ? processStatusBadge(r) : null}
-      <span className="min-w-0 truncate">{chipLabel(r)}</span>
+      {isAppointmentEntry(r) && (
+        <span className={compact ? 'hidden sm:inline shrink-0' : 'shrink-0'}>{processStatusBadge(r)}</span>
+      )}
+      {compact ? (
+        <span className="min-w-0 flex-1 truncate sm:hidden">{chipLabelCompact(r)}</span>
+      ) : null}
+      <span className={`min-w-0 flex-1 truncate ${compact ? 'hidden sm:inline' : ''}`}>{chipLabel(r)}</span>
     </div>
   );
 }
@@ -766,12 +799,12 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-      <div className="px-4 py-3 bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-slate-200">
+    <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 overflow-hidden max-sm:shadow">
+      <div className="px-2 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-slate-200">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <CalendarDays className="text-teal-600" size={22} />
-            予約確認表（月間）
+          <h2 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-1 sm:gap-2">
+            <CalendarDays className="text-teal-600 shrink-0" size={20} />
+            <span className="truncate">予約確認表（月間）</span>
           </h2>
           <div className="flex items-center gap-1">
             <button type="button" onClick={() => shiftMonth(-1)} className="p-2 rounded-lg border bg-white hover:bg-slate-50" aria-label="前月">
@@ -836,7 +869,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
             {calendarViewMode === 'appointment' ? '予約追加' : '予定を追加'}
           </button>
         </div>
-        <p className="mt-2 text-xs text-gray-600">
+        <p className="mt-2 text-xs text-gray-600 hidden sm:block">
           {calendarViewMode === 'appointment' ? (
             <>
               患者さんの<strong>予約</strong>のみ表示します。
@@ -865,12 +898,14 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
         </div>
       )}
 
-      <div className="p-3">
-        <div className="grid grid-cols-7 gap-1 mb-1">
+      <div className="p-0.5 sm:p-3 max-sm:-mx-0.5">
+        <div className="grid grid-cols-7 gap-px sm:gap-1 mb-px sm:mb-1">
           {WEEKDAY_LABELS.map((w, i) => (
             <div
               key={w}
-              className={`text-center text-xs font-bold py-1 ${i === 0 ? 'text-red-600' : i === 6 ? 'text-blue-600' : 'text-gray-600'}`}
+              className={`text-center text-[10px] sm:text-xs font-bold py-0.5 sm:py-1 leading-none ${
+                i === 0 ? 'text-red-600' : i === 6 ? 'text-blue-600' : 'text-gray-600'
+              }`}
             >
               {w}
             </div>
@@ -880,10 +915,12 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
         {loading ? (
           <div className="text-center text-sm text-gray-500 py-8">読み込み中...</div>
         ) : (
-          <div className="grid grid-cols-7 gap-1 panel-scrollbar max-h-[36rem] overflow-y-auto">
+          <div className="grid grid-cols-7 gap-px sm:gap-1 panel-scrollbar max-sm:max-h-[calc(100dvh-14rem)] sm:max-h-[36rem] overflow-y-auto">
             {calendarCells.map((cell, idx) => {
               if (cell.kind === 'blank') {
-                return <div key={`blank-${idx}`} className="min-h-[8rem] bg-slate-50/50 rounded-lg" />;
+                return (
+                  <div key={`blank-${idx}`} className="min-h-[3.5rem] sm:min-h-[8rem] bg-slate-50/50 rounded-sm sm:rounded-lg" />
+                );
               }
               const list = byDate.get(cell.ymd) || [];
               const timeline =
@@ -904,18 +941,24 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') setDayDetailDate(cell.ymd);
                   }}
-                  className={`min-h-[8rem] rounded-lg border p-1 text-left hover:ring-2 hover:ring-teal-300 transition-shadow cursor-pointer ${
+                  className={`min-h-[3.5rem] sm:min-h-[8rem] rounded-sm sm:rounded-lg border p-px sm:p-1 text-left hover:ring-1 sm:hover:ring-2 hover:ring-teal-300 transition-shadow cursor-pointer ${
                     isToday ? 'border-teal-400 bg-teal-50/40' : 'border-slate-200 bg-white'
                   }`}
                 >
-                  <div className={`text-xs font-bold mb-1 ${isToday ? 'text-teal-800' : 'text-gray-700'}`}>{cell.day}</div>
-                  <div className="space-y-0.5">
+                  <div
+                    className={`text-[10px] sm:text-xs font-bold leading-none mb-px sm:mb-1 px-px ${
+                      isToday ? 'text-teal-800' : 'text-gray-700'
+                    }`}
+                  >
+                    {cell.day}
+                  </div>
+                  <div className="space-y-px sm:space-y-0.5">
                     {timeline.slice(0, DAY_CELL_VISIBLE_LIMIT).map((item) =>
                       renderTimelineItem(item, colorRules, openEdit, true)
                     )}
                     {timeline.length > DAY_CELL_VISIBLE_LIMIT && (
-                      <div className="text-[10px] font-bold text-teal-700 px-1">
-                        全{timeline.length}件を見る
+                      <div className="text-[9px] sm:text-[10px] font-bold text-teal-700 leading-none px-px sm:px-1 truncate">
+                        +{timeline.length - DAY_CELL_VISIBLE_LIMIT}
                       </div>
                     )}
                   </div>
