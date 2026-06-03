@@ -1,4 +1,9 @@
-import { businessBoundsForDate, type WeekdayBusinessHour } from './weekdayBusinessHours';
+import {
+  breaksForDate,
+  businessBoundsForDate,
+  type BreakPeriod,
+  type WeekdayBusinessHour,
+} from './weekdayBusinessHours';
 
 /** カレンダーに表示する空白時間の最小分（これ未満は表示しない。密着0分は除く） */
 export const GAP_DISPLAY_MIN_MINUTES = 5;
@@ -12,9 +17,17 @@ export type AppointmentGap = {
   minutes: number;
 };
 
+export type BlockedPeriod = {
+  id: string;
+  startTime: string;
+  endTime: string;
+  minutes: number;
+};
+
 export type DayTimelineItem =
   | { kind: 'reservation'; sortMin: number; reservation: ReservationLike }
-  | { kind: 'gap'; sortMin: number; gap: AppointmentGap };
+  | { kind: 'gap'; sortMin: number; gap: AppointmentGap }
+  | { kind: 'blocked'; sortMin: number; blocked: BlockedPeriod };
 
 type ReservationLike = {
   id: string;
@@ -48,6 +61,35 @@ function isAppointmentEntry(r: { entry_kind?: string | null }): boolean {
   return (r.entry_kind || 'appointment') === 'appointment';
 }
 
+function breakIntervalsMinutes(breaks: BreakPeriod[]): { startM: number; endM: number }[] {
+  return breaks.map((b) => ({
+    startM: timeToMinutes(b.start_time),
+    endM: timeToMinutes(b.end_time),
+  }));
+}
+
+function subtractIntervals(
+  rangeStart: number,
+  rangeEnd: number,
+  blocks: { startM: number; endM: number }[]
+): { startM: number; endM: number }[] {
+  let segments = [{ startM: rangeStart, endM: rangeEnd }];
+  const sorted = [...blocks].sort((a, b) => a.startM - b.startM);
+  for (const b of sorted) {
+    const next: { startM: number; endM: number }[] = [];
+    for (const seg of segments) {
+      if (b.endM <= seg.startM || b.startM >= seg.endM) {
+        next.push(seg);
+        continue;
+      }
+      if (b.startM > seg.startM) next.push({ startM: seg.startM, endM: b.startM });
+      if (b.endM < seg.endM) next.push({ startM: b.endM, endM: seg.endM });
+    }
+    segments = next;
+  }
+  return segments.filter((s) => s.endM > s.startM);
+}
+
 function pushGap(
   gaps: AppointmentGap[],
   staffKey: string,
@@ -69,6 +111,41 @@ function pushGap(
   });
 }
 
+function clipGapsExcludingBreaks(
+  gaps: AppointmentGap[],
+  breakMs: { startM: number; endM: number }[],
+  minGapMinutes: number
+): AppointmentGap[] {
+  if (!breakMs.length) return gaps;
+  const out: AppointmentGap[] = [];
+  for (const g of gaps) {
+    const startM = timeToMinutes(g.startTime);
+    const endM = timeToMinutes(g.endTime);
+    for (const seg of subtractIntervals(startM, endM, breakMs)) {
+      pushGap(out, g.staffKey, g.staffName, seg.startM, seg.endM, minGapMinutes, `${g.id}-c`);
+    }
+  }
+  return out;
+}
+
+export function buildBlockedPeriodsForDay(
+  dateYmd: string | undefined,
+  weekdayHours: WeekdayBusinessHour[] | undefined
+): BlockedPeriod[] {
+  if (!dateYmd || !weekdayHours?.length) return [];
+  const breaks = breaksForDate(dateYmd, weekdayHours);
+  return breaks.map((b, i) => {
+    const startM = timeToMinutes(b.start_time);
+    const endM = timeToMinutes(b.end_time);
+    return {
+      id: `blocked-${dateYmd}-${startM}-${endM}-${i}`,
+      startTime: b.start_time,
+      endTime: b.end_time,
+      minutes: endM - startM,
+    };
+  });
+}
+
 export function computeAppointmentGapsForDay(
   reservations: ReservationLike[],
   options?: GapComputeOptions
@@ -79,6 +156,10 @@ export function computeAppointmentGapsForDay(
     dateYmd && options?.weekdayHours?.length
       ? businessBoundsForDate(dateYmd, options.weekdayHours)
       : null;
+  const breakMs =
+    dateYmd && options?.weekdayHours?.length
+      ? breakIntervalsMinutes(breaksForDate(dateYmd, options.weekdayHours))
+      : [];
 
   const appts = reservations.filter((r) => isAppointmentEntry(r) && r.status !== 'cancelled');
   const byStaff = new Map<string, ReservationLike[]>();
@@ -120,15 +201,18 @@ export function computeAppointmentGapsForDay(
     }
   }
 
-  gaps.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
-  return gaps;
+  const clipped = clipGapsExcludingBreaks(gaps, breakMs, minGapMinutes);
+  clipped.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+  return clipped;
 }
 
 export function buildAppointmentDayTimeline(
   reservations: ReservationLike[],
   options?: GapComputeOptions
 ): DayTimelineItem[] {
+  const dateYmd = options?.dateYmd?.slice(0, 10);
   const gaps = computeAppointmentGapsForDay(reservations, options);
+  const blocked = buildBlockedPeriodsForDay(dateYmd, options?.weekdayHours);
   const items: DayTimelineItem[] = [];
 
   for (const r of reservations) {
@@ -142,12 +226,28 @@ export function buildAppointmentDayTimeline(
   for (const g of gaps) {
     items.push({ kind: 'gap', sortMin: timeToMinutes(g.startTime), gap: g });
   }
+  for (const b of blocked) {
+    items.push({ kind: 'blocked', sortMin: timeToMinutes(b.startTime), blocked: b });
+  }
 
-  items.sort((a, b) => a.sortMin - b.sortMin || (a.kind === 'reservation' ? 0 : 1));
+  const kindOrder = (k: DayTimelineItem['kind']) => (k === 'reservation' ? 0 : k === 'blocked' ? 1 : 2);
+  items.sort((a, b) => a.sortMin - b.sortMin || kindOrder(a.kind) - kindOrder(b.kind));
   return items;
 }
 
 export function gapChipLabel(gap: AppointmentGap): string {
   const staff = gap.staffName ? ` / ${gap.staffName}` : '';
   return `Vac. ${gap.minutes}分 ${gap.startTime}-${gap.endTime}${staff}`;
+}
+
+export function blockedChipLabel(blocked: BlockedPeriod): string {
+  return `不可時間 ${blocked.minutes}分 ${blocked.startTime}-${blocked.endTime}`;
+}
+
+export function gapChipClass(): string {
+  return 'bg-slate-200 border-slate-400 text-slate-700';
+}
+
+export function blockedChipClass(): string {
+  return 'bg-zinc-800 border-zinc-950 text-zinc-100';
 }

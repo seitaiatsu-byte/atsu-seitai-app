@@ -12,7 +12,10 @@ import { getTodayLocalYmd } from '../lib/visitDateParse';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import { syncReservationsVisitedByExistingVisits } from '../lib/appointmentReservations';
 import {
+  blockedChipClass,
+  blockedChipLabel,
   buildAppointmentDayTimeline,
+  gapChipClass,
   gapChipLabel,
   type DayTimelineItem,
 } from '../lib/reservationGaps';
@@ -133,16 +136,31 @@ const CALENDAR_MONTH_GRID =
   'grid gap-px sm:gap-1 [grid-template-columns:minmax(0,0.5fr)_repeat(6,minmax(0,1fr))]';
 const DAY_CELL_VISIBLE_LIMIT = 10;
 
-function gapChipClass(): string {
-  return 'bg-slate-200 border-slate-400 text-slate-700';
-}
-
 function renderTimelineItem(
   item: DayTimelineItem,
   colorRules: CalendarColorRule[],
   onEditReservation: (r: ReservationWithCustomer) => void,
   compact: boolean
 ) {
+  if (item.kind === 'blocked') {
+    const label = blockedChipLabel(item.blocked);
+    const compactLabel = `不可${item.blocked.minutes}`;
+    return (
+      <div
+        key={item.blocked.id}
+        className={`flex items-center min-w-0 leading-none border ${blockedChipClass()} ${
+          compact
+            ? 'max-sm:gap-0 max-sm:px-[2px] max-sm:py-0 max-sm:rounded-[2px] max-sm:border-l-2 max-sm:border-t-0 max-sm:border-r-0 max-sm:border-b-0 max-sm:text-[9px] sm:gap-1 sm:leading-tight sm:px-1 sm:py-0.5 sm:rounded sm:text-[10px]'
+            : 'gap-1 leading-tight px-1 py-0.5 rounded text-xs'
+        }`}
+        title={`不可時間（休憩） ${item.blocked.minutes}分 ${item.blocked.startTime}〜${item.blocked.endTime}`}
+      >
+        <span className="shrink-0 font-black hidden sm:inline">不可</span>
+        <span className="min-w-0 truncate sm:hidden">{compactLabel}</span>
+        <span className="min-w-0 truncate hidden sm:inline">{label}</span>
+      </div>
+    );
+  }
   if (item.kind === 'gap') {
     const label = gapChipLabel(item.gap);
     const gapCompactLabel = `空${item.gap.minutes}`;
@@ -894,7 +912,9 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
               （予約として登録した分だけ表示）。
               <span className="ml-2">
                 <span className="px-1 rounded border bg-slate-200 border-slate-400 text-slate-700 font-bold">Vac.</span>
-                ＝同一スタッフの空白（予約の間・営業開始前・終了後、5分以上）。曜日営業時間はマスター管理で設定。
+                ＝空白（5分以上）、
+                <span className="px-1 rounded border bg-zinc-800 border-zinc-950 text-zinc-100 font-bold">不可</span>
+                ＝休憩（予約不可）。曜日営業時間マスターで設定。
               </span>
             </>
           ) : (
@@ -1028,6 +1048,17 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                 </div>
               ) : (
                 dayDetailTimeline.map((item) => {
+                  if (item.kind === 'blocked') {
+                    return (
+                      <div
+                        key={item.blocked.id}
+                        className={`w-full rounded-xl border px-3 py-2 text-left shadow-sm ${blockedChipClass()}`}
+                      >
+                        <div className="font-bold text-sm">{blockedChipLabel(item.blocked)}</div>
+                        <div className="text-xs mt-1 text-zinc-300">休憩・予約不可（マスター設定・編集不可）</div>
+                      </div>
+                    );
+                  }
                   if (item.kind === 'gap') {
                     return (
                       <div
