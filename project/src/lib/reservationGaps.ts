@@ -1,3 +1,5 @@
+import { businessBoundsForDate, type WeekdayBusinessHour } from './weekdayBusinessHours';
+
 /** カレンダーに表示する空白時間の最小分（これ未満は表示しない。密着0分は除く） */
 export const GAP_DISPLAY_MIN_MINUTES = 5;
 
@@ -25,6 +27,12 @@ type ReservationLike = {
   staff_name?: string | null;
 };
 
+export type GapComputeOptions = {
+  minGapMinutes?: number;
+  dateYmd?: string;
+  weekdayHours?: WeekdayBusinessHour[];
+};
+
 function timeToMinutes(t: string): number {
   const [h, m] = String(t || '0:0').split(':').map((x) => parseInt(x, 10));
   return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
@@ -40,10 +48,38 @@ function isAppointmentEntry(r: { entry_kind?: string | null }): boolean {
   return (r.entry_kind || 'appointment') === 'appointment';
 }
 
+function pushGap(
+  gaps: AppointmentGap[],
+  staffKey: string,
+  staffName: string,
+  startM: number,
+  endM: number,
+  minGapMinutes: number,
+  tag: string
+) {
+  const gapMin = endM - startM;
+  if (gapMin < minGapMinutes) return;
+  gaps.push({
+    id: `gap-${staffKey}-${tag}-${startM}-${endM}`,
+    staffKey,
+    staffName,
+    startTime: minutesToTime(startM),
+    endTime: minutesToTime(endM),
+    minutes: gapMin,
+  });
+}
+
 export function computeAppointmentGapsForDay(
   reservations: ReservationLike[],
-  minGapMinutes = GAP_DISPLAY_MIN_MINUTES
+  options?: GapComputeOptions
 ): AppointmentGap[] {
+  const minGapMinutes = options?.minGapMinutes ?? GAP_DISPLAY_MIN_MINUTES;
+  const dateYmd = options?.dateYmd?.slice(0, 10);
+  const bounds =
+    dateYmd && options?.weekdayHours?.length
+      ? businessBoundsForDate(dateYmd, options.weekdayHours)
+      : null;
+
   const appts = reservations.filter((r) => isAppointmentEntry(r) && r.status !== 'cancelled');
   const byStaff = new Map<string, ReservationLike[]>();
 
@@ -58,22 +94,29 @@ export function computeAppointmentGapsForDay(
 
   for (const [staffKey, items] of byStaff) {
     items.sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
+    const staffName = items[0]?.staff_name || items[items.length - 1]?.staff_name || '';
+
+    if (bounds && items.length > 0) {
+      const firstStart = timeToMinutes(items[0].start_time);
+      const lastEnd = timeToMinutes(items[items.length - 1].end_time);
+      pushGap(gaps, staffKey, staffName, bounds.startM, firstStart, minGapMinutes, 'open');
+      pushGap(gaps, staffKey, staffName, lastEnd, bounds.endM, minGapMinutes, 'close');
+    }
+
     for (let i = 0; i < items.length - 1; i++) {
       const prev = items[i];
       const next = items[i + 1];
       const endM = timeToMinutes(prev.end_time);
       const startM = timeToMinutes(next.start_time);
-      const gapMin = startM - endM;
-      if (gapMin < minGapMinutes) continue;
-
-      gaps.push({
-        id: `gap-${staffKey}-${endM}-${startM}`,
+      pushGap(
+        gaps,
         staffKey,
-        staffName: prev.staff_name || next.staff_name || '',
-        startTime: minutesToTime(endM),
-        endTime: minutesToTime(startM),
-        minutes: gapMin,
-      });
+        prev.staff_name || next.staff_name || staffName,
+        endM,
+        startM,
+        minGapMinutes,
+        `mid-${prev.id}-${next.id}`
+      );
     }
   }
 
@@ -81,8 +124,11 @@ export function computeAppointmentGapsForDay(
   return gaps;
 }
 
-export function buildAppointmentDayTimeline(reservations: ReservationLike[]): DayTimelineItem[] {
-  const gaps = computeAppointmentGapsForDay(reservations);
+export function buildAppointmentDayTimeline(
+  reservations: ReservationLike[],
+  options?: GapComputeOptions
+): DayTimelineItem[] {
+  const gaps = computeAppointmentGapsForDay(reservations, options);
   const items: DayTimelineItem[] = [];
 
   for (const r of reservations) {
@@ -103,5 +149,5 @@ export function buildAppointmentDayTimeline(reservations: ReservationLike[]): Da
 
 export function gapChipLabel(gap: AppointmentGap): string {
   const staff = gap.staffName ? ` / ${gap.staffName}` : '';
-  return `Vac. ${gap.startTime}-${gap.endTime}${staff}`;
+  return `Vac. ${gap.minutes}分 ${gap.startTime}-${gap.endTime}${staff}`;
 }

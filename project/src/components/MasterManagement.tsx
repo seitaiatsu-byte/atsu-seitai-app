@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Settings, Plus, Trash2, Edit2, Check, X, ClipboardList, CreditCard, Clock, Users, LayoutGrid, Megaphone, Repeat, Target, ChevronUp, ChevronDown, Palette } from 'lucide-react';
+import { Settings, Plus, Trash2, Edit2, Check, X, ClipboardList, CreditCard, Clock, Users, LayoutGrid, Megaphone, Repeat, Target, ChevronUp, ChevronDown, Palette, CalendarClock } from 'lucide-react';
+import WeekdayBusinessHoursPanel from './WeekdayBusinessHoursPanel';
 
 type TableName = 'menu_master' | 'payment_detail_master' | 'payment_method_master' | 'product_master' | 'subscription_master' | 'staff_master' | 'chief_complaint_master' | 'referral_source_master' | 'calendar_color_master';
+type MasterTab = TableName | 'weekday_business_hours';
 type MasterItem = {
   id: string;
   name: string;
@@ -28,7 +30,7 @@ function colorOptionClass(key: string | null | undefined): string {
 }
 
 export default function MasterManagement() {
-  const [activeTab, setActiveTab] = useState<TableName>('menu_master');
+  const [activeTab, setActiveTab] = useState<MasterTab>('menu_master');
   const [items, setItems] = useState<MasterItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
@@ -38,6 +40,7 @@ export default function MasterManagement() {
   const [editingPrice, setEditingPrice] = useState('');
   const [editingColorKey, setEditingColorKey] = useState('red');
   const [isLoading, setIsLoading] = useState(false);
+  const isWeekdayHoursTab = activeTab === 'weekday_business_hours';
   const isPriceTab = activeTab === 'product_master' || activeTab === 'subscription_master';
   const isCalendarColorTab = activeTab === 'calendar_color_master';
 
@@ -52,6 +55,7 @@ export default function MasterManagement() {
     { id: 'chief_complaint_master', label: '主訴', icon: Target },
     { id: 'referral_source_master', label: '流入経路', icon: Megaphone },
     { id: 'calendar_color_master', label: 'カレンダー色', icon: Palette },
+    { id: 'weekday_business_hours', label: '曜日営業時間', icon: CalendarClock },
   ];
 
   // 切り替え時に前のデータを完全に殺す
@@ -61,7 +65,7 @@ export default function MasterManagement() {
     setNewItemName('');
     setNewItemPrice('');
     setNewColorKey('red');
-    fetchData(activeTab);
+    if (activeTab !== 'weekday_business_hours') fetchData(activeTab);
   }, [activeTab]);
 
   async function fetchData(tableName: TableName) {
@@ -166,7 +170,7 @@ export default function MasterManagement() {
           <button
             key={tab.id}
             type="button"
-            onClick={() => setActiveTab(tab.id as TableName)}
+            onClick={() => setActiveTab(tab.id as MasterTab)}
             className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold transition-all ${
               activeTab === tab.id ? 'bg-cyan-500 text-white shadow-md' : 'bg-gray-100 text-gray-500'
             }`}
@@ -177,6 +181,10 @@ export default function MasterManagement() {
         ))}
       </div>
 
+      {isWeekdayHoursTab ? (
+        <WeekdayBusinessHoursPanel />
+      ) : (
+        <>
       <div className="border-2 border-green-500 rounded-2xl p-4 bg-green-50 mb-6">
         <form onSubmit={handleAdd} className="flex gap-2">
           <input
@@ -288,6 +296,8 @@ export default function MasterManagement() {
           ))
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

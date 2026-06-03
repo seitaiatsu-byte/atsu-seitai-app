@@ -15,6 +15,7 @@ import {
   gapChipLabel,
   type DayTimelineItem,
 } from '../lib/reservationGaps';
+import { fetchWeekdayBusinessHours, type WeekdayBusinessHour } from '../lib/weekdayBusinessHours';
 import { findStaffAppointmentOverlap, formatStaffOverlapAlert } from '../lib/reservationOverlap';
 import {
   fetchOtherCalendarPassword,
@@ -291,6 +292,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
   const [rows, setRows] = useState<ReservationWithCustomer[]>([]);
   const [staffList, setStaffList] = useState<StaffMaster[]>([]);
   const [colorRules, setColorRules] = useState<CalendarColorRule[]>([]);
+  const [weekdayHours, setWeekdayHours] = useState<WeekdayBusinessHour[]>([]);
   const [allCustomers, setAllCustomers] = useState<CustomerRow[]>([]);
   const [showHeaderCustomerResults, setShowHeaderCustomerResults] = useState(false);
   const [headerCustomerHighlight, setHeaderCustomerHighlight] = useState(0);
@@ -425,6 +427,17 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
     return () => window.removeEventListener('masters-updated', onUpdated);
   }, [loadColorRules]);
 
+  const loadWeekdayHours = useCallback(async () => {
+    setWeekdayHours(await fetchWeekdayBusinessHours());
+  }, []);
+
+  useEffect(() => {
+    void loadWeekdayHours();
+    const onUpdated = () => void loadWeekdayHours();
+    window.addEventListener('masters-updated', onUpdated);
+    return () => window.removeEventListener('masters-updated', onUpdated);
+  }, [loadWeekdayHours]);
+
   useEffect(() => {
     const loadStaff = async () => {
       const { data } = await supabase
@@ -556,8 +569,8 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
         }))
         .sort((a, b) => a.sortMin - b.sortMin);
     }
-    return buildAppointmentDayTimeline(list);
-  }, [dayDetailDate, dayDetailRows, calendarViewMode]);
+    return buildAppointmentDayTimeline(list, { dateYmd: dayDetailDate, weekdayHours });
+  }, [dayDetailDate, dayDetailRows, calendarViewMode, weekdayHours]);
 
   const calendarCells = useMemo(() => {
     const cells: Array<{ kind: 'blank' } | { kind: 'day'; ymd: string; day: number }> = [];
@@ -880,7 +893,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
               （予約として登録した分だけ表示）。
               <span className="ml-2">
                 <span className="px-1 rounded border bg-slate-200 border-slate-400 text-slate-700 font-bold">Vac.</span>
-                ＝同一スタッフの空白時間（5分以上）。時間がかぶる予約は登録できません。
+                ＝同一スタッフの空白（予約の間・営業開始前・終了後、5分以上）。曜日営業時間はマスター管理で設定。
               </span>
             </>
           ) : (
@@ -930,7 +943,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
               const list = byDate.get(cell.ymd) || [];
               const timeline =
                 calendarViewMode === 'appointment'
-                  ? buildAppointmentDayTimeline(list)
+                  ? buildAppointmentDayTimeline(list, { dateYmd: cell.ymd, weekdayHours })
                   : list.map((r) => ({
                       kind: 'reservation' as const,
                       sortMin: timeToMinutes(r.start_time),
