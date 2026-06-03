@@ -58,6 +58,7 @@ export default function ProductSaleForm() {
   const [recentRecords, setRecentRecords] = useState<ProductSaleRow[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [openDates, setOpenDates] = useState<Set<string>>(new Set());
+  const [inputPanelOpen, setInputPanelOpen] = useState(false);
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
 
   useEffect(() => {
@@ -168,6 +169,7 @@ export default function ProductSaleForm() {
     setClinicName((r.clinic_name as ClinicFullName) || '高槻あつ整体院');
     setStaffId(staffList.find((s) => s.name === r.staff_name)?.id || '');
     setDuplicateError('');
+    setInputPanelOpen(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -322,13 +324,26 @@ export default function ProductSaleForm() {
   };
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className={`bg-white rounded-2xl shadow-lg p-6 border-4 ${editingId ? 'border-orange-400' : 'border-transparent'}`}>
-      <div className="flex items-center justify-between gap-2 mb-4">
-        <h2 className="text-2xl font-bold text-orange-600">
-          {editingId ? '【修正モード】物販記録' : '物販記録（最大3商品）'}
-        </h2>
-        {editingId && (
+    <div className="space-y-4 pb-20">
+      <div
+        className={`rounded-2xl shadow-lg overflow-hidden border-4 ${
+          editingId ? 'border-orange-400' : 'border-orange-100'
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => setInputPanelOpen((v) => !v)}
+          className="w-full px-4 py-3 flex items-center justify-between text-left bg-orange-50"
+        >
+          <h2 className="text-lg font-bold text-gray-800">
+            {editingId ? '物販記録（修正モード）' : '物販記録（最大3商品）'}
+          </h2>
+          <span className="text-sm font-bold text-orange-700 shrink-0">{inputPanelOpen ? '▲' : '▼'}</span>
+        </button>
+        {inputPanelOpen && (
+          <div className="bg-white p-6 border-t border-orange-100">
+      {editingId && (
+        <div className="flex justify-end mb-4">
           <button
             type="button"
             onClick={resetForm}
@@ -337,8 +352,8 @@ export default function ProductSaleForm() {
             <X size={16} />
             修正をやめる
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <CustomerSearchPanel
         accent="orange"
@@ -534,6 +549,8 @@ export default function ProductSaleForm() {
           {isSubmitting ? '保存中...' : editingId ? '修正を保存' : '登録'}
         </button>
       </form>
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl shadow-lg overflow-hidden border border-orange-100">

@@ -78,6 +78,7 @@ export default function SubscriptionForm() {
   const [visitMisclassified, setVisitMisclassified] = useState<VisitMisclass[]>([]);
   const [visitMisclassLoading, setVisitMisclassLoading] = useState(false);
   const [openHistoryDates, setOpenHistoryDates] = useState<Set<string>>(new Set());
+  const [inputPanelOpen, setInputPanelOpen] = useState(false);
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
 
   useEffect(() => {
@@ -296,6 +297,7 @@ export default function SubscriptionForm() {
     }
 
     setStaffId(staffList.find((s) => s.name === r.staff_name)?.id || '');
+    setInputPanelOpen(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -425,15 +427,26 @@ export default function SubscriptionForm() {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-4 pb-20">
       <div
-        className={`bg-white rounded-2xl shadow-lg p-6 border-4 ${editingId ? 'border-orange-400' : 'border-transparent'}`}
+        className={`rounded-2xl shadow-lg overflow-hidden border-4 ${
+          editingId ? 'border-orange-400' : 'border-purple-100'
+        }`}
       >
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <h2 className="text-2xl font-bold text-purple-600">
-            {editingId ? '【修正モード】サブスク記録' : 'サブスク記録'}
+        <button
+          type="button"
+          onClick={() => setInputPanelOpen((v) => !v)}
+          className="w-full px-4 py-3 flex items-center justify-between text-left bg-purple-50"
+        >
+          <h2 className="text-lg font-bold text-gray-800">
+            {editingId ? 'サブスク記録（修正モード）' : 'サブスク記録'}
           </h2>
-          {editingId && (
+          <span className="text-sm font-bold text-purple-700 shrink-0">{inputPanelOpen ? '▲' : '▼'}</span>
+        </button>
+        {inputPanelOpen && (
+          <div className="bg-white p-6 border-t border-purple-100">
+        {editingId && (
+          <div className="flex justify-end mb-4">
             <button
               type="button"
               onClick={resetForm}
@@ -442,8 +455,8 @@ export default function SubscriptionForm() {
               <X size={16} />
               修正をやめる
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         <CustomerSearchPanel
           accent={editingId ? 'orange' : 'purple'}
@@ -611,6 +624,8 @@ export default function SubscriptionForm() {
             {isSubmitting ? '保存中...' : editingId ? '修正を保存' : '登録'}
           </button>
         </form>
+          </div>
+        )}
       </div>
 
       <div className="bg-amber-50 rounded-2xl shadow-lg p-6 border-2 border-amber-300">
