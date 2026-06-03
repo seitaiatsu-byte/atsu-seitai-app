@@ -15,6 +15,7 @@ import {
   gapChipLabel,
   type DayTimelineItem,
 } from '../lib/reservationGaps';
+import { findStaffAppointmentOverlap, formatStaffOverlapAlert } from '../lib/reservationOverlap';
 import {
   fetchOtherCalendarPassword,
   isOtherCalendarUnlocked,
@@ -113,10 +114,6 @@ function gapChipClass(): string {
   return 'bg-slate-200 border-slate-400 text-slate-700';
 }
 
-function tightChipClass(): string {
-  return 'bg-amber-100 border-amber-500 text-amber-950';
-}
-
 function renderTimelineItem(
   item: DayTimelineItem,
   colorRules: CalendarColorRule[],
@@ -135,21 +132,6 @@ function renderTimelineItem(
       >
         <span className="shrink-0 font-black text-slate-600">空</span>
         <span className="min-w-0 truncate">{label}</span>
-      </div>
-    );
-  }
-  if (item.kind === 'tight') {
-    const staff = item.tight.staffName ? ` / ${item.tight.staffName}` : '';
-    return (
-      <div
-        key={item.tight.id}
-        className={`flex items-center gap-1 leading-tight px-1 py-0.5 rounded border ${tightChipClass()} ${
-          compact ? 'text-[10px]' : 'text-xs'
-        }`}
-        title="前後の予約が隙間なく続いています"
-      >
-        <span className="font-black">⚠</span>
-        <span className="min-w-0 truncate">密着 {item.tight.time}{staff}</span>
       </div>
     );
   }
@@ -242,10 +224,6 @@ function CalendarViewModeToggle({
 function timeToMinutes(t: string): number {
   const [h, m] = String(t || '0:0').split(':').map((x) => parseInt(x, 10));
   return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
-}
-
-function rangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
-  return timeToMinutes(aStart) < timeToMinutes(bEnd) && timeToMinutes(aEnd) > timeToMinutes(bStart);
 }
 
 function defaultStaffId(list: StaffMaster[]): string {
@@ -646,26 +624,31 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
   };
 
   const findStaffConflict = async (staff: StaffMaster) => {
+    const dateYmd = String(formDate).slice(0, 10);
+    const overlapOpts = {
+      staffId: staff.id,
+      staffName: staff.name,
+      dateYmd,
+      start: formStart,
+      end: formEnd,
+      excludeId: editing?.id ?? null,
+    };
+
+    const localHit = findStaffAppointmentOverlap(rows, overlapOpts);
+    if (localHit) return { blocked: true as const, conflict: localHit };
+
     const { data, error } = await supabase
       .from('appointment_reservations')
       .select('*, customers(id, name, name_kana, kana, customer_number)')
-      .eq('reservation_date', formDate);
+      .eq('reservation_date', dateYmd);
 
     if (error) {
-      alert(`スタッフ重複確認に失敗しました: ${error.message}\nSupabase の予約スタッフ用 SQL を実行してください。`);
+      alert(`予約の重複確認に失敗しました: ${error.message}\nSupabase の予約用 SQL を実行してください。`);
       return { blocked: true as const, conflict: null };
     }
 
-    const staffNameKey = normalizeSearchText(staff.name);
-    const conflict = ((data || []) as ReservationWithCustomer[]).find((r) => {
-      if (editing && r.id === editing.id) return false;
-      if (!isAppointmentEntry(r)) return false;
-      if (r.status === 'cancelled') return false;
-      const sameStaff = r.staff_id === staff.id || normalizeSearchText(r.staff_name) === staffNameKey;
-      return sameStaff && rangesOverlap(formStart, formEnd, String(r.start_time), String(r.end_time));
-    });
-
-    return { blocked: Boolean(conflict), conflict };
+    const remoteHit = findStaffAppointmentOverlap((data || []) as ReservationWithCustomer[], overlapOpts);
+    return { blocked: Boolean(remoteHit), conflict: remoteHit };
   };
 
   const saveReservation = async () => {
@@ -696,33 +679,16 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
       if (blocked) {
         if (conflict) {
           alert(
-            `同じスタッフ（${selectedStaff.name}）の時間が重なっています。\n` +
-              `${String(conflict.start_time).slice(0, 5)}〜${String(conflict.end_time).slice(0, 5)} ` +
-              `${conflict.customers?.customer_number || ''} ${conflict.customers?.name || ''}`
+            formatStaffOverlapAlert(
+              selectedStaff.name,
+              conflict,
+              String(formStart).slice(0, 5),
+              String(formEnd).slice(0, 5)
+            )
           );
+        } else {
+          alert('予約の重複確認に失敗したため、登録を中止しました。');
         }
-        return;
-      }
-      const staffNameKey = normalizeSearchText(selectedStaff.name);
-      const adjacent = rows.filter((r) => {
-        if (editing && r.id === editing.id) return false;
-        if (!isAppointmentEntry(r) || r.status === 'cancelled') return false;
-        if (String(r.reservation_date).slice(0, 10) !== formDate) return false;
-        const sameStaff =
-          r.staff_id === selectedStaff.id || normalizeSearchText(r.staff_name) === staffNameKey;
-        return sameStaff;
-      });
-      const hasTight = adjacent.some(
-        (r) =>
-          timeToMinutes(formEnd) === timeToMinutes(r.start_time) ||
-          timeToMinutes(formStart) === timeToMinutes(r.end_time)
-      );
-      if (
-        hasTight &&
-        !window.confirm(
-          '同じスタッフの予約が前後と隙間なく密着します（例: 10:45終了→10:45開始）。\n本当にこのまま登録しますか？'
-        )
-      ) {
         return;
       }
     }
@@ -873,11 +839,9 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
               患者さんの<strong>予約</strong>のみ表示します。
               <strong className="text-amber-800">来院入力の記録は自動では載りません</strong>
               （予約として登録した分だけ表示）。
-              <span className="ml-2 inline-flex items-center gap-1">
+              <span className="ml-2">
                 <span className="px-1 rounded border bg-slate-200 border-slate-400 text-slate-700 font-bold">Vac.</span>
-                ＝同一スタッフの空白時間（10分以上）
-                <span className="px-1 rounded border bg-amber-100 border-amber-500 text-amber-950 font-bold">密着</span>
-                ＝隙間なし（要注意）
+                ＝同一スタッフの空白時間（5分以上）。時間がかぶる予約は登録できません。
               </span>
             </>
           ) : (
@@ -1009,20 +973,6 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                       >
                         <div className="font-bold text-sm">{gapChipLabel(item.gap)}</div>
                         <div className="text-xs mt-1">空白 {item.gap.minutes}分（自動表示・編集不可）</div>
-                      </div>
-                    );
-                  }
-                  if (item.kind === 'tight') {
-                    return (
-                      <div
-                        key={item.tight.id}
-                        className={`w-full rounded-xl border px-3 py-2 text-left shadow-sm ${tightChipClass()}`}
-                      >
-                        <div className="font-bold text-sm">
-                          ⚠ 密着 {item.tight.time}
-                          {item.tight.staffName ? ` / ${item.tight.staffName}` : ''}
-                        </div>
-                        <div className="text-xs mt-1">前後の予約が隙間なく続いています</div>
                       </div>
                     );
                   }

@@ -1,5 +1,5 @@
-/** カレンダーに表示する空白時間の最小分（これ未満は表示しない） */
-export const GAP_DISPLAY_MIN_MINUTES = 10;
+/** カレンダーに表示する空白時間の最小分（これ未満は表示しない。密着0分は除く） */
+export const GAP_DISPLAY_MIN_MINUTES = 5;
 
 export type AppointmentGap = {
   id: string;
@@ -10,16 +10,9 @@ export type AppointmentGap = {
   minutes: number;
 };
 
-export type AppointmentTightJoin = {
-  id: string;
-  staffName: string;
-  time: string;
-};
-
 export type DayTimelineItem =
   | { kind: 'reservation'; sortMin: number; reservation: ReservationLike }
-  | { kind: 'gap'; sortMin: number; gap: AppointmentGap }
-  | { kind: 'tight'; sortMin: number; tight: AppointmentTightJoin };
+  | { kind: 'gap'; sortMin: number; gap: AppointmentGap };
 
 type ReservationLike = {
   id: string;
@@ -50,7 +43,7 @@ function isAppointmentEntry(r: { entry_kind?: string | null }): boolean {
 export function computeAppointmentGapsForDay(
   reservations: ReservationLike[],
   minGapMinutes = GAP_DISPLAY_MIN_MINUTES
-): { gaps: AppointmentGap[]; tightJoins: AppointmentTightJoin[] } {
+): AppointmentGap[] {
   const appts = reservations.filter((r) => isAppointmentEntry(r) && r.status !== 'cancelled');
   const byStaff = new Map<string, ReservationLike[]>();
 
@@ -62,7 +55,6 @@ export function computeAppointmentGapsForDay(
   }
 
   const gaps: AppointmentGap[] = [];
-  const tightJoins: AppointmentTightJoin[] = [];
 
   for (const [staffKey, items] of byStaff) {
     items.sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
@@ -72,36 +64,25 @@ export function computeAppointmentGapsForDay(
       const endM = timeToMinutes(prev.end_time);
       const startM = timeToMinutes(next.start_time);
       const gapMin = startM - endM;
-      const staffName = prev.staff_name || next.staff_name || '';
+      if (gapMin < minGapMinutes) continue;
 
-      if (gapMin <= 0) {
-        tightJoins.push({
-          id: `tight-${prev.id}-${next.id}`,
-          staffName,
-          time: minutesToTime(endM),
-        });
-        continue;
-      }
-      if (gapMin >= minGapMinutes) {
-        gaps.push({
-          id: `gap-${staffKey}-${endM}-${startM}`,
-          staffKey,
-          staffName,
-          startTime: minutesToTime(endM),
-          endTime: minutesToTime(startM),
-          minutes: gapMin,
-        });
-      }
+      gaps.push({
+        id: `gap-${staffKey}-${endM}-${startM}`,
+        staffKey,
+        staffName: prev.staff_name || next.staff_name || '',
+        startTime: minutesToTime(endM),
+        endTime: minutesToTime(startM),
+        minutes: gapMin,
+      });
     }
   }
 
   gaps.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
-  tightJoins.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
-  return { gaps, tightJoins };
+  return gaps;
 }
 
 export function buildAppointmentDayTimeline(reservations: ReservationLike[]): DayTimelineItem[] {
-  const { gaps, tightJoins } = computeAppointmentGapsForDay(reservations);
+  const gaps = computeAppointmentGapsForDay(reservations);
   const items: DayTimelineItem[] = [];
 
   for (const r of reservations) {
@@ -114,9 +95,6 @@ export function buildAppointmentDayTimeline(reservations: ReservationLike[]): Da
   }
   for (const g of gaps) {
     items.push({ kind: 'gap', sortMin: timeToMinutes(g.startTime), gap: g });
-  }
-  for (const t of tightJoins) {
-    items.push({ kind: 'tight', sortMin: timeToMinutes(t.time), tight: t });
   }
 
   items.sort((a, b) => a.sortMin - b.sortMin || (a.kind === 'reservation' ? 0 : 1));
