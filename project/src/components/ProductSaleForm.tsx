@@ -123,7 +123,11 @@ export default function ProductSaleForm() {
       }
       for (const r of rows) r.customers = customerMap.get(r.customer_id) ?? null;
       setRecentRecords(rows);
-      if (rows[0]?.sale_date) setOpenDates(new Set([rows[0].sale_date]));
+      setOpenDates((prev) => {
+        if (prev.size > 0) return prev;
+        const d = (rows[0]?.sale_date || '').slice(0, 10);
+        return d ? new Set([d]) : prev;
+      });
     } finally {
       setListLoading(false);
     }
@@ -150,6 +154,21 @@ export default function ProductSaleForm() {
     if (paymentMethods.length) setPaymentMethodId(paymentMethods[0]!.id);
   };
 
+  /** 履歴から修正保存後：顧客・パネル・日付の開閉を維持し次の修正へ */
+  const clearEditModeKeepContext = (historyDate?: string) => {
+    setEditingId(null);
+    setLines(emptyLines());
+    setAmount('');
+    setMemo('');
+    setStaffId('');
+    setMediaFiles([]);
+    setDuplicateError('');
+    setInputPanelOpen(true);
+    setHistoryPanelOpen(true);
+    const d = (historyDate || '').slice(0, 10);
+    if (d) setOpenDates((prev) => new Set(prev).add(d));
+  };
+
   const startEdit = (r: ProductSaleRow) => {
     setEditingId(r.id);
     setSelectedCustomer((r.customers as CustomerRow) || null);
@@ -170,6 +189,9 @@ export default function ProductSaleForm() {
     setStaffId(staffList.find((s) => s.name === r.staff_name)?.id || '');
     setDuplicateError('');
     setInputPanelOpen(true);
+    setHistoryPanelOpen(true);
+    const d = (r.sale_date || '').slice(0, 10);
+    if (d) setOpenDates((prev) => new Set(prev).add(d));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -302,8 +324,10 @@ export default function ProductSaleForm() {
       return;
     }
 
-    alert(editingId ? '修正しました' : '登録完了しました');
-    resetForm();
+    const wasEdit = Boolean(editingId);
+    alert(wasEdit ? '修正しました' : '登録完了しました');
+    if (wasEdit) clearEditModeKeepContext(saleDate);
+    else resetForm();
     setIsSubmitting(false);
     void loadRecentRecords();
     window.dispatchEvent(new Event('records-updated'));
@@ -318,7 +342,7 @@ export default function ProductSaleForm() {
       alert(`削除に失敗しました: ${error.message}`);
       return;
     }
-    if (editingId === r.id) resetForm();
+    if (editingId === r.id) clearEditModeKeepContext(r.sale_date);
     void loadRecentRecords();
     window.dispatchEvent(new Event('records-updated'));
   };

@@ -217,9 +217,7 @@ export default function VisitForm({
     }
   };
 
-  /** 登録後の連続入力用（パネルは閉じず、顧客選択も維持） */
-  const resetFieldsAfterSubmit = () => {
-    setEditingId(null);
+  const clearVisitInputFields = () => {
     setAmount('');
     setMemo('');
     setStaffId('');
@@ -236,6 +234,22 @@ export default function VisitForm({
     setCurrentMediaUrls([]);
     setImportKindLegacy(null);
     setDuplicateError('');
+  };
+
+  /** 新規登録後の連続入力用（顧客選択は維持） */
+  const resetFieldsAfterNewSubmit = () => {
+    setEditingId(null);
+    clearVisitInputFields();
+  };
+
+  /** 履歴から修正保存後：顧客・パネル・履歴の開閉を維持し次の修正へ */
+  const finishEditSave = (visitDateYmd: string) => {
+    setEditingId(null);
+    clearVisitInputFields();
+    setInputPanelOpen(true);
+    setHistoryPanelOpen(true);
+    const d = visitDateYmd.slice(0, 10);
+    if (d) setOpenHistoryDates((prev) => new Set(prev).add(d));
   };
 
   const handleSubmit = async () => {
@@ -349,8 +363,10 @@ export default function VisitForm({
         }
       }
 
-      alert(editingId ? '内容と画像を修正しました' : '来院記録と画像を登録しました');
-      resetFieldsAfterSubmit();
+      const wasEdit = Boolean(editingId);
+      alert(wasEdit ? '内容と画像を修正しました' : '来院記録と画像を登録しました');
+      if (wasEdit) finishEditSave(visitDate);
+      else resetFieldsAfterNewSubmit();
       loadRecentRecords();
       window.dispatchEvent(new Event('records-updated'));
 
@@ -365,6 +381,9 @@ export default function VisitForm({
 
   const startEdit = (r: any) => {
     setInputPanelOpen(true);
+    setHistoryPanelOpen(true);
+    const d = String(r.visit_date || '').slice(0, 10);
+    if (d) setOpenHistoryDates((prev) => new Set(prev).add(d));
     setEditingId(r.id);
     setSelectedCustomer(r.customers);
     setVisitDate((r.visit_date || '').slice(0, 10));

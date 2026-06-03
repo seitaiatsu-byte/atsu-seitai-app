@@ -275,6 +275,20 @@ export default function SubscriptionForm() {
     if (paymentMethods.length) setPaymentMethodId(paymentMethods[0]!.id);
   };
 
+  const clearEditModeKeepContext = (historyDate?: string) => {
+    setEditingId(null);
+    setSelectedSubscription('');
+    setAmount('');
+    setMemo('');
+    setStaffId('');
+    setPointsToAdd('0');
+    setDuplicateError('');
+    setInputPanelOpen(true);
+    setHistoryPanelOpen(true);
+    const d = (historyDate || '').slice(0, 10);
+    if (d) setOpenHistoryDates((prev) => new Set(prev).add(d));
+  };
+
   const startEdit = (r: SubRecord) => {
     setEditingId(r.id);
     setSelectedCustomer((r.customers as CustomerRow) || null);
@@ -298,6 +312,9 @@ export default function SubscriptionForm() {
 
     setStaffId(staffList.find((s) => s.name === r.staff_name)?.id || '');
     setInputPanelOpen(true);
+    setHistoryPanelOpen(true);
+    const d = (r.start_date || '').slice(0, 10);
+    if (d) setOpenHistoryDates((prev) => new Set(prev).add(d));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -332,9 +349,10 @@ export default function SubscriptionForm() {
   }, [filteredRecords]);
 
   useEffect(() => {
+    if (openHistoryDates.size > 0) return;
     const firstDate = groupedHistory[0]?.[0];
     if (firstDate) setOpenHistoryDates(new Set([firstDate]));
-  }, [groupedHistory.length]);
+  }, [groupedHistory, openHistoryDates.size]);
 
   const toggleHistoryDate = (dateKey: string) => {
     setOpenHistoryDates((prev) => {
@@ -405,8 +423,10 @@ export default function SubscriptionForm() {
       }
     }
 
-    alert(editingId ? '修正しました' : '登録完了しました');
-    resetForm();
+    const wasEdit = Boolean(editingId);
+    alert(wasEdit ? '修正しました' : '登録完了しました');
+    if (wasEdit) clearEditModeKeepContext(startDate);
+    else resetForm();
     setIsSubmitting(false);
     void loadRecentRecords();
     window.dispatchEvent(new Event('records-updated'));
@@ -421,7 +441,7 @@ export default function SubscriptionForm() {
       alert(`削除に失敗しました: ${error.message}`);
       return;
     }
-    if (editingId === r.id) resetForm();
+    if (editingId === r.id) clearEditModeKeepContext(r.start_date);
     void loadRecentRecords();
     window.dispatchEvent(new Event('records-updated'));
   };
