@@ -5,6 +5,11 @@ import type { Database } from '../lib/database.types';
 import { CLINIC_FULL } from '../lib/clinic';
 import { ClinicNameDisplay } from './ClinicNameDisplay';
 import { fetchAllCustomerNumbers } from '../lib/fetchAllCustomers';
+import {
+  PLACEHOLDER_CUSTOMER_NAME,
+  PLACEHOLDER_CUSTOMER_NUMBER,
+  resolveNextRealCustomerNumber,
+} from '../lib/customerNumber';
 import { applyPhoneToCustomerPayload, readPhoneFromCustomerRow } from '../lib/customerPhoneFields';
 import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
 import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
@@ -183,11 +188,7 @@ export default function NewCustomerForm({
 
   const resolveAutoCustomerNumber = async (): Promise<string> => {
     const numbers = await fetchAllCustomerNumbers();
-    const nums = numbers
-      .map((s) => parseInt(s.replace(/\D/g, ''), 10))
-      .filter((n) => Number.isFinite(n));
-    const max = nums.length ? Math.max(...nums) : 0;
-    return String(max + 1);
+    return resolveNextRealCustomerNumber(numbers);
   };
 
   const loadMasters = async () => {
@@ -238,6 +239,15 @@ export default function NewCustomerForm({
     if (isSubmitting) return;
 
     const customerNumberInput = formData.customer_number.trim();
+    if (customerNumberInput) {
+      const n = parseInt(customerNumberInput, 10);
+      if (Number.isFinite(n) && n > 9999 && n !== 10000) {
+        setSubmitErrors([
+          '顧客番号は 1–9999（本番患者）、または仮予約用の 10000 のみ登録できます。',
+        ]);
+        return;
+      }
+    }
     if (mode === 'create' && customerNumberInput) {
       if (await hasCustomerNumber(customerNumberInput)) {
         setSubmitErrors([
@@ -559,9 +569,15 @@ export default function NewCustomerForm({
                   </span>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold text-blue-700">5000～7999:</span>
+                  <span className="font-bold text-blue-700">5000～9999:</span>
                   <span>
                     自動的に <span className="font-bold text-blue-600">高槻院</span> に設定
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-yellow-200">
+                  <span className="font-bold text-slate-700">{PLACEHOLDER_CUSTOMER_NUMBER}:</span>
+                  <span>
+                    予約カレンダー用 <span className="font-bold">{PLACEHOLDER_CUSTOMER_NAME}</span>（1件だけ・分析対象外）
                   </span>
                 </div>
               </div>

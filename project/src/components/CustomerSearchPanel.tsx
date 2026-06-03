@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
+import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
 
 export type CustomerRow = Database['public']['Tables']['customers']['Row'];
 
@@ -116,7 +117,10 @@ export default function CustomerSearchPanel({
         }
       }
 
-      if (tier !== null) scored.push({ row: c, tier });
+      if (tier !== null) {
+        const placeholder = isPlaceholderCustomerNumber(c.customer_number);
+        scored.push({ row: c, tier: placeholder ? tier + 1000 : tier });
+      }
     }
 
     scored.sort((a, b) => {
@@ -182,7 +186,12 @@ export default function CustomerSearchPanel({
       >
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-lg font-bold text-gray-800">{selectedCustomer.name}</div>
+            <div className="text-lg font-bold text-gray-800 flex items-center gap-2 flex-wrap">
+              {selectedCustomer.name}
+              {isPlaceholderCustomerNumber(selectedCustomer.customer_number) && (
+                <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700">仮予約</span>
+              )}
+            </div>
             <div className="text-sm text-gray-600">{selectedCustomer.name_kana}</div>
             <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-1">
               <span>顧客番号: {selectedCustomer.customer_number} |</span>
@@ -254,7 +263,12 @@ export default function CustomerSearchPanel({
                 idx === highlightIndex ? ringHighlight[accent] : ''
               }`}
             >
-              <div className="font-bold text-gray-800">{customer.name}</div>
+              <div className="font-bold text-gray-800 flex items-center gap-2 flex-wrap">
+                {customer.name}
+                {isPlaceholderCustomerNumber(customer.customer_number) && (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-600">仮予約</span>
+                )}
+              </div>
               <div className="text-sm text-gray-600">{customer.name_kana}</div>
               <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-1">
                 <span>顧客番号: {customer.customer_number} |</span>

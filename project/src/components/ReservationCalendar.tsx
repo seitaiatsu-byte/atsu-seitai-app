@@ -6,6 +6,7 @@ import CustomerSearchPanel, { type CustomerRow } from './CustomerSearchPanel';
 import ClinicScopeToggle, { type ClinicScope } from './ClinicScopeToggle';
 import FlexibleTimeInput from './FlexibleTimeInput';
 import { CLINIC_FULL, clinicMatchesRecord, resolveClinicNameByCustomerNumber, type ClinicFullName } from '../lib/clinic';
+import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
 import { getTodayLocalYmd } from '../lib/visitDateParse';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import { syncReservationsVisitedByExistingVisits } from '../lib/appointmentReservations';
@@ -74,6 +75,11 @@ function chipLabel(r: ReservationWithCustomer): string {
     return `${t} ${title}`;
   }
   const staff = r.staff_name ? ` / ${r.staff_name}` : '';
+  if (isPlaceholderCustomerNumber(r.customers?.customer_number)) {
+    const memo = String(r.memo || '').trim();
+    const memoHint = memo ? ` ${memo}` : '';
+    return `${t} 新規仮${memoHint}${staff}`;
+  }
   const number = r.customers?.customer_number ? ` #${r.customers.customer_number}` : '';
   return `${t} ${r.customers?.name || '名前未設定'}${number}${staff}`;
 }
@@ -611,6 +617,13 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
     const c = r.customers;
     if (!c) {
       alert('顧客情報が見つかりません');
+      return;
+    }
+    if (isPlaceholderCustomerNumber(c.customer_number)) {
+      alert(
+        '仮予約（10000・新規仮）のまま来院入力はできません。\n' +
+          '10000の予約を削除し、正式患者の予約を同じ時間で作成してから、そちらから来院入力してください。'
+      );
       return;
     }
     onOpenVisitWithReservation({

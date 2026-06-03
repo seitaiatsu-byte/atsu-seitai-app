@@ -7,6 +7,7 @@ import { parseLocalVisitDateToYmd } from '../lib/visitDateParse';
 import { fetchBusinessRules } from '../lib/businessRules';
 import { repeatRateSecond, repeatRateSixth, type CustomerForRepeat } from '../lib/repeatMetrics';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
+import { isRealCustomerNumber, placeholderCustomerIds } from '../lib/customerNumber';
 import RepeatAnalysis from './RepeatAnalysis';
 
 type ClinicFilter = 'kawanishi' | 'takatsuki' | 'all';
@@ -256,8 +257,10 @@ export default function SalesAggregationDashboard() {
         setRawFetched({ visits: visits.length, products: products.length, subs: subs.length });
 
         const detailMap = mergeIdNameMaps(methods as { id: string; name: string }[], details as { id: string; name: string }[]);
+        const skipIds = placeholderCustomerIds(customers);
         const customerInfoMap = new Map<string, { customerNumber: string; customerName: string }>();
         customers.forEach((c) => {
+          if (skipIds.has(String(c.id))) return;
           customerInfoMap.set(String(c.id), {
             customerNumber: String(c.customer_number ?? ''),
             customerName: String(c.name ?? ''),
@@ -274,6 +277,7 @@ export default function SalesAggregationDashboard() {
         let matchedSubs = 0;
 
         for (const v of visits) {
+          if (skipIds.has(String(v.customer_id))) continue;
           if (!clinicMatchesRecord(clinicFilter, v.clinic_name)) continue;
           const day = coerceRecordDayYmd(v.visit_date);
           if (!day || !day.startsWith(monthPrefix)) continue;
@@ -323,6 +327,7 @@ export default function SalesAggregationDashboard() {
         }
 
         for (const p of products) {
+          if (skipIds.has(String(p.customer_id))) continue;
           if (!clinicMatchesRecord(clinicFilter, p.clinic_name)) continue;
           const day = coerceRecordDayYmd(p.sale_date);
           if (!day || !day.startsWith(monthPrefix)) continue;
@@ -349,6 +354,7 @@ export default function SalesAggregationDashboard() {
         }
 
         for (const s of subs) {
+          if (skipIds.has(String(s.customer_id))) continue;
           if (!clinicMatchesRecord(clinicFilter, s.clinic_name)) continue;
           const day = coerceRecordDayYmd(s.start_date);
           if (!day || !day.startsWith(monthPrefix)) continue;
@@ -431,6 +437,7 @@ export default function SalesAggregationDashboard() {
 
         const customerMap = new Map<string, Record<string, unknown>>();
         for (const c of customers) {
+          if (!isRealCustomerNumber(String(c.customer_number ?? ''))) continue;
           if (!clinicMatchesRecord(clinicFilter, c.clinic_name)) continue;
           customerMap.set(String(c.id), c);
         }

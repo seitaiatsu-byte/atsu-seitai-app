@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { isPlaceholderCustomerNumber } from './customerNumber';
 
 export async function markReservationVisited(reservationId: string, visitRecordId?: string) {
   const { error } = await supabase
@@ -50,6 +51,19 @@ export async function syncReservationsVisitedByExistingVisits(startYmd: string, 
   const customerIds = [...new Set(reservations.map((r) => r.customer_id).filter(Boolean))] as string[];
   if (customerIds.length === 0) return 0;
 
+  const { data: customerRows, error: customerError } = await supabase
+    .from('customers')
+    .select('id, customer_number')
+    .in('id', customerIds);
+  if (customerError) throw customerError;
+  const placeholderIds = new Set(
+    (customerRows || [])
+      .filter((c) => isPlaceholderCustomerNumber(c.customer_number))
+      .map((c) => c.id)
+  );
+  const activeReservations = reservations.filter((r) => !placeholderIds.has(r.customer_id));
+  if (!activeReservations.length) return 0;
+
   const { data: visits, error: visitError } = await supabase
     .from('visit_records')
     .select('id, customer_id, visit_date, created_at')
@@ -67,7 +81,7 @@ export async function syncReservationsVisitedByExistingVisits(startYmd: string, 
     if (!visitByCustomerDate.has(key)) visitByCustomerDate.set(key, v.id);
   });
 
-  const updates = reservations
+  const updates = activeReservations
     .map((r) => {
       const visitRecordId = visitByCustomerDate.get(`${r.customer_id}|${String(r.reservation_date).slice(0, 10)}`);
       return visitRecordId ? { reservationId: r.id, visitRecordId } : null;

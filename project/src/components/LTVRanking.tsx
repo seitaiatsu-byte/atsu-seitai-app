@@ -3,6 +3,7 @@ import { TrendingUp, User, DollarSign, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { clinicMatchesRecord } from '../lib/clinic';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
+import { placeholderCustomerIds } from '../lib/customerNumber';
 import {
   findCustomerByRecordKey,
   hydrateCustomersByRecordKeys,
@@ -134,6 +135,13 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
       console.error('顧客名簿の取得に失敗:', e);
     }
 
+    const skipCustomerIds = placeholderCustomerIds(
+      [...customerByKey.values()].map((c) => ({
+        id: String(c.id || ''),
+        customer_number: String(c.customer_number ?? ''),
+      }))
+    );
+
     const customerMap = new Map<string, CustomerLTV>();
     const legacyNameByCustomerId = new Map<string, string>();
     vRows.forEach((v) => {
@@ -146,6 +154,7 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
     });
 
     const bump = (customerId: string, amount: number, date: string, isVisit: boolean) => {
+      if (skipCustomerIds.has(customerId)) return;
       const c = findCustomerByRecordKey(customerId, customerByKey);
       const existing = customerMap.get(customerId);
       if (existing) {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Activity, Users, PieChart as PieIcon, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { clinicMatchesRecord, customerMatchesClinic } from '../lib/clinic';
+import { filterRealCustomers } from '../lib/customerNumber';
 import { fetchBusinessRules } from '../lib/businessRules';
 import { repeatRateSecond, repeatRateSixth, type CustomerForRepeat } from '../lib/repeatMetrics';
 import { getCustomerBirthDate, calculateAge } from '../lib/customerBirthday';
@@ -111,7 +112,7 @@ export default function DetailedAnalytics({ clinicScope }: DetailedAnalyticsProp
     } catch (e) {
       console.error('顧客名簿の取得に失敗:', e);
     }
-    customers = customers.filter((c) => customerMatchesClinic(clinicScope, c.clinic_name));
+    customers = filterRealCustomers(customers).filter((c) => customerMatchesClinic(clinicScope, c.clinic_name));
 
     const { data: visitsRaw } = await supabase
       .from('visit_records')

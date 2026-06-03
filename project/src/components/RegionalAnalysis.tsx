@@ -3,6 +3,7 @@ import { MapPin, Users, Download, Pencil, X, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchAllCustomersByCreatedDesc, type CustomerRow } from '../lib/fetchAllCustomers';
 import { downloadCustomersCsv } from '../lib/customerCsvExport';
+import { isRealCustomerNumber } from '../lib/customerNumber';
 import CustomerRosterEditModal from './CustomerRosterEditModal';
 import type { ClinicScope } from './ClinicScopeToggle';
 
@@ -80,12 +81,13 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
     };
     const isTakatsuki = (c: CustomerRow) => {
       const n = toCustomerNumber(c);
-      return n !== null && n >= 5000;
+      return n !== null && n >= 5000 && n <= 9999;
     };
     const isKawanishi = (c: CustomerRow) => {
       const n = toCustomerNumber(c);
       return n !== null && n >= 1 && n <= 4999;
     };
+    customers = customers.filter((c) => isRealCustomerNumber(c.customer_number));
 
     // 地域分析は「全体」「高槻院(5000+)」「川西院(1-4999)」を同時表示
     const segmentCustomers: Record<SegmentKey, CustomerRow[]> = {

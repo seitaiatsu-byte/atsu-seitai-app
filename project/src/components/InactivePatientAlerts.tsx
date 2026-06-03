@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Calendar, Phone, Cake, UserCheck, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
 import type { Database } from '../lib/database.types';
 import { getCustomerBirthDate, calculateAge } from '../lib/customerBirthday';
 import {
@@ -124,6 +125,7 @@ export default function InactivePatientAlerts() {
     const t2 = followCfg.tier2End;
 
     for (const c of customers || []) {
+      if (isPlaceholderCustomerNumber(c.customer_number)) continue;
       const vi = visitMap.get(c.id);
       if (vi) {
         const last = new Date(vi.date);
@@ -174,6 +176,7 @@ export default function InactivePatientAlerts() {
     const nextMonthList: BirthdayRow[] = [];
 
     for (const c of customers || []) {
+      if (isPlaceholderCustomerNumber(c.customer_number)) continue;
       const bdStr = getCustomerBirthDate(c);
       if (!bdStr) continue;
       const birth = new Date(bdStr);

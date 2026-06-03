@@ -3,6 +3,7 @@ import { Upload, Edit2, Trash2, History, Search, ChevronDown, ChevronRight } fro
 import { supabase } from '../lib/supabase';
 import CustomerSearchPanel from './CustomerSearchPanel';
 import { CLINIC_OPTIONS, customerNumberHistoryRowClass, type ClinicFullName } from '../lib/clinic';
+import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
 import { buildIdToNameMap, formatPaymentDetailLabel, formatPaymentMethodLabel } from '../lib/paymentDisplay';
 import {
   legacyImportKindLabel,
@@ -133,10 +134,15 @@ export default function VisitForm({
     () => buildLegacyCustomerWarning(selectedCustomer?.customer_number),
     [selectedCustomer?.customer_number]
   );
+  const placeholderCustomerWarning = useMemo(() => {
+    if (!isPlaceholderCustomerNumber(selectedCustomer?.customer_number)) return null;
+    return '仮予約用（10000・新規仮）です。来院記録は正式番号の患者で登録してください。カレンダーでは仮予約を削除し、正式患者の予約から来院入力してください。';
+  }, [selectedCustomer?.customer_number]);
 
   useEffect(() => {
     if (selectedCustomer?.customer_number && !editingId) {
-      const num = parseInt(selectedCustomer.customer_number);
+      if (isPlaceholderCustomerNumber(selectedCustomer.customer_number)) return;
+      const num = parseInt(selectedCustomer.customer_number, 10);
       setClinicName(num >= 5000 ? '高槻あつ整体院' : '川西あつ整体院');
     }
   }, [selectedCustomer, editingId]);
@@ -235,6 +241,12 @@ export default function VisitForm({
   const handleSubmit = async () => {
     setDuplicateError('');
     if (!selectedCustomer) return alert('顧客を選んでください');
+    if (!editingId && isPlaceholderCustomerNumber(selectedCustomer.customer_number)) {
+      alert(
+        '仮予約用（10000・新規仮）では来院記録を登録できません。正式番号の患者を選んでください。'
+      );
+      return;
+    }
 
     const amountError = validateExplicitAmount(amount);
     if (amountError) return alert(amountError);
@@ -516,7 +528,12 @@ export default function VisitForm({
               {duplicateError}
             </div>
           )}
-          {legacyNumberWarning && !editingId && (
+          {placeholderCustomerWarning && !editingId && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3 text-red-900 text-xs font-bold">
+              {placeholderCustomerWarning}
+            </div>
+          )}
+          {legacyNumberWarning && !editingId && !placeholderCustomerWarning && (
             <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 text-amber-900 text-xs whitespace-pre-line">
               {legacyNumberWarning}
             </div>
