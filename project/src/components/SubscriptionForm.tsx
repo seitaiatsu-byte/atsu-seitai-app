@@ -3,7 +3,7 @@ import { Calendar, CreditCard, Save, Repeat, History, Edit2, Trash2, X, Search, 
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import CustomerSearchPanel from './CustomerSearchPanel';
-import { CLINIC_OPTIONS, type ClinicFullName } from '../lib/clinic';
+import { CLINIC_OPTIONS, customerNumberHistoryRowClass, type ClinicFullName } from '../lib/clinic';
 import { buildIdToNameMap, formatPaymentMethodLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
 import { visitRecordHadSubscriptionLabel, visitRecordMixedLabel } from '../lib/visitSubscriptionLabel';
 import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
@@ -78,6 +78,7 @@ export default function SubscriptionForm() {
   const [visitMisclassified, setVisitMisclassified] = useState<VisitMisclass[]>([]);
   const [visitMisclassLoading, setVisitMisclassLoading] = useState(false);
   const [openHistoryDates, setOpenHistoryDates] = useState<Set<string>>(new Set());
+  const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
 
   useEffect(() => {
     loadSubscriptions();
@@ -658,11 +659,20 @@ export default function SubscriptionForm() {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-lg p-6 border border-purple-100">
-        <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-          <History className="text-purple-500" size={20} />
-          サブスク履歴（日付ごと）
-        </h3>
+      <div className="rounded-2xl shadow-lg overflow-hidden border border-purple-100">
+        <button
+          type="button"
+          onClick={() => setHistoryPanelOpen((v) => !v)}
+          className="w-full px-4 py-3 flex items-center justify-between text-left bg-purple-50"
+        >
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <History className="text-purple-500" size={20} />
+            サブスク履歴（日付ごと）
+          </h3>
+          <span className="text-sm font-bold text-slate-600 shrink-0">{historyPanelOpen ? '▲' : '▼'}</span>
+        </button>
+        {historyPanelOpen && (
+          <div className="bg-white p-6 border-t border-purple-100">
         <p className="text-xs text-gray-500 mb-2">
           サブスク入力画面から登録した記録の一覧です（全{recentRecords.length}件
           {dbRecordCount != null ? `／DB登録${dbRecordCount}件` : ''}
@@ -724,8 +734,8 @@ export default function SubscriptionForm() {
                   </button>
                   {isOpen && (
                     <div className="overflow-auto border-t border-slate-200 bg-white">
-                      <div className="min-w-[56rem]">
-                        <div className="grid grid-cols-[4.9rem_3.8rem_6.2rem_minmax(8rem,1fr)_5.3rem_5.2rem_4.5rem_3.8rem_5.4rem] items-center gap-1 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
+                      <div className="min-w-[44rem]">
+                        <div className="grid grid-cols-[4.5rem_3.5rem_5.5rem_minmax(8rem,1fr)_5rem_6rem_4rem_4.8rem] items-center gap-1 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
                           <div>日付</div>
                           <div>番号</div>
                           <div>氏名</div>
@@ -733,28 +743,27 @@ export default function SubscriptionForm() {
                           <div>金額</div>
                           <div>支払</div>
                           <div>担当</div>
-                          <div>院</div>
                           <div className="text-right">操作</div>
                         </div>
                         <ul className="divide-y divide-slate-100">
                       {dayRows.map((r) => {
                         const c = r.customers;
                         const payLabel = formatPaymentMethodLabel(r.payment_method, paymentNameMap);
+                        const rowBand = customerNumberHistoryRowClass(c?.customer_number);
                         return (
                           <li
                             key={r.id}
-                            className={`grid grid-cols-[4.9rem_3.8rem_6.2rem_minmax(8rem,1fr)_5.3rem_5.2rem_4.5rem_3.8rem_5.4rem] items-center gap-1 px-1.5 py-1 text-[11px] hover:bg-purple-50/50 ${
-                              editingId === r.id ? 'bg-orange-50' : ''
+                            className={`grid grid-cols-[4.5rem_3.5rem_5.5rem_minmax(8rem,1fr)_5rem_6rem_4rem_4.8rem] items-center gap-1 px-1.5 py-1 text-[11px] ${rowBand} ${
+                              editingId === r.id ? 'ring-1 ring-orange-400' : ''
                             }`}
                           >
                             <div className="font-bold text-slate-800 whitespace-nowrap">{formatCompactDate(r.start_date)}</div>
-                            <div className="font-bold text-blue-700 truncate" title={c?.customer_number || ''}>{c?.customer_number || '—'}</div>
+                            <div className="font-bold text-slate-800 truncate" title={c?.customer_number || ''}>{c?.customer_number || '—'}</div>
                             <div className="font-bold text-slate-800 truncate" title={c?.name || ''}>{c?.name || '（顧客不明）'}</div>
                             <div className="truncate font-bold text-purple-700" title={r.subscription_name || ''}>{r.subscription_name || '（プラン名なし）'}</div>
                             <div className="font-bold text-slate-900 whitespace-nowrap">{formatYen(r.amount)}</div>
                             <div className="truncate text-slate-600" title={payLabel}>{payLabel}</div>
                             <div className="truncate text-slate-700" title={r.staff_name || ''}>{r.staff_name || '—'}</div>
-                            <div className="truncate text-slate-700" title={r.clinic_name || ''}>{clinicShort(r.clinic_name)}</div>
                             <div className="flex justify-end gap-0.5">
                               <button
                                 type="button"
@@ -785,6 +794,8 @@ export default function SubscriptionForm() {
                 </div>
               );
             })}
+          </div>
+        )}
           </div>
         )}
       </div>

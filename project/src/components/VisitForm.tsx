@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Upload, Edit2, Trash2, History, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import CustomerSearchPanel from './CustomerSearchPanel';
-import { CLINIC_OPTIONS, clinicNameToShortLabel, type ClinicFullName } from '../lib/clinic';
+import { CLINIC_OPTIONS, customerNumberHistoryRowClass, type ClinicFullName } from '../lib/clinic';
 import { buildIdToNameMap, formatPaymentDetailLabel, formatPaymentMethodLabel } from '../lib/paymentDisplay';
 import {
   legacyImportKindLabel,
@@ -694,7 +694,7 @@ export default function VisitForm({
           <div className="bg-white p-3 sm:p-4 border-t border-slate-200">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
               <p className="text-xs text-gray-500">
-                顧客番号・氏名・担当・メニュー名・メモで検索できます（全{recentRecords.length}件
+                顧客番号・氏名・担当・メニュー名で検索できます。帯色：1–4999＝川西（緑）、5000以降＝高槻（青）（全{recentRecords.length}件
                 {historyFilter ? `／表示${filteredRecentRecords.length}件` : ''}）。
               </p>
               <p className="text-xs font-bold text-slate-500">横1行表示 / 右端で修正・削除</p>
@@ -735,18 +735,16 @@ export default function VisitForm({
                       </button>
                       {isOpen && (
                         <div className="overflow-auto border-t border-slate-200">
-                          <div className="min-w-[62rem]">
-                            <div className="grid grid-cols-[4.9rem_3.8rem_6.2rem_minmax(7rem,1fr)_5.3rem_6.1rem_4.5rem_3.8rem_4.4rem_5.4rem] items-center gap-1 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
+                          <div className="min-w-[48rem]">
+                            <div className="grid grid-cols-[4.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem_4.8rem] items-center gap-1 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
                               <div>日付</div>
                               <div>番号</div>
                               <div>氏名</div>
+                              <div>実通院</div>
                               <div>メニュー</div>
                               <div>金額</div>
                               <div>支払/種類</div>
                               <div>担当</div>
-                              <div>院</div>
-                              <div>実通院</div>
-                              <div>維持費</div>
                               <div className="text-right">操作</div>
                             </div>
                             <ul className="divide-y divide-slate-100">
@@ -755,22 +753,21 @@ export default function VisitForm({
                                 const customerNumber = r.customers?.customer_number || '—';
                                 const paymentMethod = formatPaymentMethodLabel(r.payment_method, methodNameMap);
                                 const paymentDetail = formatPaymentDetailLabel(r.payment_detail_id, detailNameMap, r.import_kind_text, r.memo);
+                                const rowBand = customerNumberHistoryRowClass(r.customers?.customer_number);
                                 return (
-                                  <li key={r.id} className="grid grid-cols-[4.9rem_3.8rem_6.2rem_minmax(7rem,1fr)_5.3rem_6.1rem_4.5rem_3.8rem_4.4rem_5.4rem] items-center gap-1 px-1.5 py-1 text-[11px] hover:bg-blue-50/50">
+                                  <li key={r.id} className={`grid grid-cols-[4.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem_4.8rem] items-center gap-1 px-1.5 py-1 text-[11px] ${rowBand}`}>
                                     <div className="font-bold text-slate-800 whitespace-nowrap">{formatCompactDate(r.visit_date)}</div>
-                                    <div className="font-bold text-blue-700 truncate" title={customerNumber}>{customerNumber}</div>
+                                    <div className="font-bold text-slate-800 truncate" title={customerNumber}>{customerNumber}</div>
                                     <div className="font-bold text-slate-800 truncate" title={customerName}>{customerName}</div>
+                                    <div className="font-bold text-blue-700 whitespace-nowrap">
+                                      {r.be_equivalent_count == null ? '—' : `${r.be_equivalent_count}回`}
+                                    </div>
                                     <div className="truncate text-slate-800" title={r.menu_name || ''}>{r.menu_name || '—'}</div>
                                     <div className="font-bold text-slate-900 whitespace-nowrap">{formatYen(r.amount)}</div>
                                     <div className="truncate text-slate-600" title={`${paymentMethod} / ${paymentDetail}`}>
                                       {paymentMethod}{paymentDetail !== '-' ? ` / ${paymentDetail}` : ''}
                                     </div>
                                     <div className="truncate text-slate-700" title={r.staff_name || ''}>{r.staff_name || '—'}</div>
-                                    <div className="truncate text-slate-700" title={r.clinic_name || ''}>{clinicNameToShortLabel(r.clinic_name)}</div>
-                                    <div className="font-bold text-blue-700 whitespace-nowrap">
-                                      {r.be_equivalent_count == null ? '—' : `${r.be_equivalent_count}回`}
-                                    </div>
-                                    <div className="text-slate-700 whitespace-nowrap">{Number(r.maintenance_cost || 0) ? formatYen(r.maintenance_cost) : '—'}</div>
                                     <div className="flex justify-end gap-0.5">
                                       <button
                                         type="button"

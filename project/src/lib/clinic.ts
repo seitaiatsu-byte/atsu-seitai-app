@@ -58,3 +58,15 @@ export function resolveClinicNameByCustomerNumber(
   if (num >= 5000) return CLINIC_FULL.takatsuki;
   return null;
 }
+
+/** 履歴一覧の行帯色（1–4999＝川西＝緑、5000以降＝高槻＝青） */
+export function customerNumberHistoryRowClass(customerNumber: string | null | undefined): string {
+  if (customerNumber == null || String(customerNumber).trim() === '') {
+    return 'bg-white border-l-4 border-l-slate-200';
+  }
+  const num = parseInt(String(customerNumber).trim(), 10);
+  if (Number.isNaN(num)) return 'bg-white border-l-4 border-l-slate-200';
+  if (num >= 5000) return 'bg-blue-50/80 border-l-4 border-l-blue-500';
+  if (num >= 1 && num <= 4999) return 'bg-emerald-50/80 border-l-4 border-l-emerald-500';
+  return 'bg-white border-l-4 border-l-slate-200';
+}
