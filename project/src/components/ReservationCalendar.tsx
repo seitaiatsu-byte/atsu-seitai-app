@@ -40,12 +40,6 @@ function isAppointmentEntry(r: { entry_kind?: string | null }): boolean {
   return k === 'appointment';
 }
 
-function entryKindLabel(kind: string): string {
-  if (kind === 'vacant') return '空き';
-  if (kind === 'other') return 'その他';
-  return '予約';
-}
-
 function colorClassByKey(colorKey: string): string {
   if (colorKey === 'red') return 'bg-red-100 border-red-300 text-red-900';
   if (colorKey === 'purple') return 'bg-purple-100 border-purple-300 text-purple-900';
@@ -71,9 +65,12 @@ function appointmentColorKey(r: ReservationWithCustomer, colorRules: CalendarCol
   return hit?.color_key || defaultAppointmentColorKey(r);
 }
 
+function personalScheduleTitle(r: ReservationWithCustomer): string {
+  return String(r.block_title || '').trim() || '（無題）';
+}
+
 function chipClass(r: ReservationWithCustomer, colorRules: CalendarColorRule[]): string {
   if (!isAppointmentEntry(r)) {
-    if (r.entry_kind === 'vacant') return 'bg-amber-100 border-amber-400 text-amber-950';
     return 'bg-violet-100 border-violet-300 text-violet-900';
   }
   if (r.status === 'cancelled') return 'bg-slate-100 border-slate-300 text-slate-500 line-through';
@@ -83,8 +80,7 @@ function chipClass(r: ReservationWithCustomer, colorRules: CalendarColorRule[]):
 function chipLabel(r: ReservationWithCustomer): string {
   const t = String(r.start_time).slice(0, 5);
   if (!isAppointmentEntry(r)) {
-    const title = String(r.block_title || '').trim() || entryKindLabel(r.entry_kind || 'other');
-    return `${t} ${title}`;
+    return personalScheduleTitle(r);
   }
   const staff = r.staff_name ? ` / ${r.staff_name}` : '';
   if (isPlaceholderCustomerNumber(r.customers?.customer_number)) {
@@ -154,9 +150,15 @@ function renderTimelineItem(
       className={`flex items-center gap-1 leading-tight px-1 py-0.5 rounded border cursor-pointer ${chipClass(r, colorRules)} ${
         compact ? 'text-[10px]' : 'text-sm'
       }`}
-      title={`${r.start_time}-${r.end_time} ${statusLabel(r.status)} ${chipLabel(r)}`}
+      title={
+        isAppointmentEntry(r)
+          ? `${r.start_time}-${r.end_time} ${statusLabel(r.status)} ${chipLabel(r)}`
+          : `${String(r.start_time).slice(0, 5)}〜${String(r.end_time).slice(0, 5)} ${personalScheduleTitle(r)}${
+              r.memo ? `\n${r.memo}` : ''
+            }`
+      }
     >
-      {processStatusBadge(r)}
+      {isAppointmentEntry(r) ? processStatusBadge(r) : null}
       <span className="min-w-0 truncate">{chipLabel(r)}</span>
     </div>
   );
@@ -443,7 +445,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
           .join(' ');
         return hay.includes(q);
       }
-      const hay = [r.block_title, r.memo, entryKindLabel(r.entry_kind || 'other')]
+      const hay = [r.block_title, r.memo]
         .filter(Boolean)
         .map(normalizeSearchText)
         .join(' ');
@@ -543,8 +545,8 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
     setFormStaffId(defaultStaffId(staffList));
     setSelectedCustomer(null);
     if (calendarViewMode === 'other') {
-      setFormEntryKind('vacant');
-      setFormBlockTitle('空き');
+      setFormEntryKind('other');
+      setFormBlockTitle('');
     } else {
       setFormEntryKind('appointment');
       setFormBlockTitle('');
@@ -661,8 +663,8 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
       alert('スタッフを選んでください');
       return;
     }
-    if (!isAppt && !formBlockTitle.trim() && !formMemo.trim()) {
-      alert('表示名またはメモを入力してください');
+    if (!isAppt && !formBlockTitle.trim()) {
+      alert('表示名を入力してください');
       return;
     }
     if (!formDate || !formStart || !formEnd) {
@@ -705,7 +707,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
       clinic_name: autoClinic || formClinic,
       memo: formMemo.trim() || null,
       status: isAppt ? formStatus : 'scheduled',
-      entry_kind: formEntryKind,
+      entry_kind: isAppt ? 'appointment' : 'other',
       block_title: isAppt ? null : formBlockTitle.trim() || null,
       staff_id: isAppt ? selectedStaff?.id || null : null,
       staff_name: isAppt ? selectedStaff?.name || null : null,
@@ -728,7 +730,8 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
 
   const deleteReservation = async () => {
     if (!editing) return;
-    if (!window.confirm('この予約を削除しますか？')) return;
+    const label = isAppointmentEntry(editing) ? 'この予約' : 'この枠（予約以外）';
+    if (!window.confirm(`${label}を削除しますか？`)) return;
     setSaving(true);
     const { error } = await supabase.from('appointment_reservations').delete().eq('id', editing.id);
     setSaving(false);
@@ -830,7 +833,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
             }`}
           >
             <Plus size={16} />
-            {calendarViewMode === 'appointment' ? '予約追加' : '枠を追加'}
+            {calendarViewMode === 'appointment' ? '予約追加' : '予定を追加'}
           </button>
         </div>
         <p className="mt-2 text-xs text-gray-600">
@@ -846,9 +849,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
             </>
           ) : (
             <>
-              <span className="text-amber-800 font-bold">空き</span>・
-              <span className="text-violet-800 font-bold">その他</span>
-              の枠（顧客なし・院長個人予定）。日付タップで登録。
+              院長の個人予定（顧客なし）。カレンダーには<strong>表示名のみ</strong>、詳細はメモに記入。日付タップで登録。
               {otherCalendarUnlocked ? (
                 <span className="text-violet-700 font-bold">（入室済み）</span>
               ) : null}
@@ -947,7 +948,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                   }`}
                 >
                   <Plus size={16} />
-                  この日に{calendarViewMode === 'appointment' ? '予約追加' : '枠追加'}
+                  この日に{calendarViewMode === 'appointment' ? '予約追加' : '予定追加'}
                 </button>
                 <button
                   type="button"
@@ -985,15 +986,26 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                       className={`w-full rounded-xl border px-3 py-2 text-left shadow-sm ${chipClass(r, colorRules)}`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="font-bold text-sm">
-                          {String(r.start_time).slice(0, 5)}〜{String(r.end_time).slice(0, 5)}{' '}
-                          {chipLabel(r).replace(String(r.start_time).slice(0, 5), '').trim()}
-                        </div>
-                        <div className="text-xs font-bold">
-                          {isAppointmentEntry(r) ? processStatusBadge(r) : entryKindLabel(r.entry_kind || 'other')}
-                        </div>
+                        {isAppointmentEntry(r) ? (
+                          <>
+                            <div className="font-bold text-sm">
+                              {String(r.start_time).slice(0, 5)}〜{String(r.end_time).slice(0, 5)}{' '}
+                              {chipLabel(r).replace(String(r.start_time).slice(0, 5), '').trim()}
+                            </div>
+                            <div className="text-xs font-bold">{processStatusBadge(r)}</div>
+                          </>
+                        ) : (
+                          <div className="min-w-0">
+                            <div className="font-bold text-base">{personalScheduleTitle(r)}</div>
+                            <div className="text-xs mt-0.5 opacity-80">
+                              {String(r.start_time).slice(0, 5)}〜{String(r.end_time).slice(0, 5)}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      {r.memo && <div className="mt-1 text-xs opacity-80 whitespace-pre-wrap">{r.memo}</div>}
+                      {r.memo && (
+                        <div className="mt-1 text-xs opacity-80 whitespace-pre-wrap">{r.memo}</div>
+                      )}
                       <div className="mt-1 text-[11px] opacity-70">タップで編集</div>
                     </button>
                   );
@@ -1101,10 +1113,10 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                 {editing
                   ? isAppointmentEntry(editing)
                     ? '予約を修正'
-                    : '枠を修正'
+                    : '予定を修正'
                   : formEntryKind === 'appointment'
                     ? '予約を追加'
-                    : '枠を追加（予約以外）'}
+                    : '予定を追加'}
               </h3>
               <button type="button" onClick={() => setEditorOpen(false)} className="text-gray-500 font-bold px-2">
                 ✕
@@ -1161,27 +1173,23 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
               ) : (
                 <>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">種類</label>
-                    <select
-                      value={formEntryKind}
-                      onChange={(e) => {
-                        const k = e.target.value as EntryKind;
-                        setFormEntryKind(k);
-                        if (k === 'vacant' && !formBlockTitle.trim()) setFormBlockTitle('空き');
-                      }}
-                      className="w-full border rounded-lg px-2 py-2"
-                    >
-                      <option value="vacant">空き（Vacant）</option>
-                      <option value="other">その他</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">表示名（カレンダーに出る文字）</label>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">表示名</label>
                     <input
                       type="text"
                       value={formBlockTitle}
                       onChange={(e) => setFormBlockTitle(e.target.value)}
-                      placeholder="例: 空き / 昼休み / 会議"
+                      placeholder="例: 渉外 / 昼休み / 会議（カレンダーにこの文字だけ出ます）"
+                      className="w-full border rounded-lg px-2 py-2 text-base font-medium"
+                      lang="ja"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">メモ（詳細・カレンダーには表示しません）</label>
+                    <textarea
+                      value={formMemo}
+                      onChange={(e) => setFormMemo(e.target.value)}
+                      rows={3}
+                      placeholder="場所・相手・備考など"
                       className="w-full border rounded-lg px-2 py-2"
                       lang="ja"
                     />
@@ -1239,23 +1247,18 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                   </select>
                 </div>
               )}
-              {editing && !isAppointmentEntry(editing) && (
+              {formEntryKind === 'appointment' && (
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">種類</label>
-                  <select
-                    value={formEntryKind}
-                    onChange={(e) => setFormEntryKind(e.target.value as EntryKind)}
+                  <label className="block text-xs font-bold text-gray-600 mb-1">メモ</label>
+                  <textarea
+                    value={formMemo}
+                    onChange={(e) => setFormMemo(e.target.value)}
+                    rows={2}
                     className="w-full border rounded-lg px-2 py-2"
-                  >
-                    <option value="vacant">空き（Vacant）</option>
-                    <option value="other">その他</option>
-                  </select>
+                    lang="ja"
+                  />
                 </div>
               )}
-              <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">メモ</label>
-                <textarea value={formMemo} onChange={(e) => setFormMemo(e.target.value)} rows={2} className="w-full border rounded-lg px-2 py-2" lang="ja" />
-              </div>
               <div className="flex flex-wrap gap-2 pt-2">
                 <button
                   type="button"
@@ -1266,30 +1269,33 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                   {saving ? '保存中…' : '保存'}
                 </button>
                 {editing && isAppointmentEntry(editing) && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => openVisit(editing)}
-                      className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-blue-600 text-white font-bold"
-                    >
-                      <Stethoscope size={16} />
-                      来院入力へ
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void deleteReservation()}
-                      className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-red-300 text-red-700 font-bold"
-                    >
-                      <Trash2 size={16} />
-                      削除
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={() => openVisit(editing)}
+                    className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-blue-600 text-white font-bold"
+                  >
+                    <Stethoscope size={16} />
+                    来院入力へ
+                  </button>
+                )}
+                {editing && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void deleteReservation()}
+                    className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-red-300 text-red-700 font-bold disabled:opacity-50"
+                  >
+                    <Trash2 size={16} />
+                    削除
+                  </button>
                 )}
               </div>
               {editing && (
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <Pencil size={12} />
-                  {statusLabel(editing.status)} / {editing.start_time.slice(0, 5)}〜{editing.end_time.slice(0, 5)}
+                  {isAppointmentEntry(editing)
+                    ? `${statusLabel(editing.status)} / ${editing.start_time.slice(0, 5)}〜${editing.end_time.slice(0, 5)}`
+                    : `${editing.start_time.slice(0, 5)}〜${editing.end_time.slice(0, 5)}`}
                 </p>
               )}
             </div>
