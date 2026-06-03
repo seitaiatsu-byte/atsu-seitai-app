@@ -132,7 +132,7 @@ function formatDateWithWeekday(ymd: string): string {
   return `${y}/${m}/${day}(${JP_WEEK[d.getDay()]})`;
 }
 
-/** タブレット・スマホ用（年は表の上に表示） */
+/** スマホ用（年は表の上に表示） */
 function formatDateCompact(ymd: string): string {
   const d = new Date(`${ymd}T00:00:00`);
   if (Number.isNaN(d.getTime())) return ymd;
@@ -146,9 +146,9 @@ function salesYearFromMonth(ym: string): string {
   return Number.isFinite(y) ? `${y}年` : '';
 }
 
-const SALES_AMT_CELL = 'border px-1 py-1 text-right tabular-nums hidden md:table-cell xl:px-1 max-xl:px-0.5 max-xl:text-[10px]';
+const SALES_AMT_CELL = 'border px-1 py-1 text-right hidden md:table-cell';
 const SALES_DAY_TOTAL_CELL =
-  'border px-1 py-1 text-right font-bold bg-amber-50 text-blue-700 tabular-nums max-md:px-0.5 max-md:text-[11px] xl:px-1';
+  'border px-1 py-1 text-right font-bold bg-amber-50 text-blue-700 tabular-nums max-md:px-0.5 max-md:text-[11px]';
 
 function weekdayKind(ymd: string): 'sun' | 'sat' | 'weekday' {
   const d = new Date(`${ymd}T00:00:00`);
@@ -751,45 +751,42 @@ export default function SalesAggregationDashboard() {
             </div>
           )}
 
-          <p className="xl:hidden text-lg font-black text-gray-900 -mb-1">{salesYearFromMonth(month)}</p>
-          <p className="xl:hidden text-[11px] text-gray-500 mb-1 max-md:hidden">
-            日付は M/D（曜）。タップで内訳。
-          </p>
-          <p className="md:hidden text-[11px] text-gray-500 mb-1">日付と合計のみ表示（内訳は日付タップ）</p>
+          <p className="md:hidden text-lg font-black text-gray-900 -mb-1">{salesYearFromMonth(month)}</p>
+          <p className="md:hidden text-[11px] text-gray-500 mb-1">日付と合計のみ（タップで内訳）</p>
 
-          <div className="overflow-x-auto border-2 border-green-200 rounded-xl max-xl:overflow-x-hidden">
-            <table className="w-full table-fixed text-xs xl:text-sm max-xl:text-[10px]">
+          <div className="overflow-x-auto border-2 border-green-200 rounded-xl">
+            <table className="w-full table-fixed text-xs md:text-sm">
               <thead>
                 <tr className="md:hidden bg-green-200 text-gray-800">
                   <th className="border px-0.5 py-1 w-[4.25rem] text-left">日付</th>
                   <th className="border px-0.5 py-1 text-right bg-amber-50">合計</th>
                 </tr>
                 <tr className="hidden md:table-row bg-green-200 text-gray-800">
-                  <th rowSpan={2} className="border px-1 py-2 xl:w-[140px] md:w-[4.5rem] md:max-w-[4.5rem]">
+                  <th rowSpan={2} className="border px-1 py-2 w-[140px]">
                     日付
                   </th>
-                  <th colSpan={6} className="border px-1 py-2 max-xl:px-0.5 max-xl:text-[10px]">
+                  <th colSpan={6} className="border px-1 py-2">
                     現金
                   </th>
-                  <th colSpan={5} className="border px-1 py-2 max-xl:px-0.5 max-xl:text-[10px]">
+                  <th colSpan={5} className="border px-1 py-2">
                     クレジットカード（squareベース）、現金以外
                   </th>
-                  <th rowSpan={2} className="border px-1 py-2 bg-amber-50 max-xl:min-w-[3.25rem]">
+                  <th rowSpan={2} className="border px-1 py-2 bg-amber-50">
                     日計
                   </th>
                 </tr>
-                <tr className="hidden md:table-row bg-green-50 text-gray-700 max-xl:text-[10px]">
-                  <th className="border px-1 py-1 max-xl:px-0.5">振込</th>
-                  <th className="border px-1 py-1 max-xl:px-0.5">都度払い</th>
-                  <th className="border px-1 py-1 max-xl:px-0.5">回数券</th>
-                  <th className="border px-1 py-1 max-xl:px-0.5">サブスク</th>
-                  <th className="border px-1 py-1 max-xl:px-0.5">物販売上</th>
-                  <th className="border px-1 py-1 max-xl:px-0.5">計</th>
-                  <th className="border px-1 py-1 max-xl:px-0.5">都度払い</th>
-                  <th className="border px-1 py-1 max-xl:px-0.5">回数券</th>
-                  <th className="border px-1 py-1 max-xl:px-0.5">サブスク</th>
-                  <th className="border px-1 py-1 max-xl:px-0.5">物販売上</th>
-                  <th className="border px-1 py-1 max-xl:px-0.5">計</th>
+                <tr className="hidden md:table-row bg-green-50 text-gray-700">
+                  <th className="border px-1 py-1">振込</th>
+                  <th className="border px-1 py-1">都度払い</th>
+                  <th className="border px-1 py-1">回数券</th>
+                  <th className="border px-1 py-1">サブスク</th>
+                  <th className="border px-1 py-1">物販売上</th>
+                  <th className="border px-1 py-1">計</th>
+                  <th className="border px-1 py-1">都度払い</th>
+                  <th className="border px-1 py-1">回数券</th>
+                  <th className="border px-1 py-1">サブスク</th>
+                  <th className="border px-1 py-1">物販売上</th>
+                  <th className="border px-1 py-1">計</th>
                 </tr>
               </thead>
               <tbody>
@@ -805,9 +802,7 @@ export default function SalesAggregationDashboard() {
                       onClick={() => setSelectedBreakdownDate(r.date)}
                       title="タップでこの日の内訳を表示"
                     >
-                      <td
-                        className={`border py-1 font-mono whitespace-nowrap max-md:px-0.5 max-md:text-[10px] md:px-1 md:w-[4.5rem] xl:w-[140px] xl:px-1 ${dateTextClass}`}
-                      >
+                      <td className={`border px-1 py-1 font-mono whitespace-nowrap max-md:px-0.5 max-md:text-[10px] ${dateTextClass}`}>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -817,8 +812,8 @@ export default function SalesAggregationDashboard() {
                           className="underline underline-offset-2 hover:text-blue-800 text-left max-md:leading-tight"
                           title="この日の内訳を表示"
                         >
-                          <span className="xl:hidden">{formatDateCompact(r.date)}</span>
-                          <span className="hidden xl:inline">{formatDateWithWeekday(r.date)}</span>
+                          <span className="md:hidden">{formatDateCompact(r.date)}</span>
+                          <span className="hidden md:inline">{formatDateWithWeekday(r.date)}</span>
                         </button>
                       </td>
                       <td className={SALES_AMT_CELL}>{yen(r.cashTransfer)}</td>
@@ -855,40 +850,38 @@ export default function SalesAggregationDashboard() {
                   <td className="border px-0.5 py-1 text-right bg-amber-100 text-blue-700 tabular-nums">{yen(totals.dayTotal)}</td>
                 </tr>
                 <tr className="hidden md:table-row bg-[#eef4ff] font-bold">
-                  <td className="border px-1 py-2 xl:py-2 max-xl:py-1 max-xl:text-[10px]">合計</td>
-                  <td className={`${SALES_AMT_CELL} max-xl:py-1 font-bold`}>{yen(totals.cashTransfer)}</td>
-                  <td className={`${SALES_AMT_CELL} max-xl:py-1`}>{yen(totals.cashSingle)}</td>
-                  <td className={`${SALES_AMT_CELL} max-xl:py-1`}>{yen(totals.cashCoupon)}</td>
-                  <td className={`${SALES_AMT_CELL} max-xl:py-1`}>{yen(totals.cashSubscription)}</td>
-                  <td className={`${SALES_AMT_CELL} max-xl:py-1`}>{yen(totals.cashProduct)}</td>
-                  <td className={`${SALES_AMT_CELL} max-xl:py-1 font-bold`}>
+                  <td className="border px-1 py-2">合計</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashTransfer)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashSingle)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashCoupon)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashSubscription)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashProduct)}</td>
+                  <td className="border px-1 py-2 text-right">
                     {yen(totals.cashTransfer + totals.cashSingle + totals.cashCoupon + totals.cashSubscription + totals.cashProduct)}
                   </td>
-                  <td className={`${SALES_AMT_CELL} max-xl:py-1`}>{yen(totals.cardSingle)}</td>
-                  <td className={`${SALES_AMT_CELL} max-xl:py-1`}>{yen(totals.cardCoupon)}</td>
-                  <td className={`${SALES_AMT_CELL} max-xl:py-1`}>{yen(totals.cardSubscription)}</td>
-                  <td className={`${SALES_AMT_CELL} max-xl:py-1`}>{yen(totals.cardProduct)}</td>
-                  <td className={`${SALES_AMT_CELL} max-xl:py-1 font-bold`}>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cardSingle)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cardCoupon)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cardSubscription)}</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cardProduct)}</td>
+                  <td className="border px-1 py-2 text-right">
                     {yen(totals.cardSingle + totals.cardCoupon + totals.cardSubscription + totals.cardProduct)}
                   </td>
-                  <td className="border px-1 py-2 text-right bg-amber-100 text-blue-700 tabular-nums max-xl:py-1 max-xl:text-[10px]">
-                    {yen(totals.dayTotal)}
-                  </td>
+                  <td className="border px-1 py-2 text-right bg-amber-100 text-blue-700">{yen(totals.dayTotal)}</td>
                 </tr>
-                <tr className="hidden md:table-row bg-[#f7fbff] font-bold text-blue-900 max-xl:text-[10px]">
-                  <td className="border px-1 py-2 max-xl:py-1">振込</td>
-                  <td className="border px-1 py-2 text-right max-xl:px-0.5 max-xl:py-1">{yen(totals.cashTransfer)}</td>
-                  <td className="border px-1 py-2 text-right max-xl:px-0.5 max-xl:py-1">-</td>
-                  <td className="border px-1 py-2 text-right max-xl:px-0.5 max-xl:py-1">-</td>
-                  <td className="border px-1 py-2 text-right max-xl:px-0.5 max-xl:py-1">-</td>
-                  <td className="border px-1 py-2 text-right max-xl:px-0.5 max-xl:py-1">-</td>
-                  <td className="border px-1 py-2 text-right max-xl:px-0.5 max-xl:py-1">{yen(totals.cashTransfer)}</td>
-                  <td className="border px-1 py-2 text-right max-xl:px-0.5 max-xl:py-1">-</td>
-                  <td className="border px-1 py-2 text-right max-xl:px-0.5 max-xl:py-1">-</td>
-                  <td className="border px-1 py-2 text-right max-xl:px-0.5 max-xl:py-1">-</td>
-                  <td className="border px-1 py-2 text-right max-xl:px-0.5 max-xl:py-1">-</td>
-                  <td className="border px-1 py-2 text-right max-xl:px-0.5 max-xl:py-1">-</td>
-                  <td className="border px-1 py-2 text-right bg-amber-50 text-blue-700 max-xl:py-1">{yen(totals.cashTransfer)}</td>
+                <tr className="hidden md:table-row bg-[#f7fbff] font-bold text-blue-900">
+                  <td className="border px-1 py-2">振込</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashTransfer)}</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">{yen(totals.cashTransfer)}</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right">-</td>
+                  <td className="border px-1 py-2 text-right bg-amber-50 text-blue-700">{yen(totals.cashTransfer)}</td>
                 </tr>
               </tfoot>
             </table>
