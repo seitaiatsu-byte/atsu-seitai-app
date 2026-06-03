@@ -38,12 +38,6 @@ function formatYen(raw: unknown): string {
   return `¥${Number.isFinite(n) ? Math.round(n).toLocaleString() : '0'}`;
 }
 
-function compactMemo(raw: unknown): string {
-  const s = String(raw || '').replace(/\s+/g, ' ').trim();
-  if (!s) return '—';
-  return s.length > 18 ? `${s.slice(0, 18)}…` : s;
-}
-
 export default function ProductSaleForm() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [products, setProducts] = useState<ProductMaster[]>([]);
@@ -571,8 +565,8 @@ export default function ProductSaleForm() {
                   </button>
                   {isOpen && (
                     <div className="overflow-auto border-t border-slate-200 bg-white">
-                      <div className="min-w-[76rem]">
-                        <div className="grid grid-cols-[5.8rem_4.6rem_7rem_minmax(10rem,1fr)_4.5rem_6.4rem_7rem_minmax(10rem,1fr)_5.2rem_5.4rem_6rem] items-center gap-1.5 bg-slate-100 px-2 py-1.5 text-[11px] font-bold text-slate-600 border-b border-slate-200">
+                      <div className="min-w-[56rem]">
+                        <div className="grid grid-cols-[4.9rem_3.8rem_6.2rem_minmax(8rem,1fr)_2.8rem_5.3rem_5.2rem_4.5rem_3.8rem_5.4rem] items-center gap-1 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
                           <div>日付</div>
                           <div>番号</div>
                           <div>氏名</div>
@@ -580,7 +574,6 @@ export default function ProductSaleForm() {
                           <div>数量</div>
                           <div>金額</div>
                           <div>支払</div>
-                          <div>メモ</div>
                           <div>担当</div>
                           <div>院</div>
                           <div className="text-right">操作</div>
@@ -592,7 +585,7 @@ export default function ProductSaleForm() {
                             return (
                               <li
                                 key={r.id}
-                                className={`grid grid-cols-[5.8rem_4.6rem_7rem_minmax(10rem,1fr)_4.5rem_6.4rem_7rem_minmax(10rem,1fr)_5.2rem_5.4rem_6rem] items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-orange-50/50 ${
+                                className={`grid grid-cols-[4.9rem_3.8rem_6.2rem_minmax(8rem,1fr)_2.8rem_5.3rem_5.2rem_4.5rem_3.8rem_5.4rem] items-center gap-1 px-1.5 py-1 text-[11px] hover:bg-orange-50/50 ${
                                   editingId === r.id ? 'bg-orange-50' : ''
                                 }`}
                               >
@@ -603,24 +596,23 @@ export default function ProductSaleForm() {
                                 <div className="font-bold text-slate-700 whitespace-nowrap">{r.quantity || 1}</div>
                                 <div className="font-bold text-slate-900 whitespace-nowrap">{formatYen(r.amount)}</div>
                                 <div className="truncate text-slate-600" title={paymentLabel(r.payment_method)}>{paymentLabel(r.payment_method)}</div>
-                                <div className="truncate text-slate-600" title={r.memo || ''}>{compactMemo(r.memo)}</div>
                                 <div className="truncate text-slate-700" title={r.staff_name || ''}>{r.staff_name || '—'}</div>
                                 <div className="truncate text-slate-700" title={r.clinic_name || ''}>{r.clinic_name?.includes('川西') ? '川西' : r.clinic_name?.includes('高槻') ? '高槻' : r.clinic_name || '—'}</div>
-                                <div className="flex justify-end gap-1">
+                                <div className="flex justify-end gap-0.5">
                                   <button
                                     type="button"
                                     onClick={() => startEdit(r)}
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap"
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap"
                                   >
-                                    <Edit2 size={13} />
+                                    <Edit2 size={12} />
                                     修正
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => void handleDelete(r)}
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap"
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap"
                                   >
-                                    <Trash2 size={13} />
+                                    <Trash2 size={12} />
                                     削除
                                   </button>
                                 </div>

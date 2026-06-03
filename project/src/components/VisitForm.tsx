@@ -45,12 +45,6 @@ function formatYen(raw: unknown): string {
   return `¥${Number.isFinite(n) ? Math.round(n).toLocaleString() : '0'}`;
 }
 
-function compactMemo(raw: unknown): string {
-  const s = String(raw || '').replace(/\s+/g, ' ').trim();
-  if (!s) return '—';
-  return s.length > 18 ? `${s.slice(0, 18)}…` : s;
-}
-
 function buildLegacyCustomerWarning(customerNumber: unknown): string | null {
   const n = parseCustomerNumber(customerNumber);
   if (!Number.isFinite(n)) return null;
@@ -741,15 +735,14 @@ export default function VisitForm({
                       </button>
                       {isOpen && (
                         <div className="overflow-auto border-t border-slate-200">
-                          <div className="min-w-[86rem]">
-                            <div className="grid grid-cols-[5.8rem_4.6rem_7rem_minmax(8rem,1fr)_6.4rem_7.2rem_minmax(11rem,1.2fr)_5.4rem_5.2rem_5rem_5rem_6rem] items-center gap-1.5 bg-slate-100 px-2 py-1.5 text-[11px] font-bold text-slate-600 border-b border-slate-200">
+                          <div className="min-w-[62rem]">
+                            <div className="grid grid-cols-[4.9rem_3.8rem_6.2rem_minmax(7rem,1fr)_5.3rem_6.1rem_4.5rem_3.8rem_4.4rem_5.4rem] items-center gap-1 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
                               <div>日付</div>
                               <div>番号</div>
                               <div>氏名</div>
                               <div>メニュー</div>
                               <div>金額</div>
                               <div>支払/種類</div>
-                              <div>メモ</div>
                               <div>担当</div>
                               <div>院</div>
                               <div>実通院</div>
@@ -763,7 +756,7 @@ export default function VisitForm({
                                 const paymentMethod = formatPaymentMethodLabel(r.payment_method, methodNameMap);
                                 const paymentDetail = formatPaymentDetailLabel(r.payment_detail_id, detailNameMap, r.import_kind_text, r.memo);
                                 return (
-                                  <li key={r.id} className="grid grid-cols-[5.8rem_4.6rem_7rem_minmax(8rem,1fr)_6.4rem_7.2rem_minmax(11rem,1.2fr)_5.4rem_5.2rem_5rem_5rem_6rem] items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-blue-50/50">
+                                  <li key={r.id} className="grid grid-cols-[4.9rem_3.8rem_6.2rem_minmax(7rem,1fr)_5.3rem_6.1rem_4.5rem_3.8rem_4.4rem_5.4rem] items-center gap-1 px-1.5 py-1 text-[11px] hover:bg-blue-50/50">
                                     <div className="font-bold text-slate-800 whitespace-nowrap">{formatCompactDate(r.visit_date)}</div>
                                     <div className="font-bold text-blue-700 truncate" title={customerNumber}>{customerNumber}</div>
                                     <div className="font-bold text-slate-800 truncate" title={customerName}>{customerName}</div>
@@ -772,28 +765,27 @@ export default function VisitForm({
                                     <div className="truncate text-slate-600" title={`${paymentMethod} / ${paymentDetail}`}>
                                       {paymentMethod}{paymentDetail !== '-' ? ` / ${paymentDetail}` : ''}
                                     </div>
-                                    <div className="truncate text-slate-600" title={r.memo || ''}>{compactMemo(r.memo)}</div>
                                     <div className="truncate text-slate-700" title={r.staff_name || ''}>{r.staff_name || '—'}</div>
                                     <div className="truncate text-slate-700" title={r.clinic_name || ''}>{clinicNameToShortLabel(r.clinic_name)}</div>
                                     <div className="font-bold text-blue-700 whitespace-nowrap">
                                       {r.be_equivalent_count == null ? '—' : `${r.be_equivalent_count}回`}
                                     </div>
                                     <div className="text-slate-700 whitespace-nowrap">{Number(r.maintenance_cost || 0) ? formatYen(r.maintenance_cost) : '—'}</div>
-                                    <div className="flex justify-end gap-1">
+                                    <div className="flex justify-end gap-0.5">
                                       <button
                                         type="button"
                                         onClick={() => startEdit(r)}
-                                        className="inline-flex items-center gap-1 px-2 py-1 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap"
+                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap"
                                       >
-                                        <Edit2 size={13} />
+                                        <Edit2 size={12} />
                                         修正
                                       </button>
                                       <button
                                         type="button"
                                         onClick={() => void deleteRecentRecord(r)}
-                                        className="inline-flex items-center gap-1 px-2 py-1 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap"
+                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap"
                                       >
-                                        <Trash2 size={13} />
+                                        <Trash2 size={12} />
                                         削除
                                       </button>
                                     </div>
