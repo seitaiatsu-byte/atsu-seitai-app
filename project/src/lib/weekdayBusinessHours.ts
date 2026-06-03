@@ -75,7 +75,19 @@ export async function saveWeekdayBusinessHours(rows: WeekdayBusinessHour[]): Pro
   }));
 
   const { error } = await supabase.from('weekday_business_hours').upsert(payload, { onConflict: 'weekday' });
-  if (error) return { ok: false, message: error.message };
+  if (error) {
+    const msg = error.message || '';
+    if (/weekday_business_hours|schema cache/i.test(msg)) {
+      return {
+        ok: false,
+        message:
+          '曜日営業時間用のテーブルが Supabase にまだありません。\n' +
+          'Supabase → SQL Editor で migration「20260604100000_weekday_business_hours.sql」を実行してください。\n' +
+          '（プロジェクト内 project/supabase/migrations/ にあります）',
+      };
+    }
+    return { ok: false, message: msg };
+  }
   return { ok: true };
 }
 

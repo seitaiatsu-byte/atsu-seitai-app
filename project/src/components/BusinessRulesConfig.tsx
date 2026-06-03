@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Settings, Save, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Settings, Save, KeyRound } from 'lucide-react';
+import SecretInputField, {
+  OTHER_CAL_PASSWORD_HINT,
+  OTHER_CAL_RECOVERY_HINT,
+} from './SecretInputField';
 import { supabase } from '../lib/supabase';
 import { type AlertFollowConfig, DEFAULT_ALERT_FOLLOW, fetchAlertFollowConfig } from '../lib/alertFollowConfig';
 import {
@@ -38,7 +42,6 @@ export default function BusinessRulesConfig() {
   const [otherCalRevealedPw, setOtherCalRevealedPw] = useState('');
   const [otherCalSaving, setOtherCalSaving] = useState(false);
   const [otherCalRevealBusy, setOtherCalRevealBusy] = useState(false);
-  const [showOtherCalRevealed, setShowOtherCalRevealed] = useState(false);
   const [alertFollow, setAlertFollow] = useState<AlertFollowConfig>(DEFAULT_ALERT_FOLLOW);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -51,6 +54,7 @@ export default function BusinessRulesConfig() {
     ads: false,
     duration: false,
     exclude: false,
+    otherCalendar: false,
   });
 
   const togglePanel = (key: string) => {
@@ -95,9 +99,10 @@ export default function BusinessRulesConfig() {
     }
 
     try {
-      setOtherCalConfigured(await isOtherCalendarPasswordConfigured());
+      await refreshOtherCalStatus();
     } catch {
       setOtherCalConfigured(false);
+      setOtherCalRecoveryConfigured(false);
     }
 
     setLoading(false);
@@ -156,7 +161,6 @@ export default function BusinessRulesConfig() {
       return;
     }
     setOtherCalRevealedPw(result.password);
-    setShowOtherCalRevealed(true);
   };
 
   const handleSave = async () => {
@@ -480,153 +484,142 @@ export default function BusinessRulesConfig() {
           )}
         </div>
 
-        <div className="bg-violet-50 border-2 border-violet-200 rounded-lg p-5 space-y-5">
-          <div className="flex items-start gap-2">
-            <KeyRound className="text-violet-700 shrink-0 mt-0.5" size={22} />
-            <div>
+        <div className="bg-violet-50 border-l-4 border-violet-500 rounded-lg overflow-hidden">
+          <button
+            type="button"
+            onClick={() => togglePanel('otherCalendar')}
+            className="w-full p-5 flex items-center justify-between text-left"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <KeyRound className="text-violet-700 shrink-0" size={22} />
               <h3 className="font-bold text-violet-900 text-lg">予約カレンダー「予約以外」タブのパスワード</h3>
-              <p className="text-sm text-gray-700 mt-1">
-                <strong>設定画面</strong>で入室パスワードと合言葉を登録します。
-                <strong>カレンダー</strong>の「予約以外」を開くときは、登録した<strong>入室パスワード</strong>だけを入力します（下の「設定を保存」では更新されません）。
+            </div>
+            <span className="text-violet-700 font-bold shrink-0 ml-2">{openPanels.otherCalendar ? '▲' : '▼'}</span>
+          </button>
+          {openPanels.otherCalendar && (
+            <div className="px-5 pb-5 space-y-5">
+              <p className="text-sm text-gray-700">
+                <strong>ここ</strong>で入室パスワードと合言葉を登録します。
+                <strong>カレンダー</strong>の「予約以外」では<strong>入室パスワードのみ</strong>（合言葉は不要）。
+                各欄の<strong>目のアイコン</strong>で入力文字を表示できます。
               </p>
-              <p className="text-sm mt-2">
+              <p className="text-sm">
                 状態:{' '}
                 <span className={`font-bold ${otherCalConfigured ? 'text-violet-800' : 'text-amber-800'}`}>
                   {otherCalConfigured ? '設定済み' : '未設定（タブを開けません）'}
                 </span>
+                {otherCalConfigured && (
+                  <span className="text-gray-600">
+                    {' '}
+                    / 合言葉: {otherCalRecoveryConfigured ? '登録済み' : '未登録'}
+                  </span>
+                )}
               </p>
-            </div>
-          </div>
 
-          {!otherCalConfigured ? (
-            <div className="rounded-lg border border-violet-300 bg-white p-4 space-y-3">
-              <h4 className="font-bold text-violet-900">初回設定</h4>
-              <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">入室パスワード（カレンダーで入力するもの）</label>
-                <input
-                  type="password"
-                  value={otherCalInitialPw}
-                  onChange={(e) => setOtherCalInitialPw(e.target.value)}
-                  className="w-full max-w-md px-4 py-2 border-2 border-violet-300 rounded-lg"
-                  placeholder="4文字以上"
-                  autoComplete="new-password"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">合言葉（忘れたときにパスワードを確認する用）</label>
-                <input
-                  type="password"
-                  value={otherCalInitialPhrase}
-                  onChange={(e) => setOtherCalInitialPhrase(e.target.value)}
-                  className="w-full max-w-md px-4 py-2 border-2 border-violet-300 rounded-lg"
-                  placeholder="4文字以上・入室パスワードとは別の言葉"
-                  autoComplete="new-password"
-                />
-              </div>
-              <button
-                type="button"
-                disabled={otherCalSaving}
-                onClick={() => void handleSaveOtherCalInitial()}
-                className="px-5 py-2 rounded-lg bg-violet-600 text-white font-bold disabled:opacity-50"
-              >
-                {otherCalSaving ? '保存中…' : 'パスワードを保存'}
-              </button>
-            </div>
-          ) : (
-            <>
-              {!otherCalRecoveryConfigured && (
-                <p className="text-sm text-amber-900 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2 font-bold">
-                  合言葉が未登録です。「パスワードを変更」で現在の入室パスワードを入れ、合言葉欄に新しい合言葉を入力して保存してください。
-                </p>
-              )}
-              <div className="rounded-lg border border-violet-300 bg-white p-4 space-y-3">
-                <h4 className="font-bold text-violet-900">パスワードを変更</h4>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">現在の入室パスワード</label>
-                  <input
-                    type="password"
-                    value={otherCalCurrentPw}
-                    onChange={(e) => setOtherCalCurrentPw(e.target.value)}
-                    className="w-full max-w-md px-4 py-2 border-2 border-violet-300 rounded-lg"
-                    autoComplete="current-password"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">新しい入室パスワード</label>
-                  <input
-                    type="password"
-                    value={otherCalNewPw}
-                    onChange={(e) => setOtherCalNewPw(e.target.value)}
-                    className="w-full max-w-md px-4 py-2 border-2 border-violet-300 rounded-lg"
+              {!otherCalConfigured ? (
+                <div className="rounded-lg border border-violet-300 bg-white p-4 space-y-3">
+                  <h4 className="font-bold text-violet-900">初回設定</h4>
+                  <SecretInputField
+                    label="入室パスワード（カレンダーで入力するもの）"
+                    hint={OTHER_CAL_PASSWORD_HINT}
+                    value={otherCalInitialPw}
+                    onChange={setOtherCalInitialPw}
                     placeholder="4文字以上"
                     autoComplete="new-password"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">合言葉を変える場合のみ（空欄なら今のまま）</label>
-                  <input
-                    type="password"
-                    value={otherCalNewPhrase}
-                    onChange={(e) => setOtherCalNewPhrase(e.target.value)}
-                    className="w-full max-w-md px-4 py-2 border-2 border-violet-300 rounded-lg"
+                  <SecretInputField
+                    label="合言葉（忘れたときにパスワードを確認する用）"
+                    hint={OTHER_CAL_RECOVERY_HINT}
+                    value={otherCalInitialPhrase}
+                    onChange={setOtherCalInitialPhrase}
+                    placeholder="例: たかつき2024"
                     autoComplete="new-password"
                   />
+                  <button
+                    type="button"
+                    disabled={otherCalSaving}
+                    onClick={() => void handleSaveOtherCalInitial()}
+                    className="px-5 py-2 rounded-lg bg-violet-600 text-white font-bold disabled:opacity-50"
+                  >
+                    {otherCalSaving ? '保存中…' : 'パスワードを保存'}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  disabled={otherCalSaving}
-                  onClick={() => void handleChangeOtherCalPassword()}
-                  className="px-5 py-2 rounded-lg bg-violet-600 text-white font-bold disabled:opacity-50"
-                >
-                  {otherCalSaving ? '変更中…' : 'パスワードを変更して保存'}
-                </button>
-              </div>
-
-              <div className="rounded-lg border border-amber-300 bg-amber-50/80 p-4 space-y-3">
-                <h4 className="font-bold text-amber-950">入室パスワードを忘れたとき</h4>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">合言葉</label>
-                  <input
-                    type="password"
-                    value={otherCalRecoveryInput}
-                    onChange={(e) => {
-                      setOtherCalRecoveryInput(e.target.value);
-                      setOtherCalRevealedPw('');
-                      setShowOtherCalRevealed(false);
-                    }}
-                    className="w-full max-w-md px-4 py-2 border-2 border-amber-400 rounded-lg"
-                    autoComplete="off"
-                  />
-                </div>
-                <button
-                  type="button"
-                  disabled={otherCalRevealBusy}
-                  onClick={() => void handleRevealOtherCalPassword()}
-                  className="px-5 py-2 rounded-lg border-2 border-amber-600 text-amber-950 font-bold bg-white disabled:opacity-50"
-                >
-                  {otherCalRevealBusy ? '確認中…' : '合言葉でパスワードを表示'}
-                </button>
-                {otherCalRevealedPw && (
-                  <div className="flex items-center gap-2 max-w-md">
-                    <input
-                      type={showOtherCalRevealed ? 'text' : 'password'}
-                      readOnly
-                      value={otherCalRevealedPw}
-                      className="flex-1 px-4 py-2 border-2 border-amber-500 rounded-lg bg-white font-mono"
+              ) : (
+                <>
+                  {!otherCalRecoveryConfigured && (
+                    <p className="text-sm text-amber-900 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2 font-bold">
+                      合言葉が未登録です。「パスワードを変更」で現在の入室パスワードを入れ、合言葉欄に新しい合言葉を入力して保存してください。
+                    </p>
+                  )}
+                  <div className="rounded-lg border border-violet-300 bg-white p-4 space-y-3">
+                    <h4 className="font-bold text-violet-900">パスワードを変更</h4>
+                    <SecretInputField
+                      label="現在の入室パスワード"
+                      hint={OTHER_CAL_PASSWORD_HINT}
+                      value={otherCalCurrentPw}
+                      onChange={setOtherCalCurrentPw}
+                      autoComplete="current-password"
+                    />
+                    <SecretInputField
+                      label="新しい入室パスワード"
+                      hint={OTHER_CAL_PASSWORD_HINT}
+                      value={otherCalNewPw}
+                      onChange={setOtherCalNewPw}
+                      placeholder="4文字以上"
+                      autoComplete="new-password"
+                    />
+                    <SecretInputField
+                      label="合言葉を変える場合のみ（空欄なら今のまま）"
+                      hint={OTHER_CAL_RECOVERY_HINT}
+                      value={otherCalNewPhrase}
+                      onChange={setOtherCalNewPhrase}
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
-                      onClick={() => setShowOtherCalRevealed((v) => !v)}
-                      className="p-2 rounded-lg border border-amber-400 text-amber-900"
-                      title={showOtherCalRevealed ? '隠す' : '表示'}
+                      disabled={otherCalSaving}
+                      onClick={() => void handleChangeOtherCalPassword()}
+                      className="px-5 py-2 rounded-lg bg-violet-600 text-white font-bold disabled:opacity-50"
                     >
-                      {showOtherCalRevealed ? <EyeOff size={18} /> : <Eye size={18} />}
+                      {otherCalSaving ? '変更中…' : 'パスワードを変更して保存'}
                     </button>
                   </div>
-                )}
-                <p className="text-xs text-gray-600">表示後はメモして、必要なら上の「変更」で新しいパスワードにしてください。</p>
-              </div>
-            </>
+
+                  <div className="rounded-lg border border-amber-300 bg-amber-50/80 p-4 space-y-3">
+                    <h4 className="font-bold text-amber-950">入室パスワードを忘れたとき</h4>
+                    <SecretInputField
+                      label="合言葉"
+                      hint={OTHER_CAL_RECOVERY_HINT}
+                      value={otherCalRecoveryInput}
+                      onChange={(v) => {
+                        setOtherCalRecoveryInput(v);
+                        setOtherCalRevealedPw('');
+                      }}
+                      inputClassName="border-2 border-amber-400 rounded-lg"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      disabled={otherCalRevealBusy}
+                      onClick={() => void handleRevealOtherCalPassword()}
+                      className="px-5 py-2 rounded-lg border-2 border-amber-600 text-amber-950 font-bold bg-white disabled:opacity-50"
+                    >
+                      {otherCalRevealBusy ? '確認中…' : '合言葉でパスワードを表示'}
+                    </button>
+                    {otherCalRevealedPw && (
+                      <SecretInputField
+                        label="登録されている入室パスワード"
+                        value={otherCalRevealedPw}
+                        onChange={() => {}}
+                        readOnly
+                        inputClassName="border-2 border-amber-500 rounded-lg bg-white"
+                      />
+                    )}
+                    <p className="text-xs text-gray-600">表示後はメモして、必要なら上の「変更」で新しいパスワードにしてください。</p>
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </div>
 

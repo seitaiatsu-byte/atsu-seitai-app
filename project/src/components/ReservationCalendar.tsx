@@ -5,6 +5,7 @@ import type { Database } from '../lib/database.types';
 import CustomerSearchPanel, { type CustomerRow } from './CustomerSearchPanel';
 import ClinicScopeToggle, { type ClinicScope } from './ClinicScopeToggle';
 import FlexibleTimeInput from './FlexibleTimeInput';
+import SecretInputField, { OTHER_CAL_PASSWORD_HINT } from './SecretInputField';
 import { CLINIC_FULL, clinicMatchesRecord, resolveClinicNameByCustomerNumber, type ClinicFullName } from '../lib/clinic';
 import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
 import { getTodayLocalYmd } from '../lib/visitDateParse';
@@ -1368,23 +1369,23 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 border-2 border-violet-200">
             <h3 className="text-lg font-bold text-gray-900 mb-1">予約以外（個人予定）へ入室</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              経営ルール設定で登録した<strong>入室パスワード</strong>を入力してください（合言葉ではありません）。
-              この端末ではタブを閉じるまで再入力不要です。
+            <p className="text-sm text-gray-600 mb-3">
+              経営ルール設定で登録した<strong>入室パスワード</strong>を入力（合言葉ではありません）。
+              目のアイコンで入力を確認できます。
             </p>
-            <label className="block text-xs font-bold text-gray-600 mb-1">入室パスワード</label>
-            <input
-              type="password"
+            <SecretInputField
+              label="入室パスワード"
+              hint={OTHER_CAL_PASSWORD_HINT}
               value={otherPasswordInput}
-              onChange={(e) => {
-                setOtherPasswordInput(e.target.value);
+              onChange={(v) => {
+                setOtherPasswordInput(v);
                 setOtherPasswordError('');
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') submitOtherPassword();
               }}
-              className="w-full border-2 border-violet-300 rounded-lg px-3 py-2 mb-2"
               placeholder="設定画面で保存したパスワード"
+              inputClassName="border-2 border-violet-300 rounded-lg w-full"
               autoFocus
             />
             {otherPasswordError && <p className="text-sm text-red-700 font-bold mb-2">{otherPasswordError}</p>}
