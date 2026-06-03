@@ -10,6 +10,17 @@ import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
 import { getTodayLocalYmd } from '../lib/visitDateParse';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import { syncReservationsVisitedByExistingVisits } from '../lib/appointmentReservations';
+import {
+  buildAppointmentDayTimeline,
+  gapChipLabel,
+  type DayTimelineItem,
+} from '../lib/reservationGaps';
+import {
+  fetchOtherCalendarPassword,
+  isOtherCalendarUnlocked,
+  setOtherCalendarUnlocked,
+  verifyOtherCalendarPassword,
+} from '../lib/otherCalendarAuth';
 
 type ReservationRow = Database['public']['Tables']['appointment_reservations']['Row'];
 type StaffMaster = Database['public']['Tables']['staff_master']['Row'];
@@ -96,7 +107,78 @@ interface ReservationCalendarProps {
 }
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'] as const;
-const DAY_CELL_VISIBLE_LIMIT = 6;
+const DAY_CELL_VISIBLE_LIMIT = 8;
+
+function gapChipClass(): string {
+  return 'bg-slate-200 border-slate-400 text-slate-700';
+}
+
+function tightChipClass(): string {
+  return 'bg-amber-100 border-amber-500 text-amber-950';
+}
+
+function renderTimelineItem(
+  item: DayTimelineItem,
+  colorRules: CalendarColorRule[],
+  onEditReservation: (r: ReservationWithCustomer) => void,
+  compact: boolean
+) {
+  if (item.kind === 'gap') {
+    const label = gapChipLabel(item.gap);
+    return (
+      <div
+        key={item.gap.id}
+        className={`flex items-center gap-1 leading-tight px-1 py-0.5 rounded border ${gapChipClass()} ${
+          compact ? 'text-[10px]' : 'text-xs'
+        }`}
+        title={`空白 ${item.gap.minutes}分`}
+      >
+        <span className="shrink-0 font-black text-slate-600">空</span>
+        <span className="min-w-0 truncate">{label}</span>
+      </div>
+    );
+  }
+  if (item.kind === 'tight') {
+    const staff = item.tight.staffName ? ` / ${item.tight.staffName}` : '';
+    return (
+      <div
+        key={item.tight.id}
+        className={`flex items-center gap-1 leading-tight px-1 py-0.5 rounded border ${tightChipClass()} ${
+          compact ? 'text-[10px]' : 'text-xs'
+        }`}
+        title="前後の予約が隙間なく続いています"
+      >
+        <span className="font-black">⚠</span>
+        <span className="min-w-0 truncate">密着 {item.tight.time}{staff}</span>
+      </div>
+    );
+  }
+  const r = item.reservation as ReservationWithCustomer;
+  return (
+    <div
+      key={r.id}
+      role="button"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        onEditReservation(r);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.stopPropagation();
+          onEditReservation(r);
+        }
+      }}
+      className={`flex items-center gap-1 leading-tight px-1 py-0.5 rounded border cursor-pointer ${chipClass(r, colorRules)} ${
+        compact ? 'text-[10px]' : 'text-sm'
+      }`}
+      title={`${r.start_time}-${r.end_time} ${statusLabel(r.status)} ${chipLabel(r)}`}
+    >
+      {processStatusBadge(r)}
+      <span className="min-w-0 truncate">{chipLabel(r)}</span>
+    </div>
+  );
+}
 
 function normalizeSearchText(raw: unknown): string {
   const s = String(raw ?? '')
@@ -182,6 +264,12 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth() + 1);
   const [calendarViewMode, setCalendarViewMode] = useState<CalendarViewMode>('appointment');
+  const [otherCalendarUnlocked, setOtherCalendarUnlockedState] = useState(isOtherCalendarUnlocked);
+  const [otherPasswordModalOpen, setOtherPasswordModalOpen] = useState(false);
+  const [otherPasswordInput, setOtherPasswordInput] = useState('');
+  const [otherPasswordExpected, setOtherPasswordExpected] = useState('');
+  const [otherPasswordError, setOtherPasswordError] = useState('');
+  const [otherPasswordConfigured, setOtherPasswordConfigured] = useState(false);
   const [clinicScope, setClinicScope] = useState<ClinicScope>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [rows, setRows] = useState<ReservationWithCustomer[]>([]);
@@ -266,6 +354,44 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
   useEffect(() => {
     void loadReservations();
   }, [loadReservations]);
+
+  useEffect(() => {
+    void fetchOtherCalendarPassword().then((p) => {
+      setOtherPasswordExpected(p);
+      setOtherPasswordConfigured(p.length > 0);
+    });
+  }, []);
+
+  const requestViewMode = (mode: CalendarViewMode) => {
+    if (mode === 'appointment') {
+      setCalendarViewMode('appointment');
+      return;
+    }
+    if (otherCalendarUnlocked) {
+      setCalendarViewMode('other');
+      return;
+    }
+    if (!otherPasswordConfigured) {
+      alert(
+        '「予約以外」用のパスワードが未設定です。\n設定 → 経営ルール設定 で「予約以外タブのパスワード」を登録してから保存してください。'
+      );
+      return;
+    }
+    setOtherPasswordInput('');
+    setOtherPasswordError('');
+    setOtherPasswordModalOpen(true);
+  };
+
+  const submitOtherPassword = () => {
+    if (!verifyOtherCalendarPassword(otherPasswordInput, otherPasswordExpected)) {
+      setOtherPasswordError('パスワードが違います');
+      return;
+    }
+    setOtherCalendarUnlocked();
+    setOtherCalendarUnlockedState(true);
+    setOtherPasswordModalOpen(false);
+    setCalendarViewMode('other');
+  };
 
   const loadColorRules = useCallback(async () => {
     const { data, error } = await supabase
@@ -401,6 +527,21 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
     if (!dayDetailDate) return [];
     return byDate.get(dayDetailDate) || [];
   }, [byDate, dayDetailDate]);
+
+  const dayDetailTimeline = useMemo(() => {
+    if (!dayDetailDate) return [] as DayTimelineItem[];
+    const list = dayDetailRows;
+    if (calendarViewMode !== 'appointment') {
+      return list
+        .map((r) => ({
+          kind: 'reservation' as const,
+          sortMin: timeToMinutes(r.start_time),
+          reservation: r,
+        }))
+        .sort((a, b) => a.sortMin - b.sortMin);
+    }
+    return buildAppointmentDayTimeline(list);
+  }, [dayDetailDate, dayDetailRows, calendarViewMode]);
 
   const calendarCells = useMemo(() => {
     const cells: Array<{ kind: 'blank' } | { kind: 'day'; ymd: string; day: number }> = [];
@@ -562,6 +703,28 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
         }
         return;
       }
+      const staffNameKey = normalizeSearchText(selectedStaff.name);
+      const adjacent = rows.filter((r) => {
+        if (editing && r.id === editing.id) return false;
+        if (!isAppointmentEntry(r) || r.status === 'cancelled') return false;
+        if (String(r.reservation_date).slice(0, 10) !== formDate) return false;
+        const sameStaff =
+          r.staff_id === selectedStaff.id || normalizeSearchText(r.staff_name) === staffNameKey;
+        return sameStaff;
+      });
+      const hasTight = adjacent.some(
+        (r) =>
+          timeToMinutes(formEnd) === timeToMinutes(r.start_time) ||
+          timeToMinutes(formStart) === timeToMinutes(r.end_time)
+      );
+      if (
+        hasTight &&
+        !window.confirm(
+          '同じスタッフの予約が前後と隙間なく密着します（例: 10:45終了→10:45開始）。\n本当にこのまま登録しますか？'
+        )
+      ) {
+        return;
+      }
     }
 
     setSaving(true);
@@ -654,7 +817,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <CalendarViewModeToggle value={calendarViewMode} onChange={setCalendarViewMode} />
+          <CalendarViewModeToggle value={calendarViewMode} onChange={requestViewMode} />
           <ClinicScopeToggle value={clinicScope} onChange={setClinicScope} />
           <div className="relative flex-1 min-w-[220px]">
             <input
@@ -710,12 +873,21 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
               患者さんの<strong>予約</strong>のみ表示します。
               <strong className="text-amber-800">来院入力の記録は自動では載りません</strong>
               （予約として登録した分だけ表示）。
+              <span className="ml-2 inline-flex items-center gap-1">
+                <span className="px-1 rounded border bg-slate-200 border-slate-400 text-slate-700 font-bold">Vac.</span>
+                ＝同一スタッフの空白時間（10分以上）
+                <span className="px-1 rounded border bg-amber-100 border-amber-500 text-amber-950 font-bold">密着</span>
+                ＝隙間なし（要注意）
+              </span>
             </>
           ) : (
             <>
               <span className="text-amber-800 font-bold">空き</span>・
               <span className="text-violet-800 font-bold">その他</span>
-              の枠（顧客なし）。日付タップで登録。
+              の枠（顧客なし・院長個人予定）。日付タップで登録。
+              {otherCalendarUnlocked ? (
+                <span className="text-violet-700 font-bold">（入室済み）</span>
+              ) : null}
             </>
           )}
         </p>
@@ -749,6 +921,14 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                 return <div key={`blank-${idx}`} className="min-h-[8rem] bg-slate-50/50 rounded-lg" />;
               }
               const list = byDate.get(cell.ymd) || [];
+              const timeline =
+                calendarViewMode === 'appointment'
+                  ? buildAppointmentDayTimeline(list)
+                  : list.map((r) => ({
+                      kind: 'reservation' as const,
+                      sortMin: timeToMinutes(r.start_time),
+                      reservation: r,
+                    }));
               const isToday = cell.ymd === getTodayLocalYmd();
               return (
                 <div
@@ -765,31 +945,12 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                 >
                   <div className={`text-xs font-bold mb-1 ${isToday ? 'text-teal-800' : 'text-gray-700'}`}>{cell.day}</div>
                   <div className="space-y-0.5">
-                    {list.slice(0, DAY_CELL_VISIBLE_LIMIT).map((r) => (
-                      <div
-                        key={r.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEdit(r);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.stopPropagation();
-                            openEdit(r);
-                          }
-                        }}
-                        className={`flex items-center gap-1 text-[10px] leading-tight px-1 py-0.5 rounded border ${chipClass(r, colorRules)}`}
-                        title={`${r.start_time}-${r.end_time} ${statusLabel(r.status)} ${chipLabel(r)}`}
-                      >
-                        {processStatusBadge(r)}
-                        <span className="min-w-0 truncate">{chipLabel(r)}</span>
-                      </div>
-                    ))}
-                    {list.length > DAY_CELL_VISIBLE_LIMIT && (
+                    {timeline.slice(0, DAY_CELL_VISIBLE_LIMIT).map((item) =>
+                      renderTimelineItem(item, colorRules, openEdit, true)
+                    )}
+                    {timeline.length > DAY_CELL_VISIBLE_LIMIT && (
                       <div className="text-[10px] font-bold text-teal-700 px-1">
-                        全{list.length}件を見る
+                        全{timeline.length}件を見る
                       </div>
                     )}
                   </div>
@@ -809,7 +970,8 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                   {dayDetailDate} の{calendarViewMode === 'appointment' ? '予約' : '予約以外'}一覧
                 </h3>
                 <p className="text-xs text-gray-500">
-                  {clinicScope === 'all' ? '全院' : clinicScope === 'takatsuki' ? '高槻院' : '川西'} / {dayDetailRows.length}件
+                  {clinicScope === 'all' ? '全院' : clinicScope === 'takatsuki' ? '高槻院' : '川西'} /{' '}
+                  {calendarViewMode === 'appointment' ? dayDetailTimeline.length : dayDetailRows.length}件
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -833,30 +995,59 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
               </div>
             </div>
             <div className="p-4 space-y-2 overflow-y-auto max-h-[72vh]">
-              {dayDetailRows.length === 0 ? (
+              {dayDetailTimeline.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-gray-500">
                   この日の表示対象はありません。
                 </div>
               ) : (
-                dayDetailRows.map((r) => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => openEdit(r)}
-                    className={`w-full rounded-xl border px-3 py-2 text-left shadow-sm ${chipClass(r, colorRules)}`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-bold text-sm">
-                        {String(r.start_time).slice(0, 5)}〜{String(r.end_time).slice(0, 5)} {chipLabel(r).replace(String(r.start_time).slice(0, 5), '').trim()}
+                dayDetailTimeline.map((item) => {
+                  if (item.kind === 'gap') {
+                    return (
+                      <div
+                        key={item.gap.id}
+                        className={`w-full rounded-xl border px-3 py-2 text-left shadow-sm ${gapChipClass()}`}
+                      >
+                        <div className="font-bold text-sm">{gapChipLabel(item.gap)}</div>
+                        <div className="text-xs mt-1">空白 {item.gap.minutes}分（自動表示・編集不可）</div>
                       </div>
-                      <div className="text-xs font-bold">
-                        {isAppointmentEntry(r) ? processStatusBadge(r) : entryKindLabel(r.entry_kind || 'other')}
+                    );
+                  }
+                  if (item.kind === 'tight') {
+                    return (
+                      <div
+                        key={item.tight.id}
+                        className={`w-full rounded-xl border px-3 py-2 text-left shadow-sm ${tightChipClass()}`}
+                      >
+                        <div className="font-bold text-sm">
+                          ⚠ 密着 {item.tight.time}
+                          {item.tight.staffName ? ` / ${item.tight.staffName}` : ''}
+                        </div>
+                        <div className="text-xs mt-1">前後の予約が隙間なく続いています</div>
                       </div>
-                    </div>
-                    {r.memo && <div className="mt-1 text-xs opacity-80 whitespace-pre-wrap">{r.memo}</div>}
-                    <div className="mt-1 text-[11px] opacity-70">タップで編集</div>
-                  </button>
-                ))
+                    );
+                  }
+                  const r = item.reservation as ReservationWithCustomer;
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => openEdit(r)}
+                      className={`w-full rounded-xl border px-3 py-2 text-left shadow-sm ${chipClass(r, colorRules)}`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="font-bold text-sm">
+                          {String(r.start_time).slice(0, 5)}〜{String(r.end_time).slice(0, 5)}{' '}
+                          {chipLabel(r).replace(String(r.start_time).slice(0, 5), '').trim()}
+                        </div>
+                        <div className="text-xs font-bold">
+                          {isAppointmentEntry(r) ? processStatusBadge(r) : entryKindLabel(r.entry_kind || 'other')}
+                        </div>
+                      </div>
+                      {r.memo && <div className="mt-1 text-xs opacity-80 whitespace-pre-wrap">{r.memo}</div>}
+                      <div className="mt-1 text-[11px] opacity-70">タップで編集</div>
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>
@@ -1151,6 +1342,46 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                   {statusLabel(editing.status)} / {editing.start_time.slice(0, 5)}〜{editing.end_time.slice(0, 5)}
                 </p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {otherPasswordModalOpen && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 border-2 border-violet-200">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">予約以外（個人予定）</h3>
+            <p className="text-sm text-gray-600 mb-4">パスワードを入力してください（この端末のタブを閉じるまで有効）。</p>
+            <input
+              type="password"
+              value={otherPasswordInput}
+              onChange={(e) => {
+                setOtherPasswordInput(e.target.value);
+                setOtherPasswordError('');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitOtherPassword();
+              }}
+              className="w-full border-2 border-violet-300 rounded-lg px-3 py-2 mb-2"
+              placeholder="パスワード"
+              autoFocus
+            />
+            {otherPasswordError && <p className="text-sm text-red-700 font-bold mb-2">{otherPasswordError}</p>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setOtherPasswordModalOpen(false)}
+                className="flex-1 py-2 rounded-lg border border-gray-300 font-bold text-gray-700"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={submitOtherPassword}
+                className="flex-1 py-2 rounded-lg bg-violet-600 text-white font-bold"
+              >
+                入室
+              </button>
             </div>
           </div>
         </div>

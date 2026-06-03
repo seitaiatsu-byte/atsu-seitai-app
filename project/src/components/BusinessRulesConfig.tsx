@@ -20,6 +20,7 @@ export default function BusinessRulesConfig() {
   const [adSourceKeywords, setAdSourceKeywords] = useState('広告,インスタ,instagram,meta,google,line');
   const [menuDurationRules, setMenuDurationRules] = useState('');
   const [defaultTreatmentMinutes, setDefaultTreatmentMinutes] = useState('60');
+  const [otherCalendarPassword, setOtherCalendarPassword] = useState('');
   const [alertFollow, setAlertFollow] = useState<AlertFollowConfig>(DEFAULT_ALERT_FOLLOW);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -58,6 +59,7 @@ export default function BusinessRulesConfig() {
       const adKeywordsRule = data.find((r: BusinessRule) => r.rule_key === 'ad_source_keywords');
       const menuDurationRule = data.find((r: BusinessRule) => r.rule_key === 'menu_duration_rules');
       const defaultMinutesRule = data.find((r: BusinessRule) => r.rule_key === 'default_treatment_minutes');
+      const otherCalRule = data.find((r: BusinessRule) => r.rule_key === 'other_calendar_password');
 
       if (inactiveRule) setInactiveDays(inactiveRule.rule_value);
       if (excludeRule) setExcludeKeywords(excludeRule.rule_value);
@@ -67,6 +69,7 @@ export default function BusinessRulesConfig() {
       if (adKeywordsRule) setAdSourceKeywords(adKeywordsRule.rule_value);
       if (menuDurationRule) setMenuDurationRules(menuDurationRule.rule_value);
       if (defaultMinutesRule) setDefaultTreatmentMinutes(defaultMinutesRule.rule_value);
+      if (otherCalRule) setOtherCalendarPassword(otherCalRule.rule_value);
     }
 
     try {
@@ -150,6 +153,15 @@ export default function BusinessRulesConfig() {
         rule_key: 'default_treatment_minutes',
         rule_value: defaultTreatmentMinutes,
         description: '分単価計算の既定施術時間（分）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'other_calendar_password',
+        rule_value: otherCalendarPassword.trim(),
+        description: '予約カレンダー「予約以外」タブの入室パスワード',
       },
       { onConflict: 'rule_key' }
     );
@@ -398,6 +410,21 @@ export default function BusinessRulesConfig() {
               </div>
             </div>
           )}
+        </div>
+
+        <div className="bg-violet-50 border-2 border-violet-200 rounded-lg p-5">
+          <h3 className="font-bold text-violet-900 text-lg mb-2">予約カレンダー「予約以外」タブのパスワード</h3>
+          <p className="text-sm text-gray-700 mb-3">
+            院長個人予定用のカレンダー表示に入室するときのパスワードです。未設定のままでは「予約以外」タブを開けません。
+          </p>
+          <input
+            type="password"
+            value={otherCalendarPassword}
+            onChange={(e) => setOtherCalendarPassword(e.target.value)}
+            className="w-full max-w-md px-4 py-2 border-2 border-violet-300 rounded-lg"
+            placeholder="例: 任意の合言葉"
+            autoComplete="new-password"
+          />
         </div>
 
         <div className="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg">
