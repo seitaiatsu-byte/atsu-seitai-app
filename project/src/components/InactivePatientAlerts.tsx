@@ -347,71 +347,95 @@ export default function InactivePatientAlerts() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <div className="text-center py-8 text-gray-500">読み込み中...</div>
+      <div className="bg-white rounded-xl shadow p-3 sm:p-4">
+        <div className="text-center py-4 text-sm text-gray-500">読み込み中...</div>
       </div>
     );
   }
 
+  const statCardClass =
+    'rounded-lg border shadow-sm px-2 py-1.5 sm:px-2.5 sm:py-2 min-h-0';
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2">
-          <AlertCircle className="text-red-600" size={28} />
-          <h2 className="text-2xl font-bold text-gray-800">アラート・フォロー</h2>
+    <div className="space-y-4 sm:space-y-5">
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <AlertCircle className="text-red-600 shrink-0" size={20} />
+            <h2 className="text-lg sm:text-xl font-bold text-gray-800 leading-tight truncate">アラート・フォロー</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadAlerts()}
+            className="inline-flex items-center gap-1 shrink-0 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-bold text-gray-700 hover:bg-gray-50"
+          >
+            <RefreshCw size={14} />
+            再読み込み
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => void loadAlerts()}
-          className="inline-flex items-center gap-2 rounded-xl border-2 border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50"
-        >
-          <RefreshCw size={16} />
-          再読み込み
-        </button>
-      </div>
 
-      <p className="text-sm text-gray-600 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-        フォロー日数帯（黄・橙・赤・緑の区切りと
-        <span className="font-bold text-slate-800"> アクティブの日数</span>）は{' '}
-        <span className="font-bold text-blue-700">設定</span>
-        内「経営ルール」で変更できます。保存後、ここで「再読み込み」するか約1分待つと反映されます。
-      </p>
+        <p className="text-[11px] sm:text-xs leading-snug text-gray-600 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
+          日数帯は<span className="font-bold text-blue-700">設定→経営ルール</span>で変更。保存後「再読み込み」または約1分で反映。
+        </p>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl shadow-lg p-4 border border-yellow-300">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Calendar className="text-yellow-600 shrink-0" size={18} />
-              <h3 className="font-bold text-yellow-900 text-sm truncate">{labelYellowRange(cfg)}</h3>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 sm:gap-2">
+          <div
+            className={`${statCardClass} bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-300`}
+          >
+            <div className="flex items-center justify-between gap-1">
+              <div className="flex items-center gap-1 min-w-0">
+                <Calendar className="text-yellow-600 shrink-0" size={14} />
+                <h3 className="font-bold text-yellow-900 text-[11px] sm:text-xs truncate leading-tight">
+                  {labelYellowRange(cfg)}
+                </h3>
+              </div>
+              <div className="text-xl sm:text-2xl font-bold text-yellow-900 leading-none tabular-nums shrink-0">
+                {b1.length}
+              </div>
             </div>
-            <div className="text-3xl font-bold text-yellow-900 leading-none shrink-0">{b1.length}</div>
           </div>
-        </div>
-        <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl shadow-lg p-4 border border-orange-300">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Calendar className="text-orange-600 shrink-0" size={18} />
-              <h3 className="font-bold text-orange-900 text-sm truncate">{labelOrangeRange(cfg)}</h3>
+          <div
+            className={`${statCardClass} bg-gradient-to-br from-orange-50 to-orange-100 border-orange-300`}
+          >
+            <div className="flex items-center justify-between gap-1">
+              <div className="flex items-center gap-1 min-w-0">
+                <Calendar className="text-orange-600 shrink-0" size={14} />
+                <h3 className="font-bold text-orange-900 text-[11px] sm:text-xs truncate leading-tight">
+                  {labelOrangeRange(cfg)}
+                </h3>
+              </div>
+              <div className="text-xl sm:text-2xl font-bold text-orange-900 leading-none tabular-nums shrink-0">
+                {b2.length}
+              </div>
             </div>
-            <div className="text-3xl font-bold text-orange-900 leading-none shrink-0">{b2.length}</div>
           </div>
-        </div>
-        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl shadow-lg p-4 border border-red-300">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <AlertCircle className="text-red-600 shrink-0" size={18} />
-              <h3 className="font-bold text-red-900 text-sm truncate">{labelRedRange(cfg)}</h3>
+          <div className={`${statCardClass} bg-gradient-to-br from-red-50 to-red-100 border-red-300`}>
+            <div className="flex items-center justify-between gap-1">
+              <div className="flex items-center gap-1 min-w-0">
+                <AlertCircle className="text-red-600 shrink-0" size={14} />
+                <h3 className="font-bold text-red-900 text-[11px] sm:text-xs truncate leading-tight">
+                  {labelRedRange(cfg)}
+                </h3>
+              </div>
+              <div className="text-xl sm:text-2xl font-bold text-red-900 leading-none tabular-nums shrink-0">
+                {b3.length}
+              </div>
             </div>
-            <div className="text-3xl font-bold text-red-900 leading-none shrink-0">{b3.length}</div>
           </div>
-        </div>
-        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl shadow-lg p-4 border border-emerald-300">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <UserCheck className="text-emerald-600 shrink-0" size={18} />
-              <h3 className="font-bold text-emerald-900 text-sm truncate">アクティブ（0〜360日）</h3>
+          <div
+            className={`${statCardClass} bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-300`}
+          >
+            <div className="flex items-center justify-between gap-1">
+              <div className="flex items-center gap-1 min-w-0">
+                <UserCheck className="text-emerald-600 shrink-0" size={14} />
+                <h3 className="font-bold text-emerald-900 text-[11px] sm:text-xs truncate leading-tight">
+                  アクティブ（0〜{ACTIVE_DAY_MAX}日）
+                </h3>
+              </div>
+              <div className="text-xl sm:text-2xl font-bold text-emerald-900 leading-none tabular-nums shrink-0">
+                {activeMembers.length}
+              </div>
             </div>
-            <div className="text-3xl font-bold text-emerald-900 leading-none shrink-0">{activeMembers.length}</div>
           </div>
         </div>
       </div>
