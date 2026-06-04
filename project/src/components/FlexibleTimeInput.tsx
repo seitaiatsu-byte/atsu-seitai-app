@@ -66,6 +66,26 @@ function supportsHandwritingRecognition(): boolean {
   return typeof (navigator as any).createHandwritingRecognizer === 'function';
 }
 
+/** PC・スマホ・タブレットでフォーカス／タップ時に全文選択（上書き入力しやすく） */
+function selectAllInputText(el: HTMLInputElement) {
+  const len = el.value.length;
+  const run = () => {
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
+    el.select();
+    try {
+      el.setSelectionRange(0, len);
+    } catch {
+      // type=number 等では未対応
+    }
+  };
+  run();
+  requestAnimationFrame(run);
+}
+
 export default function FlexibleTimeInput({ value, onChange, className = '', ariaLabel }: Props) {
   const [draft, setDraft] = useState(value);
   const [showHandwriting, setShowHandwriting] = useState(false);
@@ -169,8 +189,12 @@ export default function FlexibleTimeInput({ value, onChange, className = '', ari
           type="text"
           inputMode="numeric"
           data-ime="off"
+          autoComplete="off"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
+          onFocus={(e) => selectAllInputText(e.currentTarget)}
+          onClick={(e) => selectAllInputText(e.currentTarget)}
+          onTouchEnd={(e) => selectAllInputText(e.currentTarget)}
           onBlur={commit}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
