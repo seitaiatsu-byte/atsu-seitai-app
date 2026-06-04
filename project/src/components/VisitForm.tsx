@@ -843,7 +843,7 @@ export default function VisitForm({
                 顧客番号・氏名・担当・メニュー名で検索できます。帯色：1–4999＝川西（緑）、5000以降＝高槻（青）（全{recentRecords.length}件
                 {historyFilter ? `／表示${filteredRecentRecords.length}件` : ''}）。
               </p>
-              <p className="text-xs font-bold text-slate-500">横1行表示 / 左端で修正・削除</p>
+              <p className="text-xs font-bold text-slate-500">横1行表示 / 左で修正・右端で削除</p>
             </div>
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -880,64 +880,10 @@ export default function VisitForm({
                         <span className="text-sm font-bold text-blue-700 whitespace-nowrap">計 {formatYen(group.total)}</span>
                       </button>
                       {isOpen && (
-                        <div className="border-t border-slate-200">
-                          <ul className="md:hidden divide-y divide-slate-100">
-                            {group.records.map((r) => {
-                              const customerName = r.import_customer_name || r.customers?.name || '—';
-                              const customerNumber = r.customers?.customer_number || '—';
-                              const paymentMethod = formatPaymentMethodLabel(r.payment_method, methodNameMap);
-                              const paymentDetail = formatPaymentDetailLabel(
-                                r.payment_detail_id,
-                                detailNameMap,
-                                r.import_kind_text,
-                                r.memo
-                              );
-                              const rowBand = customerNumberHistoryRowClass(r.customers?.customer_number);
-                              return (
-                                <li key={r.id} className={`p-2.5 ${rowBand}`}>
-                                  <div className="flex gap-1 mb-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => startEdit(r)}
-                                      className="inline-flex items-center gap-0.5 px-2 py-1 rounded border border-blue-300 text-blue-700 font-bold text-xs hover:bg-blue-50 touch-manipulation"
-                                    >
-                                      <Edit2 size={12} />
-                                      修正
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => void deleteRecentRecord(r)}
-                                      className="inline-flex items-center gap-0.5 px-2 py-1 rounded border border-red-300 text-red-700 font-bold text-xs hover:bg-red-50 touch-manipulation"
-                                    >
-                                      <Trash2 size={12} />
-                                      削除
-                                    </button>
-                                  </div>
-                                  <div className="grid grid-cols-[4.5rem_1fr] gap-x-2 gap-y-1 text-[11px]">
-                                    <span className="text-slate-500 font-bold">番号</span>
-                                    <span className="font-bold text-slate-800">{customerNumber}</span>
-                                    <span className="text-slate-500 font-bold">氏名</span>
-                                    <span className="font-bold text-slate-800">{customerName}</span>
-                                    <span className="text-slate-500 font-bold">メニュー</span>
-                                    <span className="text-slate-800">{r.menu_name || '—'}</span>
-                                    <span className="text-slate-500 font-bold">金額</span>
-                                    <span className="font-bold text-slate-900">{formatYen(r.amount)}</span>
-                                    <span className="text-slate-500 font-bold">支払</span>
-                                    <span className="text-slate-600">
-                                      {paymentMethod}
-                                      {paymentDetail !== '-' ? ` / ${paymentDetail}` : ''}
-                                    </span>
-                                    <span className="text-slate-500 font-bold">担当</span>
-                                    <span className="text-slate-700">{r.staff_name || '—'}</span>
-                                  </div>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                          <div className="hidden md:block overflow-auto">
-                          <div className="min-w-[46rem]">
-                            <div className="grid grid-cols-[4.8rem_2.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem] items-center gap-1 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
-                              <div className="sticky left-0 z-10 bg-slate-100 -ml-1.5 pl-1.5">操作</div>
+                        <div className="overflow-auto border-t border-slate-200">
+                          <div className="min-w-[48rem]">
+                            <div className="grid grid-cols-[3.2rem_2.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem_3.2rem] items-center gap-x-1.5 gap-y-0 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
+                              <div className="sticky left-0 z-10 bg-slate-100 -ml-1.5 pl-1.5">修正</div>
                               <div>月日</div>
                               <div>番号</div>
                               <div>氏名</div>
@@ -946,6 +892,7 @@ export default function VisitForm({
                               <div>金額</div>
                               <div>支払/種類</div>
                               <div>担当</div>
+                              <div className="sticky right-0 z-10 bg-slate-100 -mr-1.5 pr-1.5 text-right">削除</div>
                             </div>
                             <ul className="divide-y divide-slate-100">
                               {group.records.map((r) => {
@@ -955,27 +902,22 @@ export default function VisitForm({
                                 const paymentDetail = formatPaymentDetailLabel(r.payment_detail_id, detailNameMap, r.import_kind_text, r.memo);
                                 const rowBand = customerNumberHistoryRowClass(r.customers?.customer_number);
                                 return (
-                                  <li key={r.id} className={`grid grid-cols-[4.8rem_2.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem] items-center gap-1 px-1.5 py-1 text-[11px] ${rowBand}`}>
-                                    <div className="sticky left-0 z-10 flex gap-0.5 shrink-0 bg-inherit -ml-1.5 pl-1.5 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.12)]">
+                                  <li
+                                    key={r.id}
+                                    className={`grid grid-cols-[3.2rem_2.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem_3.2rem] items-center gap-x-1.5 gap-y-0 px-1.5 py-1 text-[11px] ${rowBand}`}
+                                  >
+                                    <div className="sticky left-0 z-10 shrink-0 bg-inherit -ml-1.5 pl-1.5 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.12)]">
                                       <button
                                         type="button"
                                         onClick={() => startEdit(r)}
-                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap touch-manipulation"
+                                        className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap touch-manipulation"
                                       >
                                         <Edit2 size={12} />
                                         修正
                                       </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => void deleteRecentRecord(r)}
-                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap touch-manipulation"
-                                      >
-                                        <Trash2 size={12} />
-                                        削除
-                                      </button>
                                     </div>
                                     <div
-                                      className="font-bold text-slate-800 whitespace-nowrap"
+                                      className="font-bold text-slate-800 whitespace-nowrap pl-0.5"
                                       title={formatCompactDate(r.visit_date)}
                                     >
                                       {formatVisitMonthDay(r.visit_date)}
@@ -991,11 +933,20 @@ export default function VisitForm({
                                       {paymentMethod}{paymentDetail !== '-' ? ` / ${paymentDetail}` : ''}
                                     </div>
                                     <div className="truncate text-slate-700" title={r.staff_name || ''}>{r.staff_name || '—'}</div>
+                                    <div className="sticky right-0 z-10 flex justify-end shrink-0 bg-inherit -mr-1.5 pr-1.5 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.12)]">
+                                      <button
+                                        type="button"
+                                        onClick={() => void deleteRecentRecord(r)}
+                                        className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap touch-manipulation"
+                                      >
+                                        <Trash2 size={12} />
+                                        削除
+                                      </button>
+                                    </div>
                                   </li>
                                 );
                               })}
                             </ul>
-                          </div>
                           </div>
                         </div>
                       )}
