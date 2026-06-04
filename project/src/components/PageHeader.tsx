@@ -1,4 +1,5 @@
 import { ChevronLeft } from 'lucide-react';
+import { confirmLeaveIfUnsaved } from '../lib/unsavedFormGuard';
 
 interface PageHeaderProps {
   title: string;
@@ -16,7 +17,10 @@ export default function PageHeader({ title, onBack, right, hideBack }: PageHeade
       ) : (
         <button
           type="button"
-          onClick={onBack}
+          onClick={() => {
+            if (!confirmLeaveIfUnsaved()) return;
+            onBack();
+          }}
           className="inline-flex items-center gap-1 px-3 py-2 rounded-xl font-bold text-gray-700 bg-white border-2 border-gray-200 shadow-sm hover:bg-gray-50 transition-colors"
           aria-label="戻る"
         >

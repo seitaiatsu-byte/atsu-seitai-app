@@ -23,6 +23,7 @@ import ClinicScopeToggle, { type ClinicScope } from './components/ClinicScopeTog
 import NewCustomerForm from './components/NewCustomerForm';
 import SalesAggregationDashboard from './components/SalesAggregationDashboard';
 import { useJapaneseTextInputs } from './lib/useJapaneseTextInputs';
+import { guardNavigation } from './lib/unsavedFormGuard';
 
 const __GIT_SHA__ = 'build-20260425';
 
@@ -43,6 +44,17 @@ function App() {
     setShowProductForm(false);
     setShowSubscriptionForm(false);
     setVisitSeed(null);
+  };
+
+  const switchTab = (tab: typeof currentTab) => {
+    guardNavigation(() => {
+      setCurrentTab(tab);
+      if (tab !== 'home') {
+        setShowVisitForm(false);
+        setShowProductForm(false);
+        setShowSubscriptionForm(false);
+      }
+    });
   };
 
   if (!isSupabaseConfigured) {
@@ -75,24 +87,30 @@ function App() {
           <PageHeader title="あつ整体院・TOP" onBack={goHome} hideBack />
           <ReservationCalendar
             onOpenVisitWithReservation={(payload) => {
-              setVisitSeed(payload);
-              setShowVisitForm(true);
+              guardNavigation(() => {
+                setVisitSeed(payload);
+                setShowVisitForm(true);
+              });
             }}
             onOpenCustomerChart={(customer) => {
-              setChartSeedCustomer(customer);
-              setShowVisitForm(false);
-              setShowProductForm(false);
-              setShowSubscriptionForm(false);
-              setCurrentTab('chart');
+              guardNavigation(() => {
+                setChartSeedCustomer(customer);
+                setShowVisitForm(false);
+                setShowProductForm(false);
+                setShowSubscriptionForm(false);
+                setCurrentTab('chart');
+              });
             }}
           />
           <HomeButtons
             onVisitClick={() => {
-              setVisitSeed(null);
-              setShowVisitForm(true);
+              guardNavigation(() => {
+                setVisitSeed(null);
+                setShowVisitForm(true);
+              });
             }}
-            onProductClick={() => setShowProductForm(true)}
-            onSubscriptionClick={() => setShowSubscriptionForm(true)}
+            onProductClick={() => guardNavigation(() => setShowProductForm(true))}
+            onSubscriptionClick={() => guardNavigation(() => setShowSubscriptionForm(true))}
           />
         </div>
       )}
@@ -165,7 +183,7 @@ function App() {
             right={
               <button
                 type="button"
-                onClick={() => setShowNewCustomer(true)}
+                onClick={() => guardNavigation(() => setShowNewCustomer(true))}
                 className="text-sm font-bold px-3 py-2 rounded-lg bg-blue-600 text-white shadow"
               >
                 顧客登録
@@ -181,19 +199,16 @@ function App() {
       )}
 
       {showNewCustomer && (
-        <NewCustomerForm onClose={() => setShowNewCustomer(false)} />
+        <NewCustomerForm
+          onClose={() => guardNavigation(() => setShowNewCustomer(false))}
+        />
       )}
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-lg z-50">
         <div className="max-w-7xl mx-auto flex">
           <button
             type="button"
-            onClick={() => {
-              setCurrentTab('home');
-              setShowVisitForm(false);
-              setShowProductForm(false);
-              setShowSubscriptionForm(false);
-            }}
+            onClick={() => switchTab('home')}
             className={`flex-1 py-3 flex flex-col items-center justify-center transition-colors ${
               currentTab === 'home' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'
             }`}
@@ -203,7 +218,7 @@ function App() {
           </button>
           <button
             type="button"
-            onClick={() => setCurrentTab('reports')}
+            onClick={() => switchTab('reports')}
             className={`flex-1 py-3 flex flex-col items-center justify-center transition-colors ${
               currentTab === 'reports' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'
             }`}
@@ -213,7 +228,7 @@ function App() {
           </button>
           <button
             type="button"
-            onClick={() => setCurrentTab('alerts')}
+            onClick={() => switchTab('alerts')}
             className={`flex-1 py-3 flex flex-col items-center justify-center transition-colors ${
               currentTab === 'alerts' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'
             }`}
@@ -223,7 +238,7 @@ function App() {
           </button>
           <button
             type="button"
-            onClick={() => setCurrentTab('analysis')}
+            onClick={() => switchTab('analysis')}
             className={`flex-1 py-3 flex flex-col items-center justify-center transition-colors ${
               currentTab === 'analysis' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'
             }`}
@@ -233,7 +248,7 @@ function App() {
           </button>
           <button
             type="button"
-            onClick={() => setCurrentTab('chart')}
+            onClick={() => switchTab('chart')}
             className={`flex-1 py-3 flex flex-col items-center justify-center transition-colors ${
               currentTab === 'chart' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'
             }`}
@@ -243,7 +258,7 @@ function App() {
           </button>
           <button
             type="button"
-            onClick={() => setCurrentTab('settings')}
+            onClick={() => switchTab('settings')}
             className={`flex-1 py-3 flex flex-col items-center justify-center transition-colors ${
               currentTab === 'settings' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'
             }`}

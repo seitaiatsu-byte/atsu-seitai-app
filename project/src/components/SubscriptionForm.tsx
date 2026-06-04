@@ -12,6 +12,7 @@ import {
   hasSubscriptionOnDate,
   validateExplicitAmount,
 } from '../lib/registrationValidation';
+import { useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 
 type SubscriptionMaster = Database['public']['Tables']['subscription_master']['Row'];
 type PaymentMethodMaster = Database['public']['Tables']['payment_detail_master']['Row'];
@@ -262,7 +263,16 @@ export default function SubscriptionForm() {
   const getSubName = (id: string) => subscriptions.find((s) => s.id === id)?.name || '';
   const getStaffName = (id: string) => staffList.find((s) => s.id === id)?.name || '';
 
+  const subscriptionFormActive = Boolean(selectedCustomer);
+  const {
+    isTouched: subscriptionInputTouched,
+    clearTouched: clearSubscriptionInputTouched,
+    formInputProps: subscriptionFormInputProps,
+  } = useFormInputTouched(subscriptionFormActive);
+  useUnsavedFormGuard('subscription-form', subscriptionFormActive && subscriptionInputTouched);
+
   const resetForm = () => {
+    clearSubscriptionInputTouched();
     setEditingId(null);
     setSelectedCustomer(null);
     setSelectedSubscription('');
@@ -276,6 +286,7 @@ export default function SubscriptionForm() {
   };
 
   const clearEditModeKeepContext = (historyDate?: string) => {
+    clearSubscriptionInputTouched();
     setEditingId(null);
     setSelectedSubscription('');
     setAmount('');
@@ -290,6 +301,7 @@ export default function SubscriptionForm() {
   };
 
   const startEdit = (r: SubRecord) => {
+    clearSubscriptionInputTouched();
     setEditingId(r.id);
     setSelectedCustomer((r.customers as CustomerRow) || null);
     setStartDate((r.start_date || '').slice(0, 10));
@@ -482,10 +494,18 @@ export default function SubscriptionForm() {
           accent={editingId ? 'orange' : 'purple'}
           selectedCustomer={selectedCustomer}
           onSelect={setSelectedCustomer}
-          onClearSelection={() => setSelectedCustomer(null)}
+          onClearSelection={() => {
+            clearSubscriptionInputTouched();
+            setSelectedCustomer(null);
+          }}
         />
 
-        <form onSubmit={swallowFormSubmit} onKeyDown={blockEnterFormSubmit} className="space-y-4 mt-4">
+        <form
+          {...subscriptionFormInputProps}
+          onSubmit={swallowFormSubmit}
+          onKeyDown={blockEnterFormSubmit}
+          className="space-y-4 mt-4"
+        >
           {duplicateError && (
             <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-red-800 text-sm font-bold" role="alert">
               {duplicateError}

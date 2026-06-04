@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { guardNavigation, useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 import { ChevronDown, ChevronRight, Download, Image as ImageIcon, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -94,6 +95,12 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
     dir: 'asc',
   });
   const [editingVisit, setEditingVisit] = useState<VisitRow | null>(null);
+  const {
+    isTouched: visitEditTouched,
+    clearTouched: clearVisitEditTouched,
+    formInputProps: visitEditFormInputProps,
+  } = useFormInputTouched(Boolean(editingVisit));
+  useUnsavedFormGuard('chart-visit-edit', Boolean(editingVisit) && visitEditTouched);
   const [editVisitDate, setEditVisitDate] = useState('');
   const [editVisitAmount, setEditVisitAmount] = useState('');
   const [editVisitMenu, setEditVisitMenu] = useState('');
@@ -410,6 +417,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
   }, [activeRows, activeSort]);
 
   const openVisitEdit = (v: VisitRow) => {
+    clearVisitEditTouched();
     setEditingVisit(v);
     setEditVisitDate(String(v.visit_date || '').slice(0, 10));
     setEditVisitAmount(String(Number(v.amount || 0)));
@@ -441,6 +449,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
       alert(`修正に失敗しました: ${error.message}`);
       return;
     }
+    clearVisitEditTouched();
     setEditingVisit(null);
     window.dispatchEvent(new Event('records-updated'));
     await loadCustomerData();
@@ -1048,7 +1057,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
 
       {editingVisit && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-xl bg-white border border-slate-200 shadow-xl p-4 space-y-3">
+          <div className="w-full max-w-md rounded-xl bg-white border border-slate-200 shadow-xl p-4 space-y-3" {...visitEditFormInputProps}>
             <h4 className="text-base font-bold text-gray-800">来院履歴を修正</h4>
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1">来院日</label>
@@ -1113,7 +1122,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
             <div className="flex justify-end gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => setEditingVisit(null)}
+                onClick={() => guardNavigation(() => setEditingVisit(null))}
                 className="px-3 py-1.5 text-sm font-bold rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 キャンセル

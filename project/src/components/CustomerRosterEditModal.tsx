@@ -6,6 +6,7 @@ import type { Database } from '../lib/database.types';
 import { applyPhoneToCustomerPayload, readPhoneFromCustomerRow } from '../lib/customerPhoneFields';
 import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
 import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
+import { guardNavigation, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type ReferralRow = Database['public']['Tables']['referral_source_master']['Row'];
@@ -56,6 +57,8 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
   const [chiefComplaints, setChiefComplaints] = useState<ChiefRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [inputTouched, setInputTouched] = useState(false);
+  useUnsavedFormGuard('customer-roster-edit', open && inputTouched);
 
   const resetFrom = useCallback(() => {
     if (!customer) return;
@@ -83,7 +86,10 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
   }, [customer]);
 
   useEffect(() => {
-    if (open && customer) resetFrom();
+    if (open && customer) {
+      resetFrom();
+      setInputTouched(false);
+    }
   }, [open, customer, resetFrom]);
 
   useEffect(() => {
@@ -163,6 +169,7 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
 
       if (!error) {
         window.dispatchEvent(new Event('customers-updated'));
+        setInputTouched(false);
         onSaved();
         onClose();
         setSaving(false);
@@ -212,10 +219,10 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
               {customer.name} <span className="text-gray-500 font-mono">#{customer.customer_number}</span>
             </div>
           </div>
-          <ModalCloseButton onClick={onClose} />
+          <ModalCloseButton onClick={() => guardNavigation(onClose)} />
         </div>
 
-        <div className="p-5 space-y-4 text-sm">
+        <div className="p-5 space-y-4 text-sm" onInput={() => setInputTouched(true)}>
           <p className="text-gray-600 text-xs">顧客情報をまとめて加筆・修正できます。保存すると名簿・個人カルテに即反映されます。</p>
 
           <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
@@ -384,7 +391,7 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
           <div className="flex justify-end gap-2 pt-2 sticky bottom-0 bg-white/90 py-3">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => guardNavigation(onClose)}
               className="px-4 py-2 rounded-lg border border-gray-300 font-bold text-gray-700 bg-white hover:bg-gray-50"
             >
               キャンセル

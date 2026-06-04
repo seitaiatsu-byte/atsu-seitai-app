@@ -11,6 +11,7 @@ import {
   splitAmountAcrossLines,
   validateExplicitAmount,
 } from '../lib/registrationValidation';
+import { useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 
 type ProductMaster = Database['public']['Tables']['product_master']['Row'];
 type PaymentMethodMaster = Database['public']['Tables']['payment_method_master']['Row'];
@@ -142,7 +143,13 @@ export default function ProductSaleForm() {
   }, [paymentMethods]);
   const paymentLabel = (raw: string | null | undefined) => (raw && paymentNameMap.get(raw)) || raw || '-';
 
+  const productFormActive = Boolean(selectedCustomer);
+  const { isTouched: productInputTouched, clearTouched: clearProductInputTouched, formInputProps: productFormInputProps } =
+    useFormInputTouched(productFormActive);
+  useUnsavedFormGuard('product-sale-form', productFormActive && productInputTouched);
+
   const resetForm = () => {
+    clearProductInputTouched();
     setEditingId(null);
     setSelectedCustomer(null);
     setLines(emptyLines());
@@ -156,6 +163,7 @@ export default function ProductSaleForm() {
 
   /** 履歴から修正保存後：顧客・パネル・日付の開閉を維持し次の修正へ */
   const clearEditModeKeepContext = (historyDate?: string) => {
+    clearProductInputTouched();
     setEditingId(null);
     setLines(emptyLines());
     setAmount('');
@@ -170,6 +178,7 @@ export default function ProductSaleForm() {
   };
 
   const startEdit = (r: ProductSaleRow) => {
+    clearProductInputTouched();
     setEditingId(r.id);
     setSelectedCustomer((r.customers as CustomerRow) || null);
     setSaleDate((r.sale_date || '').slice(0, 10));
@@ -383,10 +392,13 @@ export default function ProductSaleForm() {
         accent="orange"
         selectedCustomer={selectedCustomer}
         onSelect={setSelectedCustomer}
-        onClearSelection={() => setSelectedCustomer(null)}
+        onClearSelection={() => {
+          clearProductInputTouched();
+          setSelectedCustomer(null);
+        }}
       />
 
-      <form onSubmit={swallowFormSubmit} onKeyDown={blockEnterFormSubmit} className="space-y-4">
+      <form {...productFormInputProps} onSubmit={swallowFormSubmit} onKeyDown={blockEnterFormSubmit} className="space-y-4">
         {duplicateError && (
           <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-red-800 text-sm font-bold" role="alert">
             {duplicateError}

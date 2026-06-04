@@ -6,6 +6,7 @@ import CustomerSearchPanel, { type CustomerRow } from './CustomerSearchPanel';
 import ClinicScopeToggle, { type ClinicScope } from './ClinicScopeToggle';
 import FlexibleTimeInput from './FlexibleTimeInput';
 import { ensureJapaneseImeForInput } from '../lib/useJapaneseTextInputs';
+import { guardNavigation, useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 import SecretInputField, { OTHER_CAL_PASSWORD_HINT } from './SecretInputField';
 import ModalCloseButton from './ModalCloseButton';
 import { CLINIC_FULL, clinicMatchesRecord, resolveClinicNameByCustomerNumber, type ClinicFullName } from '../lib/clinic';
@@ -321,6 +322,20 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
   const [loadError, setLoadError] = useState('');
 
   const [editorOpen, setEditorOpen] = useState(false);
+  const {
+    isTouched: reservationInputTouched,
+    clearTouched: clearReservationInputTouched,
+    formInputProps: reservationFormInputProps,
+  } = useFormInputTouched(editorOpen);
+  useUnsavedFormGuard('reservation-editor', editorOpen && reservationInputTouched);
+
+  const closeReservationEditor = () => {
+    guardNavigation(() => {
+      setEditorOpen(false);
+      clearReservationInputTouched();
+    });
+  };
+
   const [editing, setEditing] = useState<ReservationWithCustomer | null>(null);
   const [formDate, setFormDate] = useState(getTodayLocalYmd());
   const [formStart, setFormStart] = useState('10:00');
@@ -604,6 +619,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
   }, [monthMeta.daysInMonth, monthMeta.startWeekday, viewMonth, viewYear]);
 
   const openCreate = (ymd: string) => {
+    clearReservationInputTouched();
     setDayDetailDate(null);
     setEditing(null);
     setFormDate(ymd);
@@ -625,6 +641,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
   };
 
   const openEdit = (r: ReservationWithCustomer) => {
+    clearReservationInputTouched();
     setDayDetailDate(null);
     setEditing(r);
     setFormDate(String(r.reservation_date).slice(0, 10));
@@ -793,6 +810,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
       alert(`予約の保存に失敗しました: ${error.message}`);
       return;
     }
+    clearReservationInputTouched();
     setEditorOpen(false);
     window.dispatchEvent(new Event('reservations-updated'));
     void loadReservations();
@@ -809,6 +827,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
       alert(`削除に失敗しました: ${error.message}`);
       return;
     }
+    clearReservationInputTouched();
     setEditorOpen(false);
     window.dispatchEvent(new Event('reservations-updated'));
     void loadReservations();
@@ -1209,9 +1228,9 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                     ? '予約を追加'
                     : '予定を追加'}
               </h3>
-              <ModalCloseButton onClick={() => setEditorOpen(false)} />
+              <ModalCloseButton onClick={closeReservationEditor} />
             </div>
-            <div className="p-4 space-y-3 text-sm">
+            <div className="p-4 space-y-3 text-sm" {...reservationFormInputProps}>
               {formEntryKind === 'appointment' ? (
                 <>
                   <CustomerSearchPanel

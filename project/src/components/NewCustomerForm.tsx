@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Save } from 'lucide-react';
 import ModalCloseButton from './ModalCloseButton';
 import { supabase } from '../lib/supabase';
@@ -16,6 +16,7 @@ import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColu
 import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
 import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
 import { hasCustomerNumber } from '../lib/registrationValidation';
+import { useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type ReferralRow = Database['public']['Tables']['referral_source_master']['Row'];
@@ -86,6 +87,12 @@ export default function NewCustomerForm({
   const [chiefComplaints, setChiefComplaints] = useState<ChiefRow[]>([]);
   const [birthInput, setBirthInput] = useState('');
   const [submitErrors, setSubmitErrors] = useState<string[]>([]);
+
+  const isNewCustomerDirty = useMemo(() => {
+    const hasField = Object.values(formData).some((v) => String(v ?? '').trim().length > 0);
+    return hasField || birthInput.trim().length > 0;
+  }, [formData, birthInput]);
+  useUnsavedFormGuard('new-customer-form', isNewCustomerDirty);
 
   const resetCreateForm = () => {
     setFormData({ ...EMPTY_CREATE_FORM });

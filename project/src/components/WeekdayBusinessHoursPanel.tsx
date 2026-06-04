@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 import { Plus, Save, Trash2 } from 'lucide-react';
 import FlexibleTimeInput from './FlexibleTimeInput';
 import {
@@ -14,14 +15,23 @@ const EMPTY_BREAK: BreakPeriod = { start_time: '12:00', end_time: '13:00' };
 
 export default function WeekdayBusinessHoursPanel() {
   const [rows, setRows] = useState<WeekdayBusinessHour[]>(DEFAULT_WEEKDAY_BUSINESS_HOURS);
+  const [savedSnapshot, setSavedSnapshot] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    setRows(await fetchWeekdayBusinessHours());
+    const data = await fetchWeekdayBusinessHours();
+    setRows(data);
+    setSavedSnapshot(JSON.stringify(data));
     setLoading(false);
   };
+
+  const isHoursDirty = useMemo(
+    () => !loading && savedSnapshot.length > 0 && JSON.stringify(rows) !== savedSnapshot,
+    [loading, rows, savedSnapshot]
+  );
+  useUnsavedFormGuard('weekday-business-hours', isHoursDirty);
 
   useEffect(() => {
     void load();
@@ -70,6 +80,7 @@ export default function WeekdayBusinessHoursPanel() {
     }
     alert('曜日営業時間・休憩を保存しました');
     window.dispatchEvent(new Event('masters-updated'));
+    setSavedSnapshot(JSON.stringify(rows));
     void load();
   };
 

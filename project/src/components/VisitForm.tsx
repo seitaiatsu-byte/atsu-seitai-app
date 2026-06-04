@@ -14,6 +14,7 @@ import { formatVisitMonthDay, getTodayLocalYmd } from '../lib/visitDateParse';
 import { recalcBeEquivalentCountsForCustomers } from '../lib/beEquivalentRecalc';
 import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
 import { ensureJapaneseImeForInput } from '../lib/useJapaneseTextInputs';
+import { useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 import {
   formatCustomerNumberForMessage,
   hasVisitOnDate,
@@ -134,6 +135,11 @@ export default function VisitForm({
     if (linkedReservationId) setPendingReservationId(linkedReservationId);
     onVisitSeedConsumed?.();
   }, [initialCustomer, initialVisitDate, linkedReservationId, onVisitSeedConsumed]);
+  const formEntryActive = Boolean(selectedCustomer);
+  const { isTouched: visitInputTouched, clearTouched: clearVisitInputTouched, formInputProps: visitFormInputProps } =
+    useFormInputTouched(formEntryActive);
+  useUnsavedFormGuard('visit-form', formEntryActive && visitInputTouched);
+
   const legacyNumberWarning = useMemo(
     () => buildLegacyCustomerWarning(selectedCustomer?.customer_number),
     [selectedCustomer?.customer_number]
@@ -269,6 +275,7 @@ export default function VisitForm({
     flashMessage?: string;
     highlightHistoryDate?: string;
   }) => {
+    clearVisitInputTouched();
     resetVisitFormDefaults();
     setSelectedCustomer(null);
     setInputPanelOpen(true);
@@ -429,6 +436,7 @@ export default function VisitForm({
     setHistoryPanelOpen(true);
     const d = String(r.visit_date || '').slice(0, 10);
     if (d) setOpenHistoryDates((prev) => new Set(prev).add(d));
+    clearVisitInputTouched();
     setEditingId(r.id);
     setSelectedCustomer(r.customers);
     setVisitDate((r.visit_date || '').slice(0, 10));
@@ -589,6 +597,7 @@ export default function VisitForm({
           selectedCustomer={selectedCustomer}
           onSelect={setSelectedCustomer}
           onClearSelection={() => {
+            clearVisitInputTouched();
             resetVisitFormDefaults();
             setSelectedCustomer(null);
           }}
@@ -601,6 +610,7 @@ export default function VisitForm({
         )}
         {selectedCustomer && (
         <form
+          {...visitFormInputProps}
           onSubmit={swallowFormSubmit}
           onKeyDown={blockEnterFormSubmit}
           onFocus={(e) => {
