@@ -280,29 +280,31 @@ export default function InactivePatientAlerts() {
     b1.length === 0 && b2.length === 0 && filteredB3.length === 0 && !hasBirth;
 
   const renderBirthdayList = (items: BirthdayRow[]) => (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {items.map((item) => (
         <div
           key={item.customer.id}
-          className={`rounded-lg px-3 py-2 border transition-colors ${birthdayRowCardClass(item.daysSinceLastVisit)}`}
+          className={`rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 border transition-colors ${birthdayRowCardClass(item.daysSinceLastVisit)}`}
         >
-          <div className="flex items-center justify-between gap-2 text-sm">
-            <div className="min-w-0 flex items-center gap-2">
-              <span className="font-bold text-gray-900 truncate">{item.customer.name}</span>
-              {item.customer.customer_number != null && String(item.customer.customer_number).trim() !== '' && (
-                <span className="text-xs font-mono font-semibold text-gray-600 shrink-0">
-                  {item.customer.customer_number}
-                </span>
-              )}
-              <span className="text-xs text-gray-600 truncate">{item.customer.name_kana}</span>
-              <span className="text-xs text-gray-700 shrink-0">
-                {new Date(item.birthDate).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}（満
-                {item.displayAge}歳）
-              </span>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="font-bold text-sm text-gray-900 truncate leading-tight">{item.customer.name}</div>
+              {item.customer.name_kana ? (
+                <div className="text-[11px] text-gray-600 truncate">{item.customer.name_kana}</div>
+              ) : null}
             </div>
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-gray-700 shrink-0">
-              <Phone size={14} />
-              {compactPhone(item.customer.phone_number)}
+            <span className="inline-flex items-center gap-0.5 text-[11px] sm:text-xs font-bold text-gray-700 shrink-0 max-w-[42%]">
+              <Phone size={13} className="shrink-0" />
+              <span className="truncate">{compactPhone(item.customer.phone_number)}</span>
+            </span>
+          </div>
+          <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-gray-700">
+            {item.customer.customer_number != null && String(item.customer.customer_number).trim() !== '' && (
+              <span className="font-mono font-semibold">#{item.customer.customer_number}</span>
+            )}
+            <span>
+              {new Date(item.birthDate).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}（満
+              {item.displayAge}歳）
             </span>
           </div>
         </div>
@@ -313,30 +315,34 @@ export default function InactivePatientAlerts() {
   const renderInactiveList = (title: string, color: string, items: InactiveRow[]) => {
     if (items.length === 0) return null;
     return (
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${color}`}>
-          <Calendar size={20} />
-          {title}（{items.length}名）
+      <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4">
+        <h3 className={`text-sm sm:text-base font-bold mb-2 flex items-center gap-1.5 leading-tight ${color}`}>
+          <Calendar size={18} className="shrink-0" />
+          <span className="min-w-0">{title}（{items.length}名）</span>
         </h3>
-        <div className="space-y-2 max-h-96 overflow-y-auto">
+        <div className="space-y-1.5 max-h-96 overflow-y-auto">
           {items.map((item) => (
             <div
               key={item.customer.id}
-              className="rounded-lg px-3 py-2 border border-gray-200 hover:shadow-md bg-gray-50"
+              className="rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-200 bg-gray-50"
             >
-              <div className="flex items-center justify-between gap-2 text-sm">
-                <div className="min-w-0 flex items-center gap-2">
-                  <span className="font-bold text-gray-900 truncate">{item.customer.name}</span>
-                  <span className="text-xs text-gray-600 truncate">{item.customer.name_kana}</span>
-                  <span className="text-xs text-gray-700 shrink-0 font-bold">{item.daysSince}日経過</span>
-                  <span className="text-xs text-gray-700 shrink-0">最終来院: {new Date(item.lastVisitDate).toLocaleDateString('ja-JP')}</span>
-                  <span className="text-xs text-gray-700 shrink-0">来院{item.visitCount}回</span>
-                  <span className="text-xs text-gray-700 shrink-0">LTV: ¥{Math.round(item.ltvApprox).toLocaleString()}</span>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-sm text-gray-900 truncate leading-tight">{item.customer.name}</div>
+                  {item.customer.name_kana ? (
+                    <div className="text-[11px] text-gray-600 truncate">{item.customer.name_kana}</div>
+                  ) : null}
                 </div>
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-gray-700 shrink-0">
-                  <Phone size={14} />
-                  {compactPhone(item.customer.phone_number)}
+                <span className="inline-flex items-center gap-0.5 text-[11px] sm:text-xs font-bold text-gray-700 shrink-0 max-w-[42%]">
+                  <Phone size={13} className="shrink-0" />
+                  <span className="truncate">{compactPhone(item.customer.phone_number)}</span>
                 </span>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] sm:text-xs text-gray-700">
+                <span className="font-bold text-gray-800">{item.daysSince}日経過</span>
+                <span>最終 {new Date(item.lastVisitDate).toLocaleDateString('ja-JP')}</span>
+                <span>来院{item.visitCount}回</span>
+                <span>LTV ¥{Math.round(item.ltvApprox).toLocaleString()}</span>
               </div>
             </div>
           ))}
@@ -441,10 +447,10 @@ export default function InactivePatientAlerts() {
       </div>
 
       {activeMembers.length > 0 && (
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-            <UserCheck className="text-emerald-600" size={20} />
-            アクティブ会員リスト（最終来院の経過が0〜360日）
+        <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4">
+          <h3 className="text-sm sm:text-base font-bold text-gray-800 mb-2 flex items-center gap-1.5 leading-tight">
+            <UserCheck className="text-emerald-600 shrink-0" size={18} />
+            <span className="min-w-0">アクティブ会員（0〜{ACTIVE_DAY_MAX}日）</span>
           </h3>
           <div className="mb-2 flex flex-wrap gap-2 text-xs">
             <button
@@ -471,16 +477,16 @@ export default function InactivePatientAlerts() {
           </div>
           <div className="max-h-64 overflow-y-auto divide-y">
             {activeMembersSorted.map((row) => (
-              <div key={row.customer.id} className={`py-1.5 px-2 text-xs border ${activeRowColorClass(row.daysSince)}`}>
-                <div className="flex justify-between gap-2">
-                  <span className="font-bold text-gray-800">
-                    {row.customer.name}
-                    <span className="ml-1 text-gray-500 font-normal">{row.customer.name_kana || ''}</span>
+              <div key={row.customer.id} className={`py-1.5 px-2 border ${activeRowColorClass(row.daysSince)}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1 font-bold text-sm text-gray-800 truncate">{row.customer.name}</div>
+                  <span className="text-[11px] text-gray-600 shrink-0 max-w-[42%] truncate">
+                    {compactPhone(row.customer.phone_number)}
                   </span>
-                  <span className="text-gray-500">{compactPhone(row.customer.phone_number)}</span>
                 </div>
-                <div className="text-[11px] text-gray-600">
-                  {row.daysSince}日経過 / 最新来院: {new Date(row.lastVisitDate).toLocaleDateString('ja-JP')}
+                <div className="text-[11px] text-gray-600 truncate">{row.customer.name_kana || ''}</div>
+                <div className="text-[11px] text-gray-600 mt-0.5">
+                  {row.daysSince}日経過 · 最終 {new Date(row.lastVisitDate).toLocaleDateString('ja-JP')}
                 </div>
               </div>
             ))}
@@ -489,10 +495,10 @@ export default function InactivePatientAlerts() {
       )}
 
       {hasBirth && (
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-            <Cake className="text-pink-600" size={20} />
-            誕生日（今月・来月、日付の早い順）
+        <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4">
+          <h3 className="text-sm sm:text-base font-bold text-gray-800 mb-2 flex items-center gap-1.5 leading-tight">
+            <Cake className="text-pink-600 shrink-0" size={18} />
+            誕生日（今月・来月）
           </h3>
           <p className="text-xs text-gray-600 mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
             <span>
@@ -544,8 +550,8 @@ export default function InactivePatientAlerts() {
         b2
       )}
 
-      <div className="bg-white rounded-2xl shadow-lg p-4 border border-red-200">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
+      <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4 border border-red-200">
+        <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
           <span className="font-bold text-red-800">長期未来院の表示範囲:</span>
           <span className="text-gray-700">{t2b}日以上〜</span>
           <input
