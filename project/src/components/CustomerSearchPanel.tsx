@@ -4,6 +4,7 @@ import type { Database } from '../lib/database.types';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
 import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
+import { ensureJapaneseImeForInput, focusWithJapaneseIme } from '../lib/useJapaneseTextInputs';
 
 export type CustomerRow = Database['public']['Tables']['customers']['Row'];
 
@@ -20,20 +21,12 @@ interface CustomerSearchPanelProps {
 
 function focusCustomerSearchInput(el: HTMLInputElement | null) {
   if (!el) return;
-  const run = () => {
-    try {
-      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    } catch {
-      /* ignore */
-    }
-    try {
-      el.focus({ preventScroll: true });
-    } catch {
-      el.focus();
-    }
-  };
-  run();
-  requestAnimationFrame(run);
+  try {
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  } catch {
+    /* ignore */
+  }
+  focusWithJapaneseIme(el);
 }
 
 const border: Record<Accent, string> = {
@@ -196,6 +189,12 @@ export default function CustomerSearchPanel({
   }, [highlightIndex, searchResults]);
 
   useEffect(() => {
+    if (selectedCustomer) return;
+    const el = searchInputRef.current;
+    if (el) ensureJapaneseImeForInput(el);
+  }, [selectedCustomer]);
+
+  useEffect(() => {
     if (!focusSearchSignal || selectedCustomer) return;
     focusCustomerSearchInput(searchInputRef.current);
   }, [focusSearchSignal, selectedCustomer]);
@@ -256,13 +255,17 @@ export default function CustomerSearchPanel({
         <input
           ref={searchInputRef}
           type="text"
-          inputMode="text"
+          data-ime="ja"
           lang="ja"
           autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={(e) => ensureJapaneseImeForInput(e.currentTarget)}
           onKeyDown={onSearchKeyDown}
-          placeholder="ふりがな・氏名・番号（例: たなか）"
+          placeholder="ふりがなで検索（例: たなか）"
           className={`w-full px-4 py-3 border-2 rounded-lg outline-none ${border[accent]}`}
           autoFocus
           role="combobox"

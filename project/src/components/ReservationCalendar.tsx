@@ -5,6 +5,7 @@ import type { Database } from '../lib/database.types';
 import CustomerSearchPanel, { type CustomerRow } from './CustomerSearchPanel';
 import ClinicScopeToggle, { type ClinicScope } from './ClinicScopeToggle';
 import FlexibleTimeInput from './FlexibleTimeInput';
+import { ensureJapaneseImeForInput } from '../lib/useJapaneseTextInputs';
 import SecretInputField, { OTHER_CAL_PASSWORD_HINT } from './SecretInputField';
 import ModalCloseButton from './ModalCloseButton';
 import { CLINIC_FULL, clinicMatchesRecord, resolveClinicNameByCustomerNumber, type ClinicFullName } from '../lib/clinic';
@@ -860,17 +861,25 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
           <div className="relative flex-1 min-w-[220px]">
             <input
               type="text"
+              data-ime="ja"
               value={searchQuery}
-              onFocus={() => setShowHeaderCustomerResults(true)}
+              onFocus={(e) => {
+                ensureJapaneseImeForInput(e.currentTarget);
+                setShowHeaderCustomerResults(true);
+              }}
               onBlur={() => window.setTimeout(() => setShowHeaderCustomerResults(false), 120)}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setShowHeaderCustomerResults(true);
               }}
               onKeyDown={handleHeaderSearchKeyDown}
-              placeholder={calendarViewMode === 'appointment' ? '氏名・かな・番号で絞り込み' : '表示名・メモで絞り込み'}
+              placeholder={calendarViewMode === 'appointment' ? 'ふりがな・氏名・番号で絞り込み' : '表示名・メモで絞り込み'}
               className="w-full px-3 py-2 border rounded-lg text-sm"
               lang="ja"
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
             />
             {calendarViewMode === 'appointment' && showHeaderCustomerResults && searchQuery.trim() && headerCustomerResults.length > 0 && (
               <div ref={headerResultsRef} className="absolute left-0 right-0 top-full z-[90] mt-1 max-h-80 overflow-y-auto rounded-xl border border-blue-200 bg-white shadow-xl">
