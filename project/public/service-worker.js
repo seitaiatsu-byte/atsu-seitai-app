@@ -1,10 +1,19 @@
 // アプリ更新を確実に反映するため、HTML / JS / CSS はキャッシュしない（オフライン時のみ古いキャッシュを参照）
-const CACHE_NAME = 'seitaiin-v5-static';
+const CACHE_NAME = 'seitaiin-v6-static';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(['/manifest.json', '/vite.svg']))
+    caches
+      .open(CACHE_NAME)
+      .then((cache) =>
+        cache.addAll([
+          '/manifest.json',
+          '/icon-192.png',
+          '/icon-512.png',
+          '/apple-touch-icon.png',
+        ])
+      )
   );
 });
 
