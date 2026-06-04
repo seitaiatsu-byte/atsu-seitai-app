@@ -6,6 +6,7 @@ import CustomerSearchPanel, { type CustomerRow } from './CustomerSearchPanel';
 import ClinicScopeToggle, { type ClinicScope } from './ClinicScopeToggle';
 import FlexibleTimeInput from './FlexibleTimeInput';
 import SecretInputField, { OTHER_CAL_PASSWORD_HINT } from './SecretInputField';
+import ModalCloseButton from './ModalCloseButton';
 import { CLINIC_FULL, clinicMatchesRecord, resolveClinicNameByCustomerNumber, type ClinicFullName } from '../lib/clinic';
 import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
 import { getTodayLocalYmd } from '../lib/visitDateParse';
@@ -1032,13 +1033,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                   <Plus size={16} />
                   この日に{calendarViewMode === 'appointment' ? '予約追加' : '予定追加'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setDayDetailDate(null)}
-                  className="text-gray-500 font-bold px-2"
-                >
-                  ✕
-                </button>
+                <ModalCloseButton onClick={() => setDayDetailDate(null)} />
               </div>
             </div>
             <div className="p-4 space-y-2 overflow-y-auto max-h-[72vh]">
@@ -1128,13 +1123,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                 >
                   個人カルテへ
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setVisitHistoryCustomer(null)}
-                  className="text-gray-500 font-bold px-2"
-                >
-                  ✕
-                </button>
+                <ModalCloseButton onClick={() => setVisitHistoryCustomer(null)} />
               </div>
             </div>
             <div className="p-4 overflow-y-auto max-h-[76vh]">
@@ -1211,9 +1200,7 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                     ? '予約を追加'
                     : '予定を追加'}
               </h3>
-              <button type="button" onClick={() => setEditorOpen(false)} className="text-gray-500 font-bold px-2">
-                ✕
-              </button>
+              <ModalCloseButton onClick={() => setEditorOpen(false)} />
             </div>
             <div className="p-4 space-y-3 text-sm">
               {formEntryKind === 'appointment' ? (

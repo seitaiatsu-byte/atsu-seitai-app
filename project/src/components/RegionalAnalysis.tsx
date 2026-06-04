@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { MapPin, Users, Download, Pencil, X, ChevronRight } from 'lucide-react';
+import { MapPin, Users, Download, Pencil, ChevronRight } from 'lucide-react';
+import ModalCloseButton from './ModalCloseButton';
 import { supabase } from '../lib/supabase';
 import { fetchAllCustomersByCreatedDesc, type CustomerRow } from '../lib/fetchAllCustomers';
 import { downloadCustomersCsv } from '../lib/customerCsvExport';
@@ -419,14 +420,7 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
                   <Download size={16} />
                   {t.exportRegion}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRegion(null)}
-                  className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50"
-                  aria-label={t.close}
-                >
-                  <X size={22} className="text-gray-600" />
-                </button>
+                <ModalCloseButton onClick={() => setSelectedRegion(null)} />
               </div>
             </div>
             <div className="overflow-auto flex-1 p-4">

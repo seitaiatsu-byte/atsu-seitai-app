@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ModalCloseButton from './ModalCloseButton';
 
 type Point = { x: number; y: number; t: number };
 type Stroke = Point[];
@@ -201,9 +202,7 @@ export default function FlexibleTimeInput({ value, onChange, className = '', ari
                 <h3 className="font-bold text-gray-900">時刻を手書き入力</h3>
                 <p className="text-xs text-gray-500">例: 1030 / 9:30 のように大きく書いてください</p>
               </div>
-              <button type="button" onClick={() => setShowHandwriting(false)} className="px-2 font-bold text-gray-500">
-                x
-              </button>
+              <ModalCloseButton onClick={() => setShowHandwriting(false)} />
             </div>
             <canvas
               ref={canvasRef}

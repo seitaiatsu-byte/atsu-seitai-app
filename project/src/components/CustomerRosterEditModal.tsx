@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
+import ModalCloseButton from './ModalCloseButton';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { applyPhoneToCustomerPayload, readPhoneFromCustomerRow } from '../lib/customerPhoneFields';
@@ -211,9 +212,7 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
               {customer.name} <span className="text-gray-500 font-mono">#{customer.customer_number}</span>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-white/80">
-            <X size={22} />
-          </button>
+          <ModalCloseButton onClick={onClose} />
         </div>
 
         <div className="p-5 space-y-4 text-sm">

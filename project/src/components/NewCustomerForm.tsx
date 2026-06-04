@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
+import ModalCloseButton from './ModalCloseButton';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { CLINIC_FULL } from '../lib/clinic';
@@ -535,12 +536,7 @@ export default function NewCustomerForm({
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-800">{mode === 'edit' ? '顧客情報の修正' : '新規顧客登録'}</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X size={24} />
-          </button>
+          <ModalCloseButton onClick={onClose} />
         </div>
 
         <form onSubmit={swallowFormSubmit} onKeyDown={blockEnterFormSubmit} noValidate className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">

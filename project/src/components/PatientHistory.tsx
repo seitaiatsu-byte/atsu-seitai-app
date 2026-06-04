@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Calendar, ShoppingBag, CreditCard, User, AlertCircle, FileText } from 'lucide-react';
+import { Calendar, ShoppingBag, CreditCard, User, AlertCircle, FileText } from 'lucide-react';
+import ModalCloseButton from './ModalCloseButton';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { formatPaymentDetailLabel, formatPaymentMethodLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
@@ -185,12 +186,7 @@ export default function PatientHistory({ customer, onClose }: PatientHistoryProp
               院: <ClinicNameFromCustomer customer={customer} emptyLabel="—" />
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-all"
-          >
-            <X size={28} />
-          </button>
+          <ModalCloseButton onClick={onClose} variant="onDark" />
         </div>
 
         <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50">

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, FileText, TrendingUp, Repeat, Megaphone, Clock3, Activity, Grid3X3, Map as MapIcon, DollarSign, X } from 'lucide-react';
+import { BarChart3, FileText, TrendingUp, Repeat, Megaphone, Clock3, Activity, Grid3X3, Map as MapIcon, DollarSign } from 'lucide-react';
+import ModalCloseButton from './ModalCloseButton';
 import { supabase } from '../lib/supabase';
 import { clinicMatchesRecord } from '../lib/clinic';
 import { bucketStoredPaymentMethod, formatPaymentDetailLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
@@ -1013,14 +1014,7 @@ export default function SalesAggregationDashboard() {
                   {formatDateWithWeekday(selectedBreakdownDate)} / 合計 ¥{Math.round(selectedBreakdownTotal).toLocaleString()}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedBreakdownDate(null)}
-                className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50"
-                aria-label="閉じる"
-              >
-                <X size={18} />
-              </button>
+              <ModalCloseButton onClick={() => setSelectedBreakdownDate(null)} />
             </div>
             <div className="overflow-auto p-4">
               {selectedBreakdownItems.length === 0 ? (

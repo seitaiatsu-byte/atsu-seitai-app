@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { User, Phone, MapPin, Calendar, TrendingUp, X } from 'lucide-react';
+import { User, Phone, MapPin, Calendar, TrendingUp } from 'lucide-react';
+import ModalCloseButton from './ModalCloseButton';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { buildIdToNameMap } from '../lib/paymentDisplay';
@@ -98,12 +99,7 @@ export default function CustomerProfile({ customer, onClose }: CustomerProfilePr
             <h2 className="text-3xl font-bold">{customer.name}</h2>
             <p className="text-blue-100">{customer.name_kana}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-all"
-          >
-            <X size={28} />
-          </button>
+          <ModalCloseButton onClick={onClose} variant="onDark" />
         </div>
 
         <div className="p-6 space-y-6">

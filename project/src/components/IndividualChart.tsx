@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Download, Image as ImageIcon, Trash2, X } fr
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import CustomerSearchPanel from './CustomerSearchPanel';
+import ModalCloseButton from './ModalCloseButton';
 import { getCustomerBirthDate } from '../lib/customerBirthday';
 import {
   formatTableCell,
@@ -1034,13 +1035,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
           <div className="relative max-w-5xl w-full">
             <div className="mb-2 flex items-center justify-between text-white">
               <div className="text-sm font-bold">{formatDateJaYmd(previewMedia.visitDate)}</div>
-              <button
-                type="button"
-                onClick={() => setPreviewMedia(null)}
-                className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-bold hover:bg-white/20"
-              >
-                閉じる
-              </button>
+              <ModalCloseButton onClick={() => setPreviewMedia(null)} variant="onDark" />
             </div>
             <img
               src={previewMedia.url}
