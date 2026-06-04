@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Upload, Edit2, Trash2, History, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import CustomerSearchPanel from './CustomerSearchPanel';
@@ -114,6 +114,7 @@ export default function VisitForm({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [currentMediaUrls, setCurrentMediaUrls] = useState<string[]>([]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState('');
   const [historyFilter, setHistoryFilter] = useState('');
@@ -209,12 +210,26 @@ export default function VisitForm({
   }, [loadMasters, loadRecentRecords]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files);
-      setSelectedFiles(prev => [...prev, ...files]);
-      const newPreviews = files.map(file => URL.createObjectURL(file));
-      setPreviewUrls(prev => [...prev, ...newPreviews]);
+    const picked = e.target.files;
+    if (picked?.length) {
+      const files = Array.from(picked);
+      setSelectedFiles((prev) => [...prev, ...files]);
+      setPreviewUrls((prev) => [...prev, ...files.map((file) => URL.createObjectURL(file))]);
     }
+    e.target.value = '';
+  };
+
+  const removeNewPreviewAt = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => {
+      const url = prev[index];
+      if (url) URL.revokeObjectURL(url);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const openPhotoPicker = () => {
+    photoInputRef.current?.click();
   };
 
   const clearVisitInputFields = () => {
@@ -337,7 +352,8 @@ export default function VisitForm({
       const uploadedUrls = [...currentMediaUrls];
       
       for (const file of selectedFiles) {
-        const path = `${visitId}/${Date.now()}_${file.name}`;
+        const safeName = file.name.replace(/[^\w.\-()]/g, '_') || 'photo.jpg';
+        const path = `${visitId}/${Date.now()}_${safeName}`;
         const { error: upErr } = await supabase.storage.from('visit-media').upload(path, file);
         
         if (upErr) {
@@ -530,7 +546,7 @@ export default function VisitForm({
           </span>
         </button>
         {inputPanelOpen && (
-          <div className="bg-white p-6 border-t border-slate-200">
+          <div className="bg-white p-3 sm:p-6 border-t border-slate-200">
         <CustomerSearchPanel accent={editingId ? "orange" : "blue"} selectedCustomer={selectedCustomer} onSelect={setSelectedCustomer} onClearSelection={() => setSelectedCustomer(null)} />
         <form
           onSubmit={swallowFormSubmit}
@@ -697,13 +713,55 @@ export default function VisitForm({
 
           <textarea value={memo} onChange={e => setMemo(e.target.value)} className="w-full p-3 border-2 rounded-lg text-sm" placeholder="メモを入力..." rows={2} lang="ja" />
 
-          <div className="p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-            <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2 font-bold"><Upload size={16} /> 写真を追加（プレビュー表示）</label>
-            <input type="file" multiple accept="image/*" onChange={handleFileChange} className="w-full text-sm mb-3 cursor-pointer" />
-            <div className="flex flex-wrap gap-2">
-              {currentMediaUrls.map((url, i) => <div key={i} className="w-16 h-16 rounded border-2 border-blue-400 overflow-hidden"><img src={url} className="w-full h-full object-cover" /></div>)}
-              {previewUrls.map((url, i) => <div key={i} className="w-16 h-16 rounded border-2 border-green-400 overflow-hidden"><img src={url} className="w-full h-full object-cover" /></div>)}
+          <div className="p-3 sm:p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+            <div className="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+              <Upload size={18} className="shrink-0" />
+              写真（カメラ・アルバム）
             </div>
+            <input
+              ref={photoInputRef}
+              type="file"
+              multiple
+              accept="image/*,.heic,.heif"
+              onChange={handleFileChange}
+              className="hidden"
+              tabIndex={-1}
+            />
+            <button
+              type="button"
+              onClick={openPhotoPicker}
+              className="w-full min-h-12 py-3 px-4 rounded-xl border-2 border-blue-400 bg-blue-50 text-blue-900 font-bold text-sm active:bg-blue-100 touch-manipulation"
+            >
+              写真を撮る・選ぶ（タップ）
+            </button>
+            <p className="text-[11px] text-gray-500 mt-2 leading-snug">
+              スマホでは上のボタンからカメラまたはアルバムを開きます。選択後「登録する」でアップロードされます。
+            </p>
+            {(currentMediaUrls.length > 0 || previewUrls.length > 0) && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {currentMediaUrls.map((url, i) => (
+                  <div key={`saved-${i}`} className="relative w-16 h-16 rounded border-2 border-blue-400 overflow-hidden shrink-0">
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <span className="absolute bottom-0 left-0 right-0 bg-blue-600/80 text-[9px] text-white text-center font-bold">
+                      保存済
+                    </span>
+                  </div>
+                ))}
+                {previewUrls.map((url, i) => (
+                  <div key={`new-${i}`} className="relative w-16 h-16 rounded border-2 border-green-400 overflow-hidden shrink-0">
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeNewPreviewAt(i)}
+                      className="absolute -top-1 -right-1 min-h-6 min-w-6 rounded-full bg-red-600 text-white text-xs font-bold leading-none shadow touch-manipulation"
+                      aria-label="この写真を外す"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <button type="button" onClick={() => void handleSubmit()} disabled={isSubmitting} className={`w-full py-4 rounded-xl font-bold text-xl text-white shadow-lg ${editingId ? 'bg-orange-500' : 'bg-blue-600'}`}>
