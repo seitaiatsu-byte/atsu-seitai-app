@@ -13,6 +13,7 @@ import {
   validateExplicitAmount,
 } from '../lib/registrationValidation';
 import { useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
+import { getFirstDayOfCurrentMonthLocalYmd } from '../lib/visitDateParse';
 
 type SubscriptionMaster = Database['public']['Tables']['subscription_master']['Row'];
 type PaymentMethodMaster = Database['public']['Tables']['payment_detail_master']['Row'];
@@ -63,7 +64,7 @@ export default function SubscriptionForm() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedSubscription, setSelectedSubscription] = useState('');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(getFirstDayOfCurrentMonthLocalYmd);
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [amount, setAmount] = useState('');
   const [memo, setMemo] = useState('');
@@ -276,7 +277,7 @@ export default function SubscriptionForm() {
     setEditingId(null);
     setSelectedCustomer(null);
     setSelectedSubscription('');
-    setStartDate(new Date().toISOString().split('T')[0]);
+    setStartDate(getFirstDayOfCurrentMonthLocalYmd());
     setAmount('');
     setMemo('');
     setStaffId('');

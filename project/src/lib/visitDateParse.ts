@@ -70,6 +70,12 @@ export function getTodayLocalYmd(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** 当月1日（YYYY-MM-DD）。サブスク開始日のデフォルト用 */
+export function getFirstDayOfCurrentMonthLocalYmd(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
 /** 日付グループ見出しの下の行用（年は見出しにあるので 6/4 のみ） */
 export function formatVisitMonthDay(raw: unknown): string {
   const s = String(raw || '').slice(0, 10);
