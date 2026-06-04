@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { guardNavigation, useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
-import { ChevronDown, ChevronRight, Download, Image as ImageIcon, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Edit2, Image as ImageIcon, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import CustomerSearchPanel from './CustomerSearchPanel';
+import CustomerRosterEditModal from './CustomerRosterEditModal';
 import ModalCloseButton from './ModalCloseButton';
 import { getCustomerBirthDate } from '../lib/customerBirthday';
 import {
@@ -21,9 +22,18 @@ import {
   firstQualifyingVisitDate,
   qualifyingVisitRepeatCount,
 } from '../lib/repeatMetrics';
-import { formatPaymentDetailLabel, formatPaymentMethodLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
+import { formatPaymentDetailLabel, formatPaymentMethodLabel, looksLikeUuid, mergeIdNameMaps } from '../lib/paymentDisplay';
+import { recalcBeEquivalentCountsForCustomers } from '../lib/beEquivalentRecalc';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
-import { clinicNameToShortLabel } from '../lib/clinic';
+import { CLINIC_OPTIONS, clinicNameToShortLabel, type ClinicFullName } from '../lib/clinic';
+import {
+  isMissingImportKindTextColumnError,
+  legacyImportKindLabel,
+  resolvePaymentDetailIdFromKindLabel,
+  resolveVisitMenuNameForSave,
+  stripKindPrefixFromMemo,
+  visitUpdateOmittingImportKindText,
+} from '../lib/visitRecordKindCompat';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type VisitRow = Database['public']['Tables']['visit_records']['Row'];
@@ -75,6 +85,33 @@ function compactMemo(raw: string | null | undefined): string {
   return s.length > 18 ? `${s.slice(0, 18)}…` : s;
 }
 
+function visitTimelineMenuLabel(v: VisitRow, detailIdToName: Record<string, string>): string {
+  const menu = (v.menu_name || '').trim();
+  if (menu) return menu;
+  const pd = formatPaymentDetailLabel(v.payment_detail_id, detailIdToName, v.import_kind_text, v.memo);
+  if (pd && pd !== '-') return pd;
+  return '—';
+}
+
+/** 修正モーダル用: menu_name / 取込種類をマスタ名と突き合わせ、プルダウンと二重にならないよう id を優先 */
+function resolveVisitEditMenuSelection(
+  v: VisitRow,
+  menus: MenuMaster[]
+): { menuId: string; menuName: string } {
+  if (v.menu_id) {
+    const byId = menus.find((m) => m.id === v.menu_id);
+    if (byId) return { menuId: byId.id, menuName: byId.name };
+  }
+  const legacyKind = (legacyImportKindLabel(v) || '').trim();
+  const candidates = [(v.menu_name || '').trim(), legacyKind].filter(Boolean);
+  for (const name of candidates) {
+    const hit = menus.find((m) => m.name === name);
+    if (hit) return { menuId: hit.id, menuName: hit.name };
+  }
+  const fallback = (v.menu_name || '').trim() || legacyKind;
+  return { menuId: '', menuName: fallback };
+}
+
 export default function IndividualChart({ initialCustomer = null }: { initialCustomer?: Customer | null }) {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(initialCustomer);
   const [visits, setVisits] = useState<VisitRow[]>([]);
@@ -83,6 +120,8 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
   const [paymentMethodNames, setPaymentMethodNames] = useState<Record<string, string>>({});
   const [paymentDetailNames, setPaymentDetailNames] = useState<Record<string, string>>({});
   const [paymentMethodOptions, setPaymentMethodOptions] = useState<{ id: string; name: string }[]>([]);
+  const [paymentDetailOptions, setPaymentDetailOptions] = useState<{ id: string; name: string }[]>([]);
+  const [staffOptions, setStaffOptions] = useState<{ id: string; name: string }[]>([]);
   const [menuOptions, setMenuOptions] = useState<MenuMaster[]>([]);
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([]);
   const [referral1FromMaster, setReferral1FromMaster] = useState<string | null>(null);
@@ -98,15 +137,35 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
   const {
     isTouched: visitEditTouched,
     clearTouched: clearVisitEditTouched,
+    markTouched: markVisitEditTouched,
     formInputProps: visitEditFormInputProps,
   } = useFormInputTouched(Boolean(editingVisit));
   useUnsavedFormGuard('chart-visit-edit', Boolean(editingVisit) && visitEditTouched);
   const [editVisitDate, setEditVisitDate] = useState('');
   const [editVisitAmount, setEditVisitAmount] = useState('');
-  const [editVisitMenu, setEditVisitMenu] = useState('');
+  const [editVisitClinic, setEditVisitClinic] = useState<ClinicFullName>(CLINIC_OPTIONS[0].value);
+  const [editVisitStaffId, setEditVisitStaffId] = useState('');
+  const [editVisitPaymentDetailId, setEditVisitPaymentDetailId] = useState('');
+  const [editVisitMenuId, setEditVisitMenuId] = useState('');
+  const [editVisitMenuName, setEditVisitMenuName] = useState('');
+  const [editVisitTicketRaw, setEditVisitTicketRaw] = useState('');
+  const [editVisitKindLegacy, setEditVisitKindLegacy] = useState('');
   const [editVisitPaymentMethod, setEditVisitPaymentMethod] = useState('');
   const [editVisitMemo, setEditVisitMemo] = useState('');
+  const [savingVisitEdit, setSavingVisitEdit] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<MediaEntry | null>(null);
+  const [customerInfoEditOpen, setCustomerInfoEditOpen] = useState(false);
+
+  const resolvePaymentMethodForEdit = useCallback(
+    (raw: string | null | undefined) => {
+      const s = String(raw ?? '').trim();
+      if (!s) return '';
+      if (looksLikeUuid(s)) return s;
+      const hit = paymentMethodOptions.find((m) => m.name === s);
+      return hit?.id ?? s;
+    },
+    [paymentMethodOptions]
+  );
 
   useEffect(() => {
     fetchBusinessRules().then((r) => setExcludeKeywords(r.excludeKeywords));
@@ -168,13 +227,15 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
 
   const loadCustomerData = useCallback(async () => {
     if (!selectedCustomer) return;
-    const [{ data: v }, { data: p }, { data: s }, { data: pm }, { data: pd }, { data: menus }] = await Promise.all([
+    const [{ data: v }, { data: p }, { data: s }, { data: pm }, { data: pd }, { data: menus }, { data: staff }] =
+      await Promise.all([
       supabase.from('visit_records').select('*').eq('customer_id', selectedCustomer.id).order('visit_date', { ascending: false }),
       supabase.from('product_sales').select('*').eq('customer_id', selectedCustomer.id).order('sale_date', { ascending: false }),
       supabase.from('subscription_records').select('*').eq('customer_id', selectedCustomer.id).order('start_date', { ascending: false }),
       supabase.from('payment_method_master').select('id, name'),
       supabase.from('payment_detail_master').select('id, name'),
       supabase.from('menu_master').select('*').eq('is_active', true).order('display_order'),
+      supabase.from('staff_master').select('id, name').eq('is_active', true).order('display_order'),
     ]);
     setVisits(v || []);
     setProducts(p || []);
@@ -183,6 +244,8 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
     setPaymentMethodNames(merged);
     setPaymentDetailNames(merged);
     setPaymentMethodOptions((pm || []) as { id: string; name: string }[]);
+    setPaymentDetailOptions((pd || []) as { id: string; name: string }[]);
+    setStaffOptions((staff || []) as { id: string; name: string }[]);
     setMenuOptions((menus || []) as MenuMaster[]);
   }, [selectedCustomer]);
 
@@ -248,6 +311,20 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
     setActiveLoading(false);
   }, []);
 
+  const reloadSelectedCustomer = useCallback(async () => {
+    const id = selectedCustomer?.id;
+    if (!id) return;
+    const { data, error } = await supabase.from('customers').select('*').eq('id', id).maybeSingle();
+    if (error || !data) return;
+    setSelectedCustomer(data as Customer);
+  }, [selectedCustomer?.id]);
+
+  const handleCustomerInfoSaved = useCallback(async () => {
+    await reloadSelectedCustomer();
+    await loadCustomerData();
+    void loadActiveChartRows();
+  }, [reloadSelectedCustomer, loadCustomerData, loadActiveChartRows]);
+
   useEffect(() => {
     void loadCustomerData();
   }, [loadCustomerData]);
@@ -259,6 +336,15 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
   useEffect(() => {
     setSummaryOpen(null);
   }, [selectedCustomer?.id]);
+
+  /** メニューマスタ読込後に id を同期（開いた直後は options 未読込で二重 option になるのを防ぐ） */
+  useEffect(() => {
+    if (!editingVisit || !editVisitMenuName) return;
+    const hit = menuOptions.find((m) => m.name === editVisitMenuName);
+    if (hit && editVisitMenuId !== hit.id) {
+      setEditVisitMenuId(hit.id);
+    }
+  }, [editingVisit?.id, menuOptions, editVisitMenuName, editVisitMenuId]);
 
   useEffect(() => {
     const onRecordsUpdated = () => {
@@ -421,38 +507,110 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
     setEditingVisit(v);
     setEditVisitDate(String(v.visit_date || '').slice(0, 10));
     setEditVisitAmount(String(Number(v.amount || 0)));
-    setEditVisitMenu(String(v.menu_name || ''));
-    setEditVisitPaymentMethod(String(v.payment_method || ''));
-    setEditVisitMemo(String(v.memo || ''));
+    setEditVisitClinic(
+      (CLINIC_OPTIONS.some((c) => c.value === v.clinic_name)
+        ? v.clinic_name
+        : CLINIC_OPTIONS[0].value) as ClinicFullName
+    );
+    setEditVisitStaffId(staffOptions.find((s) => s.name === v.staff_name)?.id || '');
+    const legacyKind = legacyImportKindLabel(v) || '';
+    setEditVisitKindLegacy(legacyKind);
+    if (v.payment_detail_id && looksLikeUuid(String(v.payment_detail_id))) {
+      setEditVisitPaymentDetailId(String(v.payment_detail_id));
+    } else if (legacyKind) {
+      setEditVisitPaymentDetailId(
+        resolvePaymentDetailIdFromKindLabel(legacyKind, paymentDetailOptions) || ''
+      );
+    } else {
+      setEditVisitPaymentDetailId('');
+    }
+    const menuSel = resolveVisitEditMenuSelection(v, menuOptions);
+    setEditVisitMenuId(menuSel.menuId);
+    setEditVisitMenuName(menuSel.menuName);
+    setEditVisitTicketRaw(
+      (v.import_ticket_count_raw && String(v.import_ticket_count_raw).trim()) ||
+        (v.points_used != null && v.points_used !== 0 ? String(v.points_used) : '')
+    );
+    setEditVisitPaymentMethod(resolvePaymentMethodForEdit(v.payment_method));
+    setEditVisitMemo(stripKindPrefixFromMemo(v.memo) || '');
   };
 
   const saveVisitEdit = async () => {
-    if (!editingVisit) return;
+    if (!editingVisit || !selectedCustomer) return;
     const amount = Number(editVisitAmount);
     if (!editVisitDate || !Number.isFinite(amount)) {
       alert('来院日と金額を正しく入力してください');
       return;
     }
-    const menu = menuOptions.find((m) => m.name === editVisitMenu);
-    const { error } = await supabase
-      .from('visit_records')
-      .update({
-        visit_date: editVisitDate,
-        amount,
-        menu_id: menu?.id || null,
-        menu_name: editVisitMenu || null,
-        payment_method: editVisitPaymentMethod || null,
-        memo: editVisitMemo || null,
-      })
-      .eq('id', editingVisit.id);
-    if (error) {
-      alert(`修正に失敗しました: ${error.message}`);
-      return;
+    const menuObj =
+      menuOptions.find((m) => m.id === editVisitMenuId) ||
+      menuOptions.find((m) => m.name === editVisitMenuName);
+    const staffObj = staffOptions.find((s) => s.id === editVisitStaffId);
+    const detailObj = paymentDetailOptions.find((d) => d.id === editVisitPaymentDetailId);
+    const menuNameResolved = resolveVisitMenuNameForSave({
+      menuMasterName: menuObj?.name,
+      menuFreeText: menuObj ? '' : editVisitMenuName,
+      paymentDetailName: detailObj?.name,
+      legacyKindLabel: editVisitKindLegacy,
+    });
+    const pmResolved = resolvePaymentMethodForEdit(editVisitPaymentMethod);
+    const cleanedMemo = stripKindPrefixFromMemo(editVisitMemo) ?? (editVisitMemo.trim() || null);
+    const ticketTrim = editVisitTicketRaw.trim();
+    const paymentDetailId = editVisitPaymentDetailId || null;
+    const basePayload = {
+      visit_date: editVisitDate,
+      amount,
+      clinic_name: editVisitClinic,
+      staff_name: staffObj?.name || null,
+      payment_method: pmResolved || null,
+      payment_detail_id: paymentDetailId,
+      import_kind_text: paymentDetailId ? null : editingVisit.import_kind_text ?? null,
+      menu_id: menuObj?.id ?? null,
+      menu_name: menuNameResolved,
+      import_ticket_count_raw: ticketTrim || null,
+      memo: cleanedMemo,
+    };
+    setSavingVisitEdit(true);
+    try {
+      let { error } = await supabase.from('visit_records').update(basePayload).eq('id', editingVisit.id);
+      if (error && isMissingImportKindTextColumnError(error)) {
+        const retry = await supabase
+          .from('visit_records')
+          .update(visitUpdateOmittingImportKindText(basePayload))
+          .eq('id', editingVisit.id);
+        error = retry.error;
+      }
+
+      if (error) {
+        alert(`修正に失敗しました: ${error.message}`);
+        return;
+      }
+
+      const { data: saved, error: verifyErr } = await supabase
+        .from('visit_records')
+        .select('menu_name')
+        .eq('id', editingVisit.id)
+        .maybeSingle();
+      if (verifyErr) {
+        alert(`保存後の確認に失敗しました: ${verifyErr.message}`);
+        return;
+      }
+      if (menuNameResolved && !(saved?.menu_name || '').trim()) {
+        alert(
+          'メニュー名がデータベースに保存されていません。Supabase の SQL Editor で visit_records の UPDATE 権限（RLS）を実行してください（下記SQLを貼り付け）。'
+        );
+        return;
+      }
+
+      await recalcBeEquivalentCountsForCustomers([selectedCustomer.id]);
+      clearVisitEditTouched();
+      setEditingVisit(null);
+      window.dispatchEvent(new Event('records-updated'));
+      await loadCustomerData();
+      alert('来院履歴を修正しました');
+    } finally {
+      setSavingVisitEdit(false);
     }
-    clearVisitEditTouched();
-    setEditingVisit(null);
-    window.dispatchEvent(new Event('records-updated'));
-    await loadCustomerData();
   };
 
   const deleteVisit = async (v: VisitRow) => {
@@ -673,7 +831,15 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
         </div>
       ) : (
         <div>
-          <div className="flex justify-end mb-2">
+          <div className="flex flex-wrap justify-end gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => setCustomerInfoEditOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold border-2 border-blue-600 bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+            >
+              <Edit2 size={18} aria-hidden />
+              顧客情報を修正
+            </button>
             <button
               type="button"
               onClick={() => setSelectedCustomer(null)}
@@ -685,6 +851,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
           </div>
 
           <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-2.5 mb-3 space-y-1.5">
+            <p className="text-xs font-bold text-blue-900">登録情報（顧客登録と同じ項目・右上の青ボタンから修正）</p>
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5">
                 <div className="sm:col-span-2 flex flex-wrap items-baseline gap-x-2">
@@ -757,7 +924,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
 
                           <div className="min-w-0">
                             <div className="truncate font-bold text-gray-800">
-                              {v ? v.menu_name || '—' : row.sublabel}
+                              {v ? visitTimelineMenuLabel(v, paymentDetailNames) : row.sublabel}
                             </div>
                           </div>
 
@@ -773,8 +940,15 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                             ¥{Math.round(row.amount).toLocaleString()}
                           </div>
 
-                          <div className="min-w-0 truncate text-xs text-gray-600" title={v?.memo || ''}>
-                            {v?.memo ? `メモ: ${compactMemo(v.memo)}` : '—'}
+                          <div
+                            className="min-w-0 truncate text-xs text-gray-600"
+                            title={[v?.import_ticket_count_raw, v?.memo].filter(Boolean).join(' / ')}
+                          >
+                            {v?.import_ticket_count_raw
+                              ? `回数券: ${compactMemo(v.import_ticket_count_raw)}`
+                              : v?.memo
+                                ? `メモ: ${compactMemo(v.memo)}`
+                                : '—'}
                           </div>
 
                           <div className="min-w-0 truncate text-xs text-gray-700" title={v?.staff_name || ''}>
@@ -858,8 +1032,8 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                                   ／ 施術売上: ¥{Math.round(Number(v.amount || 0)).toLocaleString()}
                                 </span>
                               </div>
-                              {v.menu_name && (
-                                <div>メニュー: {v.menu_name}</div>
+                              {visitTimelineMenuLabel(v, paymentDetailNames) !== '—' && (
+                                <div>メニュー: {visitTimelineMenuLabel(v, paymentDetailNames)}</div>
                               )}
                               <div>支払: {pm !== '-' ? pm : '—'}</div>
                               {pd !== '-' && <div>種類: {pd}</div>}
@@ -1057,16 +1231,36 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
 
       {editingVisit && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-xl bg-white border border-slate-200 shadow-xl p-4 space-y-3" {...visitEditFormInputProps}>
+          <div
+            className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white border border-slate-200 shadow-xl p-4 space-y-3"
+            {...visitEditFormInputProps}
+          >
             <h4 className="text-base font-bold text-gray-800">来院履歴を修正</h4>
-            <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">来院日</label>
-              <input
-                type="date"
-                value={editVisitDate}
-                onChange={(e) => setEditVisitDate(e.target.value)}
-                className="w-full border rounded px-2 py-1.5 text-sm"
-              />
+            <p className="text-xs text-slate-500">来院入力の修正と同じ項目を保存します（種類・メニュー・回数券表記など）</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1">来院日</label>
+                <input
+                  type="date"
+                  value={editVisitDate}
+                  onChange={(e) => setEditVisitDate(e.target.value)}
+                  className="w-full border rounded px-2 py-1.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1">院</label>
+                <select
+                  value={editVisitClinic}
+                  onChange={(e) => setEditVisitClinic(e.target.value as ClinicFullName)}
+                  className="w-full border rounded px-2 py-1.5 text-sm bg-white"
+                >
+                  {CLINIC_OPTIONS.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1">金額</label>
@@ -1078,19 +1272,16 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">メニュー</label>
+              <label className="block text-xs font-bold text-gray-600 mb-1">担当スタッフ</label>
               <select
-                value={editVisitMenu}
-                onChange={(e) => setEditVisitMenu(e.target.value)}
+                value={editVisitStaffId}
+                onChange={(e) => setEditVisitStaffId(e.target.value)}
                 className="w-full border rounded px-2 py-1.5 text-sm bg-white"
               >
                 <option value="">未設定</option>
-                {editVisitMenu && !menuOptions.some((m) => m.name === editVisitMenu) && (
-                  <option value={editVisitMenu}>{editVisitMenu}</option>
-                )}
-                {menuOptions.map((m) => (
-                  <option key={m.id} value={m.name}>
-                    {m.name}
+                {staffOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
                   </option>
                 ))}
               </select>
@@ -1109,6 +1300,66 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                   </option>
                 ))}
               </select>
+            </div>
+            {editVisitKindLegacy && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                取込データの種類: <strong>{editVisitKindLegacy}</strong>
+                <span className="block mt-0.5">下の「種類」で選び直して保存するとマスタ名称になります</span>
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1">種類</label>
+              <select
+                value={editVisitPaymentDetailId}
+                onChange={(e) => setEditVisitPaymentDetailId(e.target.value)}
+                className="w-full border rounded px-2 py-1.5 text-sm bg-white"
+              >
+                <option value="">未設定</option>
+                {paymentDetailOptions.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1">メニュー</label>
+              <select
+                value={editVisitMenuName}
+                onChange={(e) => {
+                  markVisitEditTouched();
+                  const name = e.target.value;
+                  setEditVisitMenuName(name);
+                  const hit = menuOptions.find((m) => m.name === name);
+                  setEditVisitMenuId(hit?.id ?? '');
+                }}
+                className="w-full border rounded px-2 py-1.5 text-sm bg-white"
+              >
+                <option value="">未選択</option>
+                {editVisitMenuName &&
+                  !menuOptions.some((m) => m.name === editVisitMenuName) && (
+                    <option value={editVisitMenuName}>{editVisitMenuName}</option>
+                  )}
+                {menuOptions.map((m) => (
+                  <option key={m.id} value={m.name}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                マスタにない名称は一覧に出ます（1回の選択で反映されます）
+              </p>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1">回数券（表記）</label>
+              <input
+                type="text"
+                value={editVisitTicketRaw}
+                onChange={(e) => setEditVisitTicketRaw(e.target.value)}
+                placeholder="例: 8/24"
+                className="w-full border rounded px-2 py-1.5 text-sm"
+              />
+              <p className="text-[11px] text-gray-500 mt-0.5">CSVの回数券列。メモ欄とは別です</p>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1">メモ</label>
@@ -1129,15 +1380,23 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
               </button>
               <button
                 type="button"
+                disabled={savingVisitEdit}
                 onClick={() => void saveVisitEdit()}
-                className="px-3 py-1.5 text-sm font-bold rounded border border-blue-300 text-blue-700 hover:bg-blue-50"
+                className="px-3 py-1.5 text-sm font-bold rounded border border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
               >
-                保存
+                {savingVisitEdit ? '保存中...' : '保存'}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      <CustomerRosterEditModal
+        customer={selectedCustomer}
+        open={customerInfoEditOpen && selectedCustomer !== null}
+        onClose={() => setCustomerInfoEditOpen(false)}
+        onSaved={() => void handleCustomerInfoSaved()}
+      />
     </div>
   );
 }

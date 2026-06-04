@@ -68,7 +68,34 @@ export function visitInsertOmittingImportKindText(row: VisitInsert): VisitInsert
 }
 
 export function isMissingImportKindTextColumnError(err: unknown): boolean {
+  return isMissingVisitColumnError(err, 'import_kind_text');
+}
+
+export function isMissingVisitColumnError(err: unknown, column: string): boolean {
   if (err == null || typeof err !== 'object') return false;
   const e = err as { code?: string; message?: string };
-  return e.code === 'PGRST204' && String(e.message || '').includes('import_kind_text');
+  return e.code === 'PGRST204' && String(e.message || '').includes(column);
+}
+
+/** 個人カルテ・来院修正で menu_name を決める（マスタ → 自由入力 → 種類マスタ → 取込種類） */
+export function resolveVisitMenuNameForSave(opts: {
+  menuMasterName: string | null | undefined;
+  menuFreeText: string;
+  paymentDetailName: string | null | undefined;
+  legacyKindLabel: string;
+}): string | null {
+  const fromMaster = (opts.menuMasterName || '').trim();
+  if (fromMaster) return fromMaster;
+  const free = opts.menuFreeText.trim();
+  if (free) return free;
+  const detail = (opts.paymentDetailName || '').trim();
+  if (detail) return detail;
+  const legacy = opts.legacyKindLabel.trim();
+  if (legacy) return legacy;
+  return null;
+}
+
+export function visitUpdateOmittingImportKindText<T extends Record<string, unknown>>(row: T): Omit<T, 'import_kind_text'> {
+  const { import_kind_text: _ik, ...rest } = row;
+  return rest;
 }
