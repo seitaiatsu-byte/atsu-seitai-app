@@ -1,6 +1,6 @@
 {
-  "name": "あつ整体院 顧客管理",
-  "short_name": "顧客管理",
+  "name": "あつ整体院/顧客管理",
+  "short_name": "あつ整体院/顧客管理",
   "description": "整体院の顧客管理・来店記録・売上管理システム",
   "start_url": "/",
   "display": "standalone",

@@ -12,8 +12,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="顧客管理" />
-    <title>顧客管理</title>
+    <meta name="apple-mobile-web-app-title" content="あつ整体院/顧客管理" />
+    <title>あつ整体院/顧客管理</title>
     <meta name="description" content="整体院の顧客管理・来店記録・売上管理システム" />
   </head>
   <body>
@@ -23,7 +23,7 @@
       // 開発中やlocalhostではSWを登録しない（白画面のキャッシュ事故回避）
       if ('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/service-worker.js?v=5').catch((e) => {
+          navigator.serviceWorker.register('/service-worker.js?v=6').catch((e) => {
             console.error('SW register failed:', e);
           });
         });
