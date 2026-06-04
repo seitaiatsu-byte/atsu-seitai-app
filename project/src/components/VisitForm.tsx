@@ -253,19 +253,33 @@ export default function VisitForm({
     setDuplicateError('');
   };
 
-  /** 新規登録後の連続入力用 */
-  const resetFieldsAfterNewSubmit = () => {
+  /** 入力欄を初期状態に戻す（顧客選択の有無は別途） */
+  const resetVisitFormDefaults = () => {
     setEditingId(null);
     clearVisitInputFields();
+    setVisitDate(getTodayLocalYmd());
+    setClinicName('高槻あつ整体院');
+    if (paymentMethods.length) setPaymentMethodId(paymentMethods[0]!.id);
+    else setPaymentMethodId('');
   };
 
-  /** 登録完了後：検索欄を出して次の患者をすぐ探せるようにする */
-  const prepareForNextVisitEntry = () => {
-    resetFieldsAfterNewSubmit();
+  /** 登録・修正保存後：フォームを隠し、検索だけ表示して次の患者へ */
+  const prepareForNextVisitEntry = (options?: {
+    flashMessage?: string;
+    highlightHistoryDate?: string;
+  }) => {
+    resetVisitFormDefaults();
     setSelectedCustomer(null);
     setInputPanelOpen(true);
-    setSubmitFlash('来院記録を登録しました。次の患者をふりがなで検索してください。');
+    setSubmitFlash(
+      options?.flashMessage ?? '来院記録を登録しました。次の患者をふりがなで検索してください。'
+    );
     setSearchFocusSignal((n) => n + 1);
+    if (options?.highlightHistoryDate) {
+      setHistoryPanelOpen(true);
+      const d = options.highlightHistoryDate.slice(0, 10);
+      if (d) setOpenHistoryDates((prev) => new Set(prev).add(d));
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -274,16 +288,6 @@ export default function VisitForm({
     const t = window.setTimeout(() => setSubmitFlash(''), 4000);
     return () => window.clearTimeout(t);
   }, [submitFlash]);
-
-  /** 履歴から修正保存後：顧客・パネル・履歴の開閉を維持し次の修正へ */
-  const finishEditSave = (visitDateYmd: string) => {
-    setEditingId(null);
-    clearVisitInputFields();
-    setInputPanelOpen(true);
-    setHistoryPanelOpen(true);
-    const d = visitDateYmd.slice(0, 10);
-    if (d) setOpenHistoryDates((prev) => new Set(prev).add(d));
-  };
 
   const handleSubmit = async () => {
     setDuplicateError('');
@@ -400,7 +404,10 @@ export default function VisitForm({
       const wasEdit = Boolean(editingId);
       if (wasEdit) {
         alert('内容と画像を修正しました');
-        finishEditSave(visitDate);
+        prepareForNextVisitEntry({
+          flashMessage: '修正を保存しました。次の患者をふりがなで検索してください。',
+          highlightHistoryDate: visitDate,
+        });
       } else {
         prepareForNextVisitEntry();
       }
@@ -580,9 +587,18 @@ export default function VisitForm({
           accent={editingId ? 'orange' : 'blue'}
           selectedCustomer={selectedCustomer}
           onSelect={setSelectedCustomer}
-          onClearSelection={() => setSelectedCustomer(null)}
+          onClearSelection={() => {
+            resetVisitFormDefaults();
+            setSelectedCustomer(null);
+          }}
           focusSearchSignal={searchFocusSignal}
         />
+        {!selectedCustomer && (
+          <p className="mt-4 text-sm text-gray-500">
+            患者を検索して選ぶと、来院入力フォームが表示されます。
+          </p>
+        )}
+        {selectedCustomer && (
         <form
           onSubmit={swallowFormSubmit}
           onKeyDown={blockEnterFormSubmit}
@@ -803,6 +819,7 @@ export default function VisitForm({
             {isSubmitting ? '画像を保存中...' : editingId ? '修正を保存する' : '登録する'}
           </button>
         </form>
+        )}
           </div>
         )}
       </div>
@@ -826,7 +843,7 @@ export default function VisitForm({
                 顧客番号・氏名・担当・メニュー名で検索できます。帯色：1–4999＝川西（緑）、5000以降＝高槻（青）（全{recentRecords.length}件
                 {historyFilter ? `／表示${filteredRecentRecords.length}件` : ''}）。
               </p>
-              <p className="text-xs font-bold text-slate-500">横1行表示 / 右端で修正・削除</p>
+              <p className="text-xs font-bold text-slate-500">横1行表示 / 左端で修正・削除</p>
             </div>
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -865,7 +882,8 @@ export default function VisitForm({
                       {isOpen && (
                         <div className="overflow-auto border-t border-slate-200">
                           <div className="min-w-[48rem]">
-                            <div className="grid grid-cols-[4.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem_4.8rem] items-center gap-1 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
+                            <div className="grid grid-cols-[4.8rem_4.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem] items-center gap-1 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
+                              <div className="sticky left-0 z-10 bg-slate-100 -ml-1.5 pl-1.5">操作</div>
                               <div>日付</div>
                               <div>番号</div>
                               <div>氏名</div>
@@ -874,7 +892,6 @@ export default function VisitForm({
                               <div>金額</div>
                               <div>支払/種類</div>
                               <div>担当</div>
-                              <div className="text-right">操作</div>
                             </div>
                             <ul className="divide-y divide-slate-100">
                               {group.records.map((r) => {
@@ -884,7 +901,25 @@ export default function VisitForm({
                                 const paymentDetail = formatPaymentDetailLabel(r.payment_detail_id, detailNameMap, r.import_kind_text, r.memo);
                                 const rowBand = customerNumberHistoryRowClass(r.customers?.customer_number);
                                 return (
-                                  <li key={r.id} className={`grid grid-cols-[4.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem_4.8rem] items-center gap-1 px-1.5 py-1 text-[11px] ${rowBand}`}>
+                                  <li key={r.id} className={`grid grid-cols-[4.8rem_4.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem] items-center gap-1 px-1.5 py-1 text-[11px] ${rowBand}`}>
+                                    <div className="sticky left-0 z-10 flex gap-0.5 shrink-0 bg-inherit -ml-1.5 pl-1.5 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.12)]">
+                                      <button
+                                        type="button"
+                                        onClick={() => startEdit(r)}
+                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap touch-manipulation"
+                                      >
+                                        <Edit2 size={12} />
+                                        修正
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => void deleteRecentRecord(r)}
+                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap touch-manipulation"
+                                      >
+                                        <Trash2 size={12} />
+                                        削除
+                                      </button>
+                                    </div>
                                     <div className="font-bold text-slate-800 whitespace-nowrap">{formatCompactDate(r.visit_date)}</div>
                                     <div className="font-bold text-slate-800 truncate" title={customerNumber}>{customerNumber}</div>
                                     <div className="font-bold text-slate-800 truncate" title={customerName}>{customerName}</div>
@@ -897,24 +932,6 @@ export default function VisitForm({
                                       {paymentMethod}{paymentDetail !== '-' ? ` / ${paymentDetail}` : ''}
                                     </div>
                                     <div className="truncate text-slate-700" title={r.staff_name || ''}>{r.staff_name || '—'}</div>
-                                    <div className="flex justify-end gap-0.5">
-                                      <button
-                                        type="button"
-                                        onClick={() => startEdit(r)}
-                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap"
-                                      >
-                                        <Edit2 size={12} />
-                                        修正
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => void deleteRecentRecord(r)}
-                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap"
-                                      >
-                                        <Trash2 size={12} />
-                                        削除
-                                      </button>
-                                    </div>
                                   </li>
                                 );
                               })}
