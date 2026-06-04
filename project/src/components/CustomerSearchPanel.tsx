@@ -14,6 +14,26 @@ interface CustomerSearchPanelProps {
   onSelect: (customer: CustomerRow) => void;
   selectedCustomer: CustomerRow | null;
   onClearSelection: () => void;
+  /** 増えるたびに検索欄へフォーカス（来院登録完了後の連続入力など） */
+  focusSearchSignal?: number;
+}
+
+function focusCustomerSearchInput(el: HTMLInputElement | null) {
+  if (!el) return;
+  const run = () => {
+    try {
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } catch {
+      /* ignore */
+    }
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
+  };
+  run();
+  requestAnimationFrame(run);
 }
 
 const border: Record<Accent, string> = {
@@ -45,6 +65,7 @@ export default function CustomerSearchPanel({
   onSelect,
   selectedCustomer,
   onClearSelection,
+  focusSearchSignal = 0,
 }: CustomerSearchPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<CustomerRow[]>([]);
@@ -52,6 +73,7 @@ export default function CustomerSearchPanel({
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [allCustomers, setAllCustomers] = useState<CustomerRow[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const loadCustomers = useCallback(async () => {
     try {
@@ -173,6 +195,11 @@ export default function CustomerSearchPanel({
     el?.scrollIntoView({ block: 'nearest' });
   }, [highlightIndex, searchResults]);
 
+  useEffect(() => {
+    if (!focusSearchSignal || selectedCustomer) return;
+    focusCustomerSearchInput(searchInputRef.current);
+  }, [focusSearchSignal, selectedCustomer]);
+
   if (selectedCustomer) {
     return (
       <div
@@ -227,13 +254,15 @@ export default function CustomerSearchPanel({
       </label>
       <div className="relative">
         <input
+          ref={searchInputRef}
           type="text"
           inputMode="text"
           lang="ja"
+          autoComplete="off"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={onSearchKeyDown}
-          placeholder="例: たなか、田中、1001"
+          placeholder="ふりがな・氏名・番号（例: たなか）"
           className={`w-full px-4 py-3 border-2 rounded-lg outline-none ${border[accent]}`}
           autoFocus
           role="combobox"

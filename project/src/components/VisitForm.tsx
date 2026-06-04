@@ -122,6 +122,8 @@ export default function VisitForm({
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
   const [openHistoryDates, setOpenHistoryDates] = useState<Set<string>>(new Set());
   const [pendingReservationId, setPendingReservationId] = useState<string | null>(linkedReservationId);
+  const [searchFocusSignal, setSearchFocusSignal] = useState(0);
+  const [submitFlash, setSubmitFlash] = useState('');
 
   useEffect(() => {
     if (!initialCustomer) return;
@@ -251,11 +253,27 @@ export default function VisitForm({
     setDuplicateError('');
   };
 
-  /** 新規登録後の連続入力用（顧客選択は維持） */
+  /** 新規登録後の連続入力用 */
   const resetFieldsAfterNewSubmit = () => {
     setEditingId(null);
     clearVisitInputFields();
   };
+
+  /** 登録完了後：検索欄を出して次の患者をすぐ探せるようにする */
+  const prepareForNextVisitEntry = () => {
+    resetFieldsAfterNewSubmit();
+    setSelectedCustomer(null);
+    setInputPanelOpen(true);
+    setSubmitFlash('来院記録を登録しました。次の患者をふりがなで検索してください。');
+    setSearchFocusSignal((n) => n + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (!submitFlash) return;
+    const t = window.setTimeout(() => setSubmitFlash(''), 4000);
+    return () => window.clearTimeout(t);
+  }, [submitFlash]);
 
   /** 履歴から修正保存後：顧客・パネル・履歴の開閉を維持し次の修正へ */
   const finishEditSave = (visitDateYmd: string) => {
@@ -380,9 +398,12 @@ export default function VisitForm({
       }
 
       const wasEdit = Boolean(editingId);
-      alert(wasEdit ? '内容と画像を修正しました' : '来院記録と画像を登録しました');
-      if (wasEdit) finishEditSave(visitDate);
-      else resetFieldsAfterNewSubmit();
+      if (wasEdit) {
+        alert('内容と画像を修正しました');
+        finishEditSave(visitDate);
+      } else {
+        prepareForNextVisitEntry();
+      }
       loadRecentRecords();
       window.dispatchEvent(new Event('records-updated'));
 
@@ -547,7 +568,21 @@ export default function VisitForm({
         </button>
         {inputPanelOpen && (
           <div className="bg-white p-3 sm:p-6 border-t border-slate-200">
-        <CustomerSearchPanel accent={editingId ? "orange" : "blue"} selectedCustomer={selectedCustomer} onSelect={setSelectedCustomer} onClearSelection={() => setSelectedCustomer(null)} />
+        {submitFlash && (
+          <div
+            className="mb-4 rounded-xl border-2 border-green-300 bg-green-50 px-4 py-3 text-sm font-bold text-green-900"
+            role="status"
+          >
+            {submitFlash}
+          </div>
+        )}
+        <CustomerSearchPanel
+          accent={editingId ? 'orange' : 'blue'}
+          selectedCustomer={selectedCustomer}
+          onSelect={setSelectedCustomer}
+          onClearSelection={() => setSelectedCustomer(null)}
+          focusSearchSignal={searchFocusSignal}
+        />
         <form
           onSubmit={swallowFormSubmit}
           onKeyDown={blockEnterFormSubmit}
