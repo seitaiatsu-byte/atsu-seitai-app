@@ -155,12 +155,11 @@ export default function VisitRecordDateAccordion({
                         <div className="p-2 space-y-2 bg-slate-50/40">
                           {days.map((dateKey) => {
                             const dayVisits = byDate.get(dateKey) || [];
-                            const label = new Date(dateKey + 'T12:00:00').toLocaleDateString('ja-JP', {
+                            const dayNum = parseInt(dateKey.slice(8, 10), 10);
+                            const weekday = new Date(dateKey + 'T12:00:00').toLocaleDateString('ja-JP', {
                               weekday: 'short',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
                             });
+                            const label = `${dayNum}日（${weekday}）`;
                             const sum = dayVisits.reduce((s, v) => s + Number(v.amount || 0), 0);
                             const isDayOpen = openDays.has(dateKey);
                             return (
@@ -232,7 +231,7 @@ function VisitDetailCard({
   actions?: React.ReactNode;
 }) {
   const rows = getVisitFieldRows(v, { customer, methodIdToName, detailIdToName });
-  const displayRows = rows.filter((r) => r.key !== 'pdd' && r.key !== 'tk');
+  const displayRows = rows.filter((r) => r.key !== 'pdd' && r.key !== 'tk' && r.key !== 'd');
   const hasMedia = (v.media_urls && v.media_urls.length > 0) || false;
 
   return (

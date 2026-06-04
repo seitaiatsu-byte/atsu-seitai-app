@@ -10,7 +10,7 @@ import {
   resolvePaymentDetailIdFromKindLabel,
   stripKindPrefixFromMemo,
 } from '../lib/visitRecordKindCompat';
-import { getTodayLocalYmd } from '../lib/visitDateParse';
+import { formatVisitMonthDay, getTodayLocalYmd } from '../lib/visitDateParse';
 import { recalcBeEquivalentCountsForCustomers } from '../lib/beEquivalentRecalc';
 import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
 import {
@@ -880,11 +880,65 @@ export default function VisitForm({
                         <span className="text-sm font-bold text-blue-700 whitespace-nowrap">計 {formatYen(group.total)}</span>
                       </button>
                       {isOpen && (
-                        <div className="overflow-auto border-t border-slate-200">
-                          <div className="min-w-[48rem]">
-                            <div className="grid grid-cols-[4.8rem_4.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem] items-center gap-1 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
+                        <div className="border-t border-slate-200">
+                          <ul className="md:hidden divide-y divide-slate-100">
+                            {group.records.map((r) => {
+                              const customerName = r.import_customer_name || r.customers?.name || '—';
+                              const customerNumber = r.customers?.customer_number || '—';
+                              const paymentMethod = formatPaymentMethodLabel(r.payment_method, methodNameMap);
+                              const paymentDetail = formatPaymentDetailLabel(
+                                r.payment_detail_id,
+                                detailNameMap,
+                                r.import_kind_text,
+                                r.memo
+                              );
+                              const rowBand = customerNumberHistoryRowClass(r.customers?.customer_number);
+                              return (
+                                <li key={r.id} className={`p-2.5 ${rowBand}`}>
+                                  <div className="flex gap-1 mb-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => startEdit(r)}
+                                      className="inline-flex items-center gap-0.5 px-2 py-1 rounded border border-blue-300 text-blue-700 font-bold text-xs hover:bg-blue-50 touch-manipulation"
+                                    >
+                                      <Edit2 size={12} />
+                                      修正
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => void deleteRecentRecord(r)}
+                                      className="inline-flex items-center gap-0.5 px-2 py-1 rounded border border-red-300 text-red-700 font-bold text-xs hover:bg-red-50 touch-manipulation"
+                                    >
+                                      <Trash2 size={12} />
+                                      削除
+                                    </button>
+                                  </div>
+                                  <div className="grid grid-cols-[4.5rem_1fr] gap-x-2 gap-y-1 text-[11px]">
+                                    <span className="text-slate-500 font-bold">番号</span>
+                                    <span className="font-bold text-slate-800">{customerNumber}</span>
+                                    <span className="text-slate-500 font-bold">氏名</span>
+                                    <span className="font-bold text-slate-800">{customerName}</span>
+                                    <span className="text-slate-500 font-bold">メニュー</span>
+                                    <span className="text-slate-800">{r.menu_name || '—'}</span>
+                                    <span className="text-slate-500 font-bold">金額</span>
+                                    <span className="font-bold text-slate-900">{formatYen(r.amount)}</span>
+                                    <span className="text-slate-500 font-bold">支払</span>
+                                    <span className="text-slate-600">
+                                      {paymentMethod}
+                                      {paymentDetail !== '-' ? ` / ${paymentDetail}` : ''}
+                                    </span>
+                                    <span className="text-slate-500 font-bold">担当</span>
+                                    <span className="text-slate-700">{r.staff_name || '—'}</span>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                          <div className="hidden md:block overflow-auto">
+                          <div className="min-w-[46rem]">
+                            <div className="grid grid-cols-[4.8rem_2.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem] items-center gap-1 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
                               <div className="sticky left-0 z-10 bg-slate-100 -ml-1.5 pl-1.5">操作</div>
-                              <div>日付</div>
+                              <div>月日</div>
                               <div>番号</div>
                               <div>氏名</div>
                               <div>実通院</div>
@@ -901,7 +955,7 @@ export default function VisitForm({
                                 const paymentDetail = formatPaymentDetailLabel(r.payment_detail_id, detailNameMap, r.import_kind_text, r.memo);
                                 const rowBand = customerNumberHistoryRowClass(r.customers?.customer_number);
                                 return (
-                                  <li key={r.id} className={`grid grid-cols-[4.8rem_4.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem] items-center gap-1 px-1.5 py-1 text-[11px] ${rowBand}`}>
+                                  <li key={r.id} className={`grid grid-cols-[4.8rem_2.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem] items-center gap-1 px-1.5 py-1 text-[11px] ${rowBand}`}>
                                     <div className="sticky left-0 z-10 flex gap-0.5 shrink-0 bg-inherit -ml-1.5 pl-1.5 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.12)]">
                                       <button
                                         type="button"
@@ -920,7 +974,12 @@ export default function VisitForm({
                                         削除
                                       </button>
                                     </div>
-                                    <div className="font-bold text-slate-800 whitespace-nowrap">{formatCompactDate(r.visit_date)}</div>
+                                    <div
+                                      className="font-bold text-slate-800 whitespace-nowrap"
+                                      title={formatCompactDate(r.visit_date)}
+                                    >
+                                      {formatVisitMonthDay(r.visit_date)}
+                                    </div>
                                     <div className="font-bold text-slate-800 truncate" title={customerNumber}>{customerNumber}</div>
                                     <div className="font-bold text-slate-800 truncate" title={customerName}>{customerName}</div>
                                     <div className="font-bold text-blue-700 whitespace-nowrap">
@@ -936,6 +995,7 @@ export default function VisitForm({
                                 );
                               })}
                             </ul>
+                          </div>
                           </div>
                         </div>
                       )}

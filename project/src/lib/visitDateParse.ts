@@ -69,3 +69,13 @@ export function getTodayLocalYmd(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+/** 日付グループ見出しの下の行用（年は見出しにあるので 6/4 のみ） */
+export function formatVisitMonthDay(raw: unknown): string {
+  const s = String(raw || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '—';
+  const m = parseInt(s.slice(5, 7), 10);
+  const d = parseInt(s.slice(8, 10), 10);
+  if (!Number.isFinite(m) || !Number.isFinite(d)) return '—';
+  return `${m}/${d}`;
+}
