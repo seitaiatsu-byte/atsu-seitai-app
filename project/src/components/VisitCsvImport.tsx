@@ -2,15 +2,11 @@ import { useRef, useState } from 'react';
 import { Upload, Download, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
-import { looksLikeUuid } from '../lib/paymentDisplay';
-import { parseLocalVisitDateToYmd } from '../lib/visitDateParse';
-import { normalizeCellText, resolvePaymentMethodMasterIdForVisitImport } from '../lib/visitImportRules';
 import {
   VISIT_CSV_DATA_START_ROW_1_BASED,
   VISIT_CSV_DATE_RECOMMEND,
   VISIT_CSV_HEADER_LINE,
   VISIT_CSV_PAYMENT_RECOMMEND,
-  idx,
 } from '../lib/visitCsvTemplate';
 import { assignVisitNumbersInBatch, fetchMaxVisitNumberByCustomer } from '../lib/visitNumber';
 import { toErrorMessage } from '../lib/toErrorMessage';
@@ -24,6 +20,14 @@ import {
   resolveVisitDataRowsForImport,
 } from '../lib/visitCsvFileRead';
 import { recalcBeEquivalentCountsForCustomers } from '../lib/beEquivalentRecalc';
+import {
+  customerNumberCandidates,
+  padVisitCsvCells,
+  validateVisitCsvDataRow,
+  type ValidatedVisitCsvRow,
+  type VisitCsvValidateContext,
+} from '../lib/visitCsvImportRowValidate';
+import VisitCsvImportIssuePanel, { type VisitCsvImportIssueRow } from './VisitCsvImportIssuePanel';
 
 type VisitInsert = Database['public']['Tables']['visit_records']['Insert'];
 type CustomerRow = Pick<
@@ -48,81 +52,7 @@ type ImportResult = {
   usedMemoFallbackForKind?: boolean;
 };
 
-const kawanishiClinic = '川西あつ整体院';
-const takatsukiClinic = '高槻あつ整体院';
-
-const toDigits = (v: string) => v.replace(/\D/g, '');
-
-/** 顧客番号の照合候補（全角・ゼロ埋め・小数表示・記号混在を吸収） */
-const customerNumberCandidates = (v: string): string[] => {
-  const base = String(v ?? '')
-    .normalize('NFKC')
-    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
-    .trim()
-    .replace(/[, ]/g, '')
-    .replace(/^'+/, '')
-    .replace(/\.0+$/, '');
-  const out = new Set<string>();
-  const digits = toDigits(base);
-  if (digits) {
-    out.add(digits);
-    const noZero = digits.replace(/^0+/, '');
-    if (noZero) out.add(noZero);
-  }
-  if (/^\d+(\.\d+)?$/.test(base)) {
-    const i = String(Math.trunc(Number(base)));
-    if (Number.isFinite(Number(base)) && i !== 'NaN') {
-      out.add(i);
-      out.add(i.replace(/^0+/, '') || '0');
-    }
-  }
-  if (base) out.add(base);
-  return [...out].filter(Boolean);
-};
-
-const parseAmount = (raw: string): number | null => {
-  const n = Number(raw.replace(/,/g, '').trim());
-  if (!Number.isFinite(n)) return null;
-  return n;
-};
-
-const pickClinicByCustomerNumber = (customerNumberDigits: string): string | null => {
-  const num = Number(customerNumberDigits);
-  if (!Number.isFinite(num)) return null;
-  if (num <= 4999) return kawanishiClinic;
-  return takatsukiClinic;
-};
-
-/** 回数券: 生文字列＋、数として points_used（例 13/16 → 先頭の 13） */
-const parseTicketCell = (raw: string): { raw: string; points: number } => {
-  const rawTrim = raw.trim();
-  if (!rawTrim) return { raw: '', points: 0 };
-  if (rawTrim.includes('/')) {
-    const a = rawTrim.split('/')[0] || '';
-    const p = Number(a.replace(/\D/g, ''));
-    return { raw: rawTrim, points: Number.isFinite(p) ? p : 0 };
-  }
-  const p = Number(rawTrim.replace(/,/g, ''));
-  return { raw: rawTrim, points: Number.isFinite(p) ? p : 0 };
-};
-
-const parseBeOptional = (raw: string): number | null => {
-  const t = raw.trim();
-  if (!t) return null;
-  const n = parseInt(t.replace(/,/g, ''), 10);
-  if (!Number.isFinite(n)) return null;
-  return n;
-};
-
-type ValidatedRow = {
-  line: number;
-  customerId: string;
-  visitDate: string;
-  numberDigits: string;
-  /** 5列目に文字があるが支払マスタに合わない（挿入はするが payment_method = null） */
-  payMismatch: boolean;
-  insert: Omit<VisitInsert, 'visit_number'>;
-};
+type ValidatedRow = ValidatedVisitCsvRow & { line: number };
 
 async function fetchAllCustomersForImport(): Promise<{
   rows: CustomerRow[];
@@ -153,6 +83,12 @@ export default function VisitCsvImport() {
   const [progressText, setProgressText] = useState('');
   const [result, setResult] = useState<ImportResult | null>(null);
   const [showGuide, setShowGuide] = useState(false);
+  const [issueRows, setIssueRows] = useState<VisitCsvImportIssueRow[]>([]);
+  const [validateCtx, setValidateCtx] = useState<VisitCsvValidateContext | null>(null);
+  const [issueActionMessage, setIssueActionMessage] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   const downloadTemplate = () => {
     const example = [
@@ -174,6 +110,9 @@ export default function VisitCsvImport() {
     setImporting(true);
     setProgressText('CSVを読み込み中...');
     setResult(null);
+    setIssueRows([]);
+    setValidateCtx(null);
+    setIssueActionMessage(null);
 
     try {
       const text = await readCsvFileAsString(file);
@@ -259,114 +198,48 @@ export default function VisitCsvImport() {
         );
       }
 
+      const validateContext: VisitCsvValidateContext = {
+        customerMap,
+        customerById,
+        methods,
+        methodMasterError: Boolean(methodMasterError),
+      };
+      setValidateCtx(validateContext);
+
       const messages: string[] = [];
       const skippedDetail: string[] = [];
+      const issueRowsCollected: VisitCsvImportIssueRow[] = [];
       const valid: ValidatedRow[] = [];
+
+      const pushSkipped = (line: number, reason: string, cells: string[]) => {
+        const detail = `${reason}— スキップ`;
+        skippedDetail.push(`行${line}: ${detail}`);
+        issueRowsCollected.push({
+          id: `skip-${line}-${issueRowsCollected.length}`,
+          line,
+          reason: detail,
+          cells: padVisitCsvCells(cells),
+          kind: 'skipped',
+        });
+      };
 
       for (let i = 0; i < dataRows.length; i++) {
         const line = firstDataLine1Based + i;
         const row = dataRows[i] || [];
         if (row.every((c) => !c.trim())) continue;
 
-        const c2 = (row[idx.customer] || '').trim();
-        const visitDate = parseLocalVisitDateToYmd(row[idx.date] || '');
-        const amount = parseAmount(row[idx.amount] || '');
-
-        if (!visitDate) {
-          skippedDetail.push(`行${line}: 日付の形式が不正（1列目=日付）— スキップ`);
-          continue;
-        }
-        if (amount == null) {
-          skippedDetail.push(`行${line}: 売上金額が不正（4列目=売上）— スキップ`);
-          continue;
-        }
-        if (!c2) {
-          skippedDetail.push(`行${line}: 2列目（顧客：番号 or 顧客ID）が空— スキップ`);
+        const parsed = validateVisitCsvDataRow(row, validateContext);
+        if (!parsed.ok) {
+          pushSkipped(line, parsed.reason, row);
           continue;
         }
 
-        let customer: CustomerRow | undefined;
-        if (looksLikeUuid(c2)) {
-          customer = customerById.get(c2);
-          if (!customer) {
-            skippedDetail.push(`行${line}: 2列目の顧客ID ${c2} は未登録— スキップ`);
-            continue;
-          }
-        } else {
-          const candidates = customerNumberCandidates(c2);
-          if (!candidates.length) {
-            skippedDetail.push(`行${line}: 2列目の顧客番号が解釈できない— スキップ`);
-            continue;
-          }
-          customer = candidates.map((k) => customerMap.get(k)).find(Boolean);
-          if (!customer) {
-            skippedDetail.push(
-              `行${line}: 顧客番号 ${c2} は未登録（先に顧客登録/インポート）— スキップ`
-            );
-            continue;
-          }
-        }
+        const { validated, infoMessages } = parsed;
+        infoMessages.forEach((msg) => messages.push(`行${line}: ${msg}`));
 
-        const nameCell = (row[idx.name] || '').trim();
-        if (nameCell && customer.name && nameCell !== customer.name) {
-          messages.push(
-            `行${line}: 氏名（CSV: ${nameCell} / 登録: ${customer.name}）→ CSV 値を import_customer_name に保存。`
-          );
-        }
-
-        const rawMethod = normalizeCellText(row[idx.paymentMethod] || '');
-        const rawKind = (row[idx.kind] || '').replace(/\u3000/g, ' ');
-
-        // 5列目: マスタ未解決は null（種類6列目は生保存のため照合しない）
-        const methodResolved =
-          rawMethod && !methodMasterError
-            ? resolvePaymentMethodMasterIdForVisitImport(row[idx.paymentMethod] || '', methods)
-            : null;
-        const methodId: string | null = methodResolved?.id ?? null;
-        const payMismatch = Boolean(rawMethod && !methodId);
-
-        // 6列目（種類）: マスタ照合なし
-        const importKindText = rawKind.replace(/\u3000/g, ' ').trim() || null;
-
-        const menuCell = (row[idx.menu] || '').trim();
-        const importCsvVisitCount = (row[idx.csvVisitCount] || '').trim() || null;
-        const be = parseBeOptional(row[idx.beCount] || '');
-        const ticket = parseTicketCell(row[idx.ticket] || '');
-        const memo = (row[idx.memo] || '').trim() || null;
-
-        const numberDigits =
-          customerNumberCandidates(c2)[0] || customerNumberCandidates(customer.customer_number || '5000')[0];
-        const clinic = pickClinicByCustomerNumber(numberDigits);
-        if (!clinic) {
-          skippedDetail.push(
-            `行${line}: 顧客番号から院を判別できない— スキップ。2列目/顧客の番号に数字を。`
-          );
-          continue;
-        }
-
-        const insert: Omit<VisitInsert, 'visit_number'> = {
-          customer_id: customer.id,
-          visit_date: visitDate,
-          amount,
-          payment_method: methodId ?? null,
-          payment_detail_id: null,
-          import_kind_text: importKindText,
-          menu_name: menuCell || null,
-          points_used: ticket.points,
-          import_customer_name: nameCell || null,
-          import_csv_visit_count: importCsvVisitCount,
-          import_ticket_count_raw: ticket.raw || null,
-          be_equivalent_count: be,
-          memo,
-          clinic_name: clinic,
-        };
         valid.push({
           line,
-          customerId: customer.id,
-          visitDate,
-          numberDigits: numberDigits || c2,
-          payMismatch,
-          insert,
+          ...validated,
         });
       }
 
@@ -374,6 +247,7 @@ export default function VisitCsvImport() {
 
       if (valid.length === 0) {
         const skipList = skippedDetail.slice(0, 200);
+        setIssueRows(issueRowsCollected.slice(0, 200));
         setResult({
           success: 0,
           skipped: skipList.length,
@@ -382,7 +256,7 @@ export default function VisitCsvImport() {
             ? [
                 ...allInfo,
                 skipList.length
-                  ? '上記に加え、下の「スキップの内訳」に行ごとの理由を出しています。'
+                  ? '上記に加え、下の「スキップの内訳」に行ごとの理由を出しています。問題のある行パネルで修正・登録もできます。'
                   : '有効行が0件でした。',
               ]
             : skipList.length
@@ -401,9 +275,15 @@ export default function VisitCsvImport() {
       for (const v of valid) {
         const k = `${v.customerId}\t${v.visitDate}`;
         if (seenInCsv.has(k)) {
-          skippedDetail.push(
-            `行${v.line}: 同じ顧客・同じ来院日がこのCSV内で重複。先の行を残しスキップ。`
-          );
+          const reason = '同じ顧客・同じ来院日がこのCSV内で重複。先の行を残しスキップ。';
+          skippedDetail.push(`行${v.line}: ${reason}`);
+          issueRowsCollected.push({
+            id: `dupcsv-${v.line}-${issueRowsCollected.length}`,
+            line: v.line,
+            reason,
+            cells: padVisitCsvCells(v.cells),
+            kind: 'skipped',
+          });
           continue;
         }
         seenInCsv.add(k);
@@ -440,7 +320,15 @@ export default function VisitCsvImport() {
       for (const v of afterCsvDedup) {
         const k = `${v.customerId}\t${v.visitDate}`;
         if (existingSet.has(k)) {
-          skippedDetail.push(`行${v.line}: 同一顧客・${v.visitDate} の来院は既に登録済— スキップ`);
+          const reason = `同一顧客・${v.visitDate} の来院は既に登録済— スキップ`;
+          skippedDetail.push(`行${v.line}: ${reason}`);
+          issueRowsCollected.push({
+            id: `dupdb-${v.line}-${issueRowsCollected.length}`,
+            line: v.line,
+            reason,
+            cells: padVisitCsvCells(v.cells),
+            kind: 'skipped',
+          });
         } else {
           toInsert.push(v);
         }
@@ -448,6 +336,7 @@ export default function VisitCsvImport() {
 
       if (toInsert.length === 0) {
         const skipList = skippedDetail.slice(0, 200);
+        setIssueRows(issueRowsCollected.slice(0, 200));
         setResult({
           success: 0,
           skipped: skipList.length,
@@ -511,15 +400,19 @@ export default function VisitCsvImport() {
       const chunkSize = 200;
       let success = 0;
       let usedMemoFallbackForKind = false;
+      const insertedKeyToId = new Map<string, string>();
       for (let start = 0; start < insertRows.length; start += chunkSize) {
         const chunk = insertRows.slice(start, start + chunkSize);
         setProgressText(
           `取り込み中... ${Math.min(start + chunk.length, insertRows.length)} / ${insertRows.length}`
         );
-        const tryInsert = await supabase.from('visit_records').insert(chunk);
+        const tryInsert = await supabase
+          .from('visit_records')
+          .insert(chunk)
+          .select('id, customer_id, visit_date');
         if (tryInsert.error && isMissingImportKindTextColumnError(tryInsert.error)) {
           const chunk2 = chunk.map(visitInsertOmittingImportKindText);
-          const r2 = await supabase.from('visit_records').insert(chunk2);
+          const r2 = await supabase.from('visit_records').insert(chunk2).select('id, customer_id, visit_date');
           if (r2.error) {
             setResult({
               success: 0,
@@ -538,7 +431,11 @@ export default function VisitCsvImport() {
             return;
           }
           usedMemoFallbackForKind = true;
+          for (const rec of r2.data || []) {
+            insertedKeyToId.set(`${rec.customer_id}\t${rec.visit_date}`, rec.id);
+          }
         } else if (tryInsert.error) {
+          setIssueRows(issueRowsCollected.slice(0, 200));
           setResult({
             success: 0,
             skipped: skippedDetail.length,
@@ -551,10 +448,26 @@ export default function VisitCsvImport() {
           setImporting(false);
           if (fileRef.current) fileRef.current.value = '';
           return;
+        } else {
+          for (const rec of tryInsert.data || []) {
+            insertedKeyToId.set(`${rec.customer_id}\t${rec.visit_date}`, rec.id);
+          }
         }
         success += chunk.length;
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
+
+      for (const v of toInsert.filter((r) => r.payMismatch)) {
+        issueRowsCollected.push({
+          id: `mismatch-${v.line}-${issueRowsCollected.length}`,
+          line: v.line,
+          reason: '5列目はマスタ未解決のため payment_method を空欄で登録。',
+          cells: padVisitCsvCells(v.cells),
+          kind: 'mismatch_imported',
+          visitRecordId: insertedKeyToId.get(`${v.customerId}\t${v.visitDate}`),
+        });
+      }
+      setIssueRows(issueRowsCollected.slice(0, 200));
 
       const compatNote: string[] = usedMemoFallbackForKind
         ? [
@@ -744,7 +657,8 @@ export default function VisitCsvImport() {
               {result.skipped > 0 && (
                 <div className="mt-1">
                   日付・顧客・重複などの理由で取り込まなかった行は
-                  <span className="font-bold"> {result.skipped} 行</span>あります。詳細は下に一覧します。
+                  <span className="font-bold"> {result.skipped} 行</span>あります。詳細は下に一覧し、
+                  <span className="font-bold">問題のある行パネル</span>で修正・登録できます。
                 </div>
               )}
             </div>
@@ -788,6 +702,25 @@ export default function VisitCsvImport() {
                 </div>
               ))}
             </div>
+          )}
+          {issueActionMessage && (
+            <div
+              className={`mt-3 rounded-lg border px-3 py-2 text-xs font-bold ${
+                issueActionMessage.success
+                  ? 'border-green-300 bg-green-50 text-green-900'
+                  : 'border-red-300 bg-red-50 text-red-900'
+              }`}
+            >
+              {issueActionMessage.message}
+            </div>
+          )}
+          {validateCtx && issueRows.length > 0 && (
+            <VisitCsvImportIssuePanel
+              rows={issueRows}
+              validateCtx={validateCtx}
+              onRowsChange={setIssueRows}
+              onImported={setIssueActionMessage}
+            />
           )}
         </div>
       )}
