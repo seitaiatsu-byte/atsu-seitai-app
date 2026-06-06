@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type FocusEventHandler, type InputHTMLAttributes } from 'react';
 
 const NUMERIC_INPUT_TYPES = new Set([
   'number',
@@ -16,6 +16,7 @@ const NUMERIC_INPUT_TYPES = new Set([
 export function shouldUseJapaneseInput(el: Element): el is HTMLInputElement | HTMLTextAreaElement {
   if (!(el instanceof HTMLInputElement) && !(el instanceof HTMLTextAreaElement)) return false;
   if (el.getAttribute('data-ime') === 'off') return false;
+  if (el.getAttribute('data-person-search') === 'true') return true;
   if (el.getAttribute('data-ime') === 'ja') return true;
   if (el instanceof HTMLInputElement) {
     const type = (el.type || 'text').toLowerCase();
@@ -67,8 +68,30 @@ export function focusWithJapaneseIme(el: HTMLInputElement | HTMLTextAreaElement 
   requestAnimationFrame(run);
 }
 
+/** ヒト検索欄（時間・金額以外）向けの共通 input 属性 */
+export function personSearchInputProps(
+  extra?: InputHTMLAttributes<HTMLInputElement>
+): InputHTMLAttributes<HTMLInputElement> {
+  const { onFocus, ...rest } = extra ?? {};
+  return {
+    type: 'text',
+    lang: 'ja',
+    'data-ime': 'ja',
+    'data-person-search': 'true',
+    autoComplete: 'off',
+    autoCapitalize: 'off',
+    autoCorrect: 'off',
+    spellCheck: false,
+    onFocus: ((e) => {
+      ensureJapaneseImeForInput(e.currentTarget);
+      onFocus?.(e);
+    }) as FocusEventHandler<HTMLInputElement>,
+    ...rest,
+  };
+}
+
 export function applyJapaneseInputToElement(el: HTMLInputElement | HTMLTextAreaElement): void {
-  if (el.getAttribute('data-ime') === 'ja') {
+  if (el.getAttribute('data-ime') === 'ja' || el.getAttribute('data-person-search') === 'true') {
     ensureJapaneseImeForInput(el);
     return;
   }

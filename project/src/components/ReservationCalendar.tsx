@@ -5,7 +5,7 @@ import type { Database } from '../lib/database.types';
 import CustomerSearchPanel, { type CustomerRow } from './CustomerSearchPanel';
 import ClinicScopeToggle, { type ClinicScope } from './ClinicScopeToggle';
 import FlexibleTimeInput from './FlexibleTimeInput';
-import { ensureJapaneseImeForInput } from '../lib/useJapaneseTextInputs';
+import { personSearchInputProps } from '../lib/useJapaneseTextInputs';
 import { guardNavigation, useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 import SecretInputField, { OTHER_CAL_PASSWORD_HINT } from './SecretInputField';
 import ModalCloseButton from './ModalCloseButton';
@@ -928,26 +928,19 @@ export default function ReservationCalendar({
           <ClinicScopeToggle value={clinicScope} onChange={setClinicScope} />
           <div className="relative flex-1 min-w-[220px]">
             <input
-              type="text"
-              data-ime="ja"
-              value={searchQuery}
-              onFocus={(e) => {
-                ensureJapaneseImeForInput(e.currentTarget);
-                setShowHeaderCustomerResults(true);
-              }}
-              onBlur={() => window.setTimeout(() => setShowHeaderCustomerResults(false), 120)}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setShowHeaderCustomerResults(true);
-              }}
-              onKeyDown={handleHeaderSearchKeyDown}
-              placeholder={calendarViewMode === 'appointment' ? 'ふりがな・氏名・番号で絞り込み' : '表示名・メモで絞り込み'}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
-              lang="ja"
-              autoComplete="off"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
+              {...personSearchInputProps({
+                value: searchQuery,
+                onFocus: () => setShowHeaderCustomerResults(true),
+                onBlur: () => window.setTimeout(() => setShowHeaderCustomerResults(false), 120),
+                onChange: (e) => {
+                  setSearchQuery(e.target.value);
+                  setShowHeaderCustomerResults(true);
+                },
+                onKeyDown: handleHeaderSearchKeyDown,
+                placeholder:
+                  calendarViewMode === 'appointment' ? 'ふりがな・氏名・番号で絞り込み' : '表示名・メモで絞り込み',
+                className: 'w-full px-3 py-2 border rounded-lg text-sm',
+              })}
             />
             {calendarViewMode === 'appointment' && showHeaderCustomerResults && searchQuery.trim() && headerCustomerResults.length > 0 && (
               <div ref={headerResultsRef} className="absolute left-0 right-0 top-full z-[90] mt-1 max-h-80 overflow-y-auto rounded-xl border border-blue-200 bg-white shadow-xl">
@@ -989,26 +982,18 @@ export default function ReservationCalendar({
           </div>
           <div className="relative min-w-0">
             <input
-              type="text"
-              data-ime="ja"
-              value={searchQuery}
-              onFocus={(e) => {
-                ensureJapaneseImeForInput(e.currentTarget);
-                setShowHeaderCustomerResults(true);
-              }}
-              onBlur={() => window.setTimeout(() => setShowHeaderCustomerResults(false), 120)}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setShowHeaderCustomerResults(true);
-              }}
-              onKeyDown={handleHeaderSearchKeyDown}
-              placeholder={calendarViewMode === 'appointment' ? 'かな・氏名・番号' : '表示名・メモ'}
-              className="w-full px-2 py-0.5 border rounded text-[11px] leading-tight h-6"
-              lang="ja"
-              autoComplete="off"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
+              {...personSearchInputProps({
+                value: searchQuery,
+                onFocus: () => setShowHeaderCustomerResults(true),
+                onBlur: () => window.setTimeout(() => setShowHeaderCustomerResults(false), 120),
+                onChange: (e) => {
+                  setSearchQuery(e.target.value);
+                  setShowHeaderCustomerResults(true);
+                },
+                onKeyDown: handleHeaderSearchKeyDown,
+                placeholder: calendarViewMode === 'appointment' ? 'かな・氏名・番号' : '表示名・メモ',
+                className: 'w-full px-2 py-0.5 border rounded text-[11px] leading-tight h-6',
+              })}
             />
             {calendarViewMode === 'appointment' && showHeaderCustomerResults && searchQuery.trim() && headerCustomerResults.length > 0 && (
               <div ref={headerResultsRef} className="absolute left-0 right-0 top-full z-[90] mt-0.5 max-h-48 overflow-y-auto rounded-lg border border-blue-200 bg-white shadow-xl">

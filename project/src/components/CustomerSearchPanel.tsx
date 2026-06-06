@@ -4,7 +4,7 @@ import type { Database } from '../lib/database.types';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
 import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
-import { ensureJapaneseImeForInput, focusWithJapaneseIme } from '../lib/useJapaneseTextInputs';
+import { ensureJapaneseImeForInput, focusWithJapaneseIme, personSearchInputProps } from '../lib/useJapaneseTextInputs';
 
 export type CustomerRow = Database['public']['Tables']['customers']['Row'];
 
@@ -254,23 +254,17 @@ export default function CustomerSearchPanel({
       <div className="relative">
         <input
           ref={searchInputRef}
-          type="text"
-          data-ime="ja"
-          lang="ja"
-          autoComplete="off"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onFocus={(e) => ensureJapaneseImeForInput(e.currentTarget)}
-          onKeyDown={onSearchKeyDown}
-          placeholder="ふりがなで検索（例: たなか）"
-          className={`w-full px-4 py-3 border-2 rounded-lg outline-none ${border[accent]}`}
-          autoFocus
-          role="combobox"
-          aria-expanded={searchResults.length > 0}
-          aria-activedescendant={searchResults.length ? `cust-opt-${highlightIndex}` : undefined}
+          {...personSearchInputProps({
+            value: searchQuery,
+            onChange: (e) => setSearchQuery(e.target.value),
+            onKeyDown: onSearchKeyDown,
+            placeholder: 'ふりがなで検索（例: たなか）',
+            className: `w-full px-4 py-3 border-2 rounded-lg outline-none ${border[accent]}`,
+            autoFocus: true,
+            role: 'combobox',
+            'aria-expanded': searchResults.length > 0,
+            'aria-activedescendant': searchResults.length ? `cust-opt-${highlightIndex}` : undefined,
+          })}
         />
         {isSearching && <div className="absolute right-3 top-3 text-gray-400 text-sm">検索中...</div>}
       </div>

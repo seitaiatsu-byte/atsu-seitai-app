@@ -6,6 +6,7 @@ import { fetchAllCustomersByCreatedDesc, fetchCustomerCountExact } from '../lib/
 import { fetchExistingCustomerNameBirthKeySet } from '../lib/fetchNameBirthKeys';
 import { normalizeCsvHeaderLabel, resolveCsvColumnMap, normalizePhoneDigitsForDb } from '../lib/customerImportHelpers';
 import { applyPhoneToCustomerPayload } from '../lib/customerPhoneFields';
+import { personSearchInputProps } from '../lib/useJapaneseTextInputs';
 import {
   getAgeYearsFromCustomer,
   getPhoneWithMemoFallback,
@@ -23,7 +24,7 @@ import NewCustomerForm from './NewCustomerForm';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
 
 /** name / name_kana / customer_number は誤検知でも除外しない */
-const PROTECTED_CUSTOMER_COLUMNS = new Set(['name', 'name_kana', 'customer_number', 'phone_number', 'phone']);
+const PROTECTED_CUSTOMER_COLUMNS = new Set(['name', 'name_kana', 'customer_number', 'phone_number']);
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 
@@ -1100,11 +1101,13 @@ export default function CustomerImport() {
 
         <div className="mb-4">
           <input
-            type="text"
-            value={rosterSearch}
-            onChange={(e) => setRosterSearch(e.target.value)}
-            placeholder="検索（かな・番号・名前）"
-            className="w-full md:w-[420px] px-4 py-2.5 rounded-lg border border-blue-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-300"
+            {...personSearchInputProps({
+              value: rosterSearch,
+              onChange: (e) => setRosterSearch(e.target.value),
+              placeholder: '検索（かな・番号・名前）',
+              className:
+                'w-full md:w-[420px] px-4 py-2.5 rounded-lg border border-blue-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-300',
+            })}
           />
         </div>
 

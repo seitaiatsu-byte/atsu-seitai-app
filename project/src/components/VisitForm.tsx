@@ -13,7 +13,7 @@ import {
 import { formatVisitMonthDay, getTodayLocalYmd } from '../lib/visitDateParse';
 import { recalcBeEquivalentCountsForCustomers } from '../lib/beEquivalentRecalc';
 import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
-import { ensureJapaneseImeForInput } from '../lib/useJapaneseTextInputs';
+import { personSearchInputProps } from '../lib/useJapaneseTextInputs';
 import { useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 import {
   formatCustomerNumberForMessage,
@@ -987,17 +987,13 @@ export default function VisitForm({
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
-                type="text"
-                data-ime="ja"
-                lang="ja"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                value={historyFilter}
-                onChange={(e) => setHistoryFilter(e.target.value)}
-                onFocus={(e) => ensureJapaneseImeForInput(e.currentTarget)}
-                placeholder="顧客番号・氏名・担当・メニュー名で検索..."
-                className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none"
+                {...personSearchInputProps({
+                  value: historyFilter,
+                  onChange: (e) => setHistoryFilter(e.target.value),
+                  placeholder: '顧客番号・氏名・担当・メニュー名で検索...',
+                  className:
+                    'w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none',
+                })}
               />
             </div>
             {recentRecords.length === 0 ? (
