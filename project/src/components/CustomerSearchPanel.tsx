@@ -4,7 +4,9 @@ import type { Database } from '../lib/database.types';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
 import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
-import { focusWithJapaneseIme, personSearchInputProps } from '../lib/useJapaneseTextInputs';
+import { normalizePersonSearchText } from '../lib/personSearchText';
+import { focusWithJapaneseIme } from '../lib/useJapaneseTextInputs';
+import PersonSearchInput from './PersonSearchInput';
 
 export type CustomerRow = Database['public']['Tables']['customers']['Row'];
 
@@ -86,19 +88,10 @@ export default function CustomerSearchPanel({
     return () => window.removeEventListener('customers-updated', onCustomersUpdated);
   }, [loadCustomers]);
 
-  const normalize = (v: string) =>
-    v
-      .normalize('NFKC')
-      .trim()
-      .toLowerCase()
-      .replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0))
-      .replace(/\s+/g, '');
-  const toHiragana = (v: string) => v.replace(/[\u30a1-\u30f6]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0x60));
-
   const searchCustomers = useCallback((q: string) => {
     setIsSearching(true);
-    const nq = normalize(q);
-    const nqHira = toHiragana(nq);
+    const nq = normalizePersonSearchText(q);
+    const nqHira = nq;
     const stripped = nq.replace(/\s/g, '');
     const digits = stripped.replace(/\D/g, '');
     const isPureNumeric = stripped.length > 0 && /^\d+$/.test(stripped);
@@ -107,11 +100,11 @@ export default function CustomerSearchPanel({
     const scored: Scored[] = [];
 
     for (const c of allCustomers) {
-      const name = normalize(c.name || '');
-      const kana = normalize(c.name_kana || c.kana || '');
-      const nameHira = toHiragana(name);
-      const kanaHira = toHiragana(kana);
-      const numberRaw = normalize(c.customer_number || '');
+      const name = normalizePersonSearchText(c.name || '');
+      const kana = normalizePersonSearchText(c.name_kana || c.kana || '');
+      const nameHira = name;
+      const kanaHira = kana;
+      const numberRaw = normalizePersonSearchText(c.customer_number || '');
       const numberDigits = numberRaw.replace(/\D/g, '');
 
       let tier: number | null = null;
@@ -140,8 +133,8 @@ export default function CustomerSearchPanel({
 
     scored.sort((a, b) => {
       if (a.tier !== b.tier) return a.tier - b.tier;
-      const an = normalize(a.row.customer_number || '').replace(/\D/g, '') || '';
-      const bn = normalize(b.row.customer_number || '').replace(/\D/g, '') || '';
+      const an = normalizePersonSearchText(a.row.customer_number || '').replace(/\D/g, '') || '';
+      const bn = normalizePersonSearchText(b.row.customer_number || '').replace(/\D/g, '') || '';
       if (an !== bn) return an.localeCompare(bn, undefined, { numeric: true });
       return (a.row.name || '').localeCompare(b.row.name || '');
     });
@@ -251,19 +244,17 @@ export default function CustomerSearchPanel({
         顧客を検索（氏名・ふりがな・顧客番号）
       </label>
       <div className="relative">
-        <input
+        <PersonSearchInput
           ref={searchInputRef}
-          {...personSearchInputProps({
-            value: searchQuery,
-            onChange: (e) => setSearchQuery(e.target.value),
-            onKeyDown: onSearchKeyDown,
-            placeholder: 'ふりがなで検索（例: たなか）',
-            className: `w-full px-4 py-3 border-2 rounded-lg outline-none ${border[accent]}`,
-            autoFocus: true,
-            role: 'combobox',
-            'aria-expanded': searchResults.length > 0,
-            'aria-activedescendant': searchResults.length ? `cust-opt-${highlightIndex}` : undefined,
-          })}
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onKeyDown={onSearchKeyDown}
+          placeholder="ふりがなで検索（例: たなか）"
+          className={`w-full px-4 py-3 border-2 rounded-lg outline-none ${border[accent]}`}
+          autoFocus
+          role="combobox"
+          aria-expanded={searchResults.length > 0}
+          aria-activedescendant={searchResults.length ? `cust-opt-${highlightIndex}` : undefined}
         />
         {isSearching && <div className="absolute right-3 top-3 text-gray-400 text-sm">検索中...</div>}
       </div>

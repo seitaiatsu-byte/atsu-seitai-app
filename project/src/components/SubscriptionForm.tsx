@@ -13,7 +13,8 @@ import {
   validateExplicitAmount,
 } from '../lib/registrationValidation';
 import { useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
-import { personSearchInputProps } from '../lib/useJapaneseTextInputs';
+import { normalizePersonSearchText } from '../lib/personSearchText';
+import PersonSearchInput from './PersonSearchInput';
 import { getFirstDayOfCurrentMonthLocalYmd } from '../lib/visitDateParse';
 
 type SubscriptionMaster = Database['public']['Tables']['subscription_master']['Row'];
@@ -333,12 +334,14 @@ export default function SubscriptionForm() {
   };
 
   const filteredRecords = useMemo(() => {
-    const q = listFilter.trim().toLowerCase();
+    const q = normalizePersonSearchText(listFilter);
     if (!q) return recentRecords;
     return recentRecords.filter((r) => {
       const c = r.customers;
       const hay = [
         c?.name,
+        c?.name_kana,
+        c?.kana,
         c?.customer_number,
         r.subscription_name,
         r.staff_name,
@@ -346,8 +349,8 @@ export default function SubscriptionForm() {
         r.clinic_name,
       ]
         .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
+        .map((v) => normalizePersonSearchText(v))
+        .join('');
       return hay.includes(q);
     });
   }, [recentRecords, listFilter]);
@@ -749,14 +752,11 @@ export default function SubscriptionForm() {
         <div className="relative mb-4 flex gap-2 items-stretch">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              {...personSearchInputProps({
-                value: listFilter,
-                onChange: (e) => setListFilter(e.target.value),
-                placeholder: '顧客番号・氏名・プラン名で絞り込み...',
-                className:
-                  'w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none',
-              })}
+            <PersonSearchInput
+              value={listFilter}
+              onChange={setListFilter}
+              placeholder="顧客番号・氏名・プラン名で絞り込み..."
+              className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-400 outline-none"
             />
           </div>
           <button

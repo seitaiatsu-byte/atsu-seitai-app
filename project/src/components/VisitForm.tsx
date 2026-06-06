@@ -13,7 +13,8 @@ import {
 import { formatVisitMonthDay, getTodayLocalYmd } from '../lib/visitDateParse';
 import { recalcBeEquivalentCountsForCustomers } from '../lib/beEquivalentRecalc';
 import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
-import { personSearchInputProps } from '../lib/useJapaneseTextInputs';
+import { normalizePersonSearchText } from '../lib/personSearchText';
+import PersonSearchInput from './PersonSearchInput';
 import { useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 import {
   formatCustomerNumberForMessage,
@@ -29,11 +30,7 @@ import {
 import type { CustomerRow } from './CustomerSearchPanel';
 
 function normalizeSearchText(raw: unknown): string {
-  const s = String(raw ?? '')
-    .normalize('NFKC')
-    .replace(/\s+/g, '')
-    .toLowerCase();
-  return s.replace(/[\u30a1-\u30f6]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+  return normalizePersonSearchText(raw);
 }
 
 function parseCustomerNumber(raw: unknown): number {
@@ -986,14 +983,11 @@ export default function VisitForm({
             </div>
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                {...personSearchInputProps({
-                  value: historyFilter,
-                  onChange: (e) => setHistoryFilter(e.target.value),
-                  placeholder: '顧客番号・氏名・担当・メニュー名で検索...',
-                  className:
-                    'w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none',
-                })}
+              <PersonSearchInput
+                value={historyFilter}
+                onChange={setHistoryFilter}
+                placeholder="顧客番号・氏名・担当・メニュー名で検索..."
+                className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 outline-none"
               />
             </div>
             {recentRecords.length === 0 ? (

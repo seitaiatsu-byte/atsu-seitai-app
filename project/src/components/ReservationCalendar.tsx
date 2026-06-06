@@ -5,7 +5,8 @@ import type { Database } from '../lib/database.types';
 import CustomerSearchPanel, { type CustomerRow } from './CustomerSearchPanel';
 import ClinicScopeToggle, { type ClinicScope } from './ClinicScopeToggle';
 import FlexibleTimeInput from './FlexibleTimeInput';
-import { personSearchInputProps } from '../lib/useJapaneseTextInputs';
+import { normalizePersonSearchText } from '../lib/personSearchText';
+import PersonSearchInput from './PersonSearchInput';
 import { guardNavigation, useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 import SecretInputField, { OTHER_CAL_PASSWORD_HINT } from './SecretInputField';
 import ModalCloseButton from './ModalCloseButton';
@@ -231,11 +232,7 @@ function renderTimelineItem(
 }
 
 function normalizeSearchText(raw: unknown): string {
-  const s = String(raw ?? '')
-    .normalize('NFKC')
-    .replace(/\s+/g, '')
-    .toLowerCase();
-  return s.replace(/[\u30a1-\u30f6]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+  return normalizePersonSearchText(raw);
 }
 
 function formatYmd(d: Date): string {
@@ -927,21 +924,34 @@ export default function ReservationCalendar({
           <CalendarViewModeToggle value={calendarViewMode} onChange={requestViewMode} />
           <ClinicScopeToggle value={clinicScope} onChange={setClinicScope} />
           <div className="relative flex-1 min-w-[220px]">
-            <input
-              {...personSearchInputProps({
-                value: searchQuery,
-                onFocus: () => setShowHeaderCustomerResults(true),
-                onBlur: () => window.setTimeout(() => setShowHeaderCustomerResults(false), 120),
-                onChange: (e) => {
+            {calendarViewMode === 'appointment' ? (
+              <PersonSearchInput
+                value={searchQuery}
+                onFocus={() => setShowHeaderCustomerResults(true)}
+                onBlur={() => window.setTimeout(() => setShowHeaderCustomerResults(false), 120)}
+                onChange={(v) => {
+                  setSearchQuery(v);
+                  setShowHeaderCustomerResults(true);
+                }}
+                onKeyDown={handleHeaderSearchKeyDown}
+                placeholder="ふりがな・氏名・番号で絞り込み"
+                className="w-full px-3 py-2 border rounded-lg text-sm"
+              />
+            ) : (
+              <input
+                type="text"
+                value={searchQuery}
+                onFocus={() => setShowHeaderCustomerResults(true)}
+                onBlur={() => window.setTimeout(() => setShowHeaderCustomerResults(false), 120)}
+                onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setShowHeaderCustomerResults(true);
-                },
-                onKeyDown: handleHeaderSearchKeyDown,
-                placeholder:
-                  calendarViewMode === 'appointment' ? 'ふりがな・氏名・番号で絞り込み' : '表示名・メモで絞り込み',
-                className: 'w-full px-3 py-2 border rounded-lg text-sm',
-              })}
-            />
+                }}
+                onKeyDown={handleHeaderSearchKeyDown}
+                placeholder="表示名・メモで絞り込み"
+                className="w-full px-3 py-2 border rounded-lg text-sm"
+              />
+            )}
             {calendarViewMode === 'appointment' && showHeaderCustomerResults && searchQuery.trim() && headerCustomerResults.length > 0 && (
               <div ref={headerResultsRef} className="absolute left-0 right-0 top-full z-[90] mt-1 max-h-80 overflow-y-auto rounded-xl border border-blue-200 bg-white shadow-xl">
                 {headerCustomerResults.map((customer, idx) => (
@@ -981,20 +991,34 @@ export default function ReservationCalendar({
             <ClinicScopeToggle value={clinicScope} onChange={setClinicScope} compact />
           </div>
           <div className="relative min-w-0">
-            <input
-              {...personSearchInputProps({
-                value: searchQuery,
-                onFocus: () => setShowHeaderCustomerResults(true),
-                onBlur: () => window.setTimeout(() => setShowHeaderCustomerResults(false), 120),
-                onChange: (e) => {
+            {calendarViewMode === 'appointment' ? (
+              <PersonSearchInput
+                value={searchQuery}
+                onFocus={() => setShowHeaderCustomerResults(true)}
+                onBlur={() => window.setTimeout(() => setShowHeaderCustomerResults(false), 120)}
+                onChange={(v) => {
+                  setSearchQuery(v);
+                  setShowHeaderCustomerResults(true);
+                }}
+                onKeyDown={handleHeaderSearchKeyDown}
+                placeholder="かな・氏名・番号"
+                className="w-full px-2 py-0.5 border rounded text-[11px] leading-tight h-6"
+              />
+            ) : (
+              <input
+                type="text"
+                value={searchQuery}
+                onFocus={() => setShowHeaderCustomerResults(true)}
+                onBlur={() => window.setTimeout(() => setShowHeaderCustomerResults(false), 120)}
+                onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setShowHeaderCustomerResults(true);
-                },
-                onKeyDown: handleHeaderSearchKeyDown,
-                placeholder: calendarViewMode === 'appointment' ? 'かな・氏名・番号' : '表示名・メモ',
-                className: 'w-full px-2 py-0.5 border rounded text-[11px] leading-tight h-6',
-              })}
-            />
+                }}
+                onKeyDown={handleHeaderSearchKeyDown}
+                placeholder="表示名・メモ"
+                className="w-full px-2 py-0.5 border rounded text-[11px] leading-tight h-6"
+              />
+            )}
             {calendarViewMode === 'appointment' && showHeaderCustomerResults && searchQuery.trim() && headerCustomerResults.length > 0 && (
               <div ref={headerResultsRef} className="absolute left-0 right-0 top-full z-[90] mt-0.5 max-h-48 overflow-y-auto rounded-lg border border-blue-200 bg-white shadow-xl">
                 {headerCustomerResults.map((customer, idx) => (

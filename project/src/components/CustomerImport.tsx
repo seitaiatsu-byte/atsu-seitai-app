@@ -11,7 +11,8 @@ import {
   readPhoneFromCustomerRow,
   retryAfterMissingPhoneColumn,
 } from '../lib/customerPhoneFields';
-import { personSearchInputProps } from '../lib/useJapaneseTextInputs';
+import { normalizePersonSearchText } from '../lib/personSearchText';
+import PersonSearchInput from './PersonSearchInput';
 import {
   getAgeYearsFromCustomer,
   getPhoneWithMemoFallback,
@@ -345,13 +346,7 @@ export default function CustomerImport() {
     }
   };
 
-  const normalizeForSearch = (v: string | null | undefined) =>
-    String(v || '')
-      .normalize('NFKC')
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, '');
-  const toHiragana = (v: string) => v.replace(/[\u30a1-\u30f6]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0x60));
+  const normalizeForSearch = (v: string | null | undefined) => normalizePersonSearchText(v);
 
   const parseCustomerNo = (v: string | null | undefined) => {
     const n = Number(String(v || '').trim());
@@ -366,13 +361,10 @@ export default function CustomerImport() {
     const nameNorm = normalizeForSearch(customer.name);
     const kanaNorm = normalizeForSearch(kana);
     const numberNorm = normalizeForSearch(customer.customer_number);
-    const qHira = toHiragana(rosterQuery);
     return (
       nameNorm.includes(rosterQuery) ||
       kanaNorm.includes(rosterQuery) ||
-      numberNorm.includes(rosterQuery) ||
-      toHiragana(nameNorm).includes(qHira) ||
-      toHiragana(kanaNorm).includes(qHira)
+      numberNorm.includes(rosterQuery)
     );
   });
 
@@ -1123,14 +1115,11 @@ export default function CustomerImport() {
         </div>
 
         <div className="mb-4">
-          <input
-            {...personSearchInputProps({
-              value: rosterSearch,
-              onChange: (e) => setRosterSearch(e.target.value),
-              placeholder: '検索（かな・番号・名前）',
-              className:
-                'w-full md:w-[420px] px-4 py-2.5 rounded-lg border border-blue-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-300',
-            })}
+          <PersonSearchInput
+            value={rosterSearch}
+            onChange={setRosterSearch}
+            placeholder="検索（かな・番号・名前）"
+            className="w-full md:w-[420px] px-4 py-2.5 rounded-lg border border-blue-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-300"
           />
         </div>
 
