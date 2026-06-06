@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { isPlaceholderCustomerNumber } from './customerNumber';
+import { isPlaceholderCustomerNumber, PLACEHOLDER_CUSTOMER_NUMBER } from './customerNumber';
 
 export async function markReservationVisited(reservationId: string, visitRecordId?: string) {
   const { error } = await supabase
@@ -104,4 +104,66 @@ export async function syncReservationsVisitedByExistingVisits(startYmd: string, 
   if (updateError) throw updateError;
 
   return updates.length;
+}
+
+export async function transferReservationCustomer(reservationId: string, customerId: string) {
+  const { error } = await supabase
+    .from('appointment_reservations')
+    .update({
+      customer_id: customerId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', reservationId);
+  if (error) throw error;
+  window.dispatchEvent(new Event('reservations-updated'));
+}
+
+export type PlaceholderReservationSummary = {
+  id: string;
+  reservation_date: string;
+  start_time: string;
+  end_time: string;
+  memo: string | null;
+};
+
+export async function findScheduledPlaceholderReservationsOnDate(
+  visitDate: string
+): Promise<PlaceholderReservationSummary[]> {
+  const { data: placeholder, error: placeholderError } = await supabase
+    .from('customers')
+    .select('id')
+    .eq('customer_number', PLACEHOLDER_CUSTOMER_NUMBER)
+    .maybeSingle();
+  if (placeholderError) throw placeholderError;
+  if (!placeholder?.id) return [];
+
+  const { data, error } = await supabase
+    .from('appointment_reservations')
+    .select('id, reservation_date, start_time, end_time, memo')
+    .eq('customer_id', placeholder.id)
+    .eq('reservation_date', visitDate)
+    .eq('entry_kind', 'appointment')
+    .neq('status', 'visited')
+    .neq('status', 'cancelled')
+    .order('start_time', { ascending: true });
+  if (error) throw error;
+  return (data || []) as PlaceholderReservationSummary[];
+}
+
+export async function claimPlaceholderReservation(
+  reservationId: string,
+  customerId: string,
+  visitRecordId: string
+) {
+  const { error } = await supabase
+    .from('appointment_reservations')
+    .update({
+      customer_id: customerId,
+      status: 'visited',
+      visit_record_id: visitRecordId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', reservationId);
+  if (error) throw error;
+  window.dispatchEvent(new Event('reservations-updated'));
 }

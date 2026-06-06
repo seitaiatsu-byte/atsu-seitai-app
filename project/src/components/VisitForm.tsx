@@ -20,7 +20,12 @@ import {
   hasVisitOnDate,
   validateExplicitAmount,
 } from '../lib/registrationValidation';
-import { markMatchingReservationVisited, markReservationVisited } from '../lib/appointmentReservations';
+import {
+  claimPlaceholderReservation,
+  findScheduledPlaceholderReservationsOnDate,
+  markMatchingReservationVisited,
+  markReservationVisited,
+} from '../lib/appointmentReservations';
 import type { CustomerRow } from './CustomerSearchPanel';
 
 function normalizeSearchText(raw: unknown): string {
@@ -154,7 +159,7 @@ export default function VisitForm({
   );
   const placeholderCustomerWarning = useMemo(() => {
     if (!isPlaceholderCustomerNumber(selectedCustomer?.customer_number)) return null;
-    return '仮予約用（10000・新規仮）です。来院記録は正式番号の患者で登録してください。カレンダーでは仮予約を削除し、正式患者の予約から来院入力してください。';
+    return '仮予約用（10000・新規仮）です。来院記録は登録できません。カレンダーの仮予約から「新規患者として来院」を使ってください。';
   }, [selectedCustomer?.customer_number]);
 
   useEffect(() => {
@@ -413,7 +418,21 @@ export default function VisitForm({
           await markReservationVisited(pendingReservationId, visitId);
           setPendingReservationId(null);
         } else {
-          await markMatchingReservationVisited(selectedCustomer.id, visitDate, visitId);
+          const matched = await markMatchingReservationVisited(selectedCustomer.id, visitDate, visitId);
+          if (!matched) {
+            const placeholders = await findScheduledPlaceholderReservationsOnDate(visitDate);
+            if (placeholders.length === 1) {
+              const slot = placeholders[0];
+              const timeLabel = `${String(slot.start_time).slice(0, 5)}〜${String(slot.end_time).slice(0, 5)}`;
+              const ok = window.confirm(
+                `この日に仮予約（10000・新規仮）が1件あります（${timeLabel}）。\n` +
+                  'この来院記録と紐づけ、カレンダーを「済」にしますか？'
+              );
+              if (ok) {
+                await claimPlaceholderReservation(slot.id, selectedCustomer.id, visitId);
+              }
+            }
+          }
         }
       }
 

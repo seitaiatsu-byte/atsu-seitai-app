@@ -2,8 +2,14 @@ import { useState } from 'react';
 import { Home, Settings as SettingsIcon, BarChart3, AlertCircle, FileText, DollarSign } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
 import HomeButtons from './components/HomeButtons';
-import ReservationCalendar, { type VisitFromReservationPayload } from './components/ReservationCalendar';
+import ReservationCalendar, {
+  type NewPatientFromPlaceholderPayload,
+  type VisitFromReservationPayload,
+} from './components/ReservationCalendar';
 import type { CustomerRow } from './components/CustomerSearchPanel';
+import { transferReservationCustomer } from './lib/appointmentReservations';
+import { toErrorMessage } from './lib/toErrorMessage';
+import type { Database } from './lib/database.types';
 import VisitForm from './components/VisitForm';
 import ProductSaleForm from './components/ProductSaleForm';
 import SubscriptionForm from './components/SubscriptionForm';
@@ -35,8 +41,33 @@ function App() {
   const [showSubscriptionForm, setShowSubscriptionForm] = useState(false);
   const [reportsClinic, setReportsClinic] = useState<ClinicScope>('all');
   const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [placeholderVisitFlow, setPlaceholderVisitFlow] = useState<NewPatientFromPlaceholderPayload | null>(
+    null
+  );
   const [visitSeed, setVisitSeed] = useState<VisitFromReservationPayload | null>(null);
   const [chartSeedCustomer, setChartSeedCustomer] = useState<CustomerRow | null>(null);
+
+  const handleNewPatientRegisteredFromPlaceholder = async (
+    customer: Database['public']['Tables']['customers']['Row']
+  ) => {
+    if (!placeholderVisitFlow) return;
+    const flow = placeholderVisitFlow;
+    try {
+      await transferReservationCustomer(flow.reservationId, customer.id);
+    } catch (err) {
+      alert(`予約の引き継ぎに失敗しました: ${toErrorMessage(err)}`);
+      return;
+    }
+    setPlaceholderVisitFlow(null);
+    guardNavigation(() => {
+      setVisitSeed({
+        customer: customer as CustomerRow,
+        visitDate: flow.visitDate,
+        reservationId: flow.reservationId,
+      });
+      setShowVisitForm(true);
+    });
+  };
 
   const goHome = () => {
     setCurrentTab('home');
@@ -90,6 +121,11 @@ function App() {
               guardNavigation(() => {
                 setVisitSeed(payload);
                 setShowVisitForm(true);
+              });
+            }}
+            onOpenNewPatientFromPlaceholder={(payload) => {
+              guardNavigation(() => {
+                setPlaceholderVisitFlow(payload);
               });
             }}
             onOpenCustomerChart={(customer) => {
@@ -201,6 +237,16 @@ function App() {
       {showNewCustomer && (
         <NewCustomerForm
           onClose={() => guardNavigation(() => setShowNewCustomer(false))}
+        />
+      )}
+
+      {placeholderVisitFlow && (
+        <NewCustomerForm
+          title="仮予約から新規患者登録"
+          requireManualCustomerNumber
+          initialMemo={placeholderVisitFlow.reservationMemo ?? ''}
+          onClose={() => guardNavigation(() => setPlaceholderVisitFlow(null))}
+          onSuccess={(customer) => void handleNewPatientRegisteredFromPlaceholder(customer)}
         />
       )}
 

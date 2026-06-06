@@ -47,10 +47,15 @@ const EMPTY_CREATE_FORM = {
 
 interface NewCustomerFormProps {
   onClose: () => void;
-  /** 修正モード完了時のみ（新規登録後は画面を閉じずフォームをクリア） */
+  /** 登録・更新成功時（指定時は新規登録後も onClose せず親が続きの処理を行う） */
   onSuccess?: (customer: Customer) => void;
   mode?: 'create' | 'edit';
   initialCustomer?: Customer | null;
+  /** 仮予約からの新規来院など。未入力の自動採番を禁止する */
+  requireManualCustomerNumber?: boolean;
+  title?: string;
+  /** 予約メモなどを顧客メモ欄へ初期表示 */
+  initialMemo?: string;
 }
 
 export default function NewCustomerForm({
@@ -58,6 +63,9 @@ export default function NewCustomerForm({
   onSuccess,
   mode = 'create',
   initialCustomer = null,
+  requireManualCustomerNumber = false,
+  title,
+  initialMemo = '',
 }: NewCustomerFormProps) {
   const [formData, setFormData] = useState({
     name: '',
@@ -115,6 +123,11 @@ export default function NewCustomerForm({
     window.addEventListener('masters-updated', reloadMasters);
     return () => window.removeEventListener('masters-updated', reloadMasters);
   }, []);
+
+  useEffect(() => {
+    if (mode !== 'create' || !initialMemo.trim()) return;
+    setFormData((prev) => (prev.memo.trim() ? prev : { ...prev, memo: initialMemo.trim() }));
+  }, [mode, initialMemo]);
 
   useEffect(() => {
     const source = formData.birth_date || (birthInput.length === 8 ? `${birthInput.slice(0, 4)}-${birthInput.slice(4, 6)}-${birthInput.slice(6, 8)}` : '');
@@ -247,6 +260,10 @@ export default function NewCustomerForm({
     if (isSubmitting) return;
 
     const customerNumberInput = formData.customer_number.trim();
+    if (mode === 'create' && requireManualCustomerNumber && !customerNumberInput) {
+      setSubmitErrors(['顧客番号を入力してください（手動採番）。']);
+      return;
+    }
     if (customerNumberInput) {
       const n = parseInt(customerNumberInput, 10);
       if (Number.isFinite(n) && n > 9999 && n !== 10000) {
@@ -510,6 +527,10 @@ export default function NewCustomerForm({
 
         if (!error && data) {
           window.dispatchEvent(new Event('customers-updated'));
+          if (onSuccess) {
+            onSuccess(data);
+            return;
+          }
           alert('顧客登録が完了しました');
           resetCreateForm();
           return;
@@ -542,7 +563,9 @@ export default function NewCustomerForm({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-800">{mode === 'edit' ? '顧客情報の修正' : '新規顧客登録'}</h2>
+          <h2 className="text-2xl font-bold text-gray-800">
+            {title ?? (mode === 'edit' ? '顧客情報の修正' : '新規顧客登録')}
+          </h2>
           <ModalCloseButton onClick={onClose} />
         </div>
 
@@ -562,8 +585,17 @@ export default function NewCustomerForm({
                   setFormData({ ...formData, customer_number: num });
                 }}
                 className="w-full px-4 py-2 border-2 border-orange-400 rounded-lg focus:border-orange-500 outline-none font-bold"
-                placeholder="未入力なら登録時に最大番号+1を自動発行"
+                placeholder={
+                  requireManualCustomerNumber
+                    ? '手動で顧客番号を入力（必須）'
+                    : '未入力なら登録時に最大番号+1を自動発行'
+                }
               />
+              {requireManualCustomerNumber && (
+                <p className="mt-2 text-xs font-bold text-orange-800">
+                  仮予約からの来院では、番号は手動で決めてください（自動採番しません）。
+                </p>
+              )}
               <div className="mt-2 text-xs text-gray-600 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-bold text-orange-600">1～4999:</span>

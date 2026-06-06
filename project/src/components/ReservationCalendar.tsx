@@ -128,8 +128,15 @@ export type VisitFromReservationPayload = {
   reservationId: string;
 };
 
+export type NewPatientFromPlaceholderPayload = {
+  reservationId: string;
+  visitDate: string;
+  reservationMemo?: string;
+};
+
 interface ReservationCalendarProps {
   onOpenVisitWithReservation: (payload: VisitFromReservationPayload) => void;
+  onOpenNewPatientFromPlaceholder: (payload: NewPatientFromPlaceholderPayload) => void;
   onOpenCustomerChart: (customer: CustomerRow) => void;
 }
 
@@ -302,7 +309,11 @@ function formatAmount(value: unknown): string {
   return `${n.toLocaleString('ja-JP')}円`;
 }
 
-export default function ReservationCalendar({ onOpenVisitWithReservation, onOpenCustomerChart }: ReservationCalendarProps) {
+export default function ReservationCalendar({
+  onOpenVisitWithReservation,
+  onOpenNewPatientFromPlaceholder,
+  onOpenCustomerChart,
+}: ReservationCalendarProps) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth() + 1);
@@ -845,16 +856,26 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
       return;
     }
     if (isPlaceholderCustomerNumber(c.customer_number)) {
-      alert(
-        '仮予約（10000・新規仮）のまま来院入力はできません。\n' +
-          '10000の予約を削除し、正式患者の予約を同じ時間で作成してから、そちらから来院入力してください。'
-      );
+      alert('仮予約（10000・新規仮）は「新規患者として来院」ボタンを使ってください。');
       return;
     }
     onOpenVisitWithReservation({
       customer: c as CustomerRow,
       visitDate: String(r.reservation_date).slice(0, 10),
       reservationId: r.id,
+    });
+  };
+
+  const openNewPatientFromPlaceholder = (r: ReservationWithCustomer) => {
+    if (!isAppointmentEntry(r)) return;
+    const c = r.customers;
+    if (!c || !isPlaceholderCustomerNumber(c.customer_number)) return;
+    clearReservationInputTouched();
+    setEditorOpen(false);
+    onOpenNewPatientFromPlaceholder({
+      reservationId: r.id,
+      visitDate: String(r.reservation_date).slice(0, 10),
+      reservationMemo: r.memo?.trim() || undefined,
     });
   };
 
@@ -1456,16 +1477,30 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                 >
                   {saving ? '保存中…' : '保存'}
                 </button>
-                {editing && isAppointmentEntry(editing) && (
-                  <button
-                    type="button"
-                    onClick={() => openVisit(editing)}
-                    className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-blue-600 text-white font-bold"
-                  >
-                    <Stethoscope size={16} />
-                    来院入力へ
-                  </button>
-                )}
+                {editing &&
+                  isAppointmentEntry(editing) &&
+                  isPlaceholderCustomerNumber(editing.customers?.customer_number) && (
+                    <button
+                      type="button"
+                      onClick={() => openNewPatientFromPlaceholder(editing)}
+                      className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-orange-600 text-white font-bold"
+                    >
+                      <Stethoscope size={16} />
+                      新規患者として来院
+                    </button>
+                  )}
+                {editing &&
+                  isAppointmentEntry(editing) &&
+                  !isPlaceholderCustomerNumber(editing.customers?.customer_number) && (
+                    <button
+                      type="button"
+                      onClick={() => openVisit(editing)}
+                      className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-blue-600 text-white font-bold"
+                    >
+                      <Stethoscope size={16} />
+                      来院入力へ
+                    </button>
+                  )}
                 {editing && (
                   <button
                     type="button"
