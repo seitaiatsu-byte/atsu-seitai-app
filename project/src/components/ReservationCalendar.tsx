@@ -258,26 +258,30 @@ function processStatusBadge(r: ReservationWithCustomer): JSX.Element | null {
 function CalendarViewModeToggle({
   value,
   onChange,
+  compact,
 }: {
   value: CalendarViewMode;
   onChange: (v: CalendarViewMode) => void;
+  compact?: boolean;
 }) {
   const btn = (v: CalendarViewMode, label: string, active: string) => (
     <button
       type="button"
       onClick={() => onChange(v)}
-      className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${
-        value === v ? active : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      className={`font-bold transition-all ${
+        compact
+          ? `px-1.5 py-0.5 rounded text-[10px] leading-tight ${value === v ? active : 'bg-gray-100 text-gray-600'}`
+          : `px-3 py-2 rounded-lg text-sm ${value === v ? active : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`
       }`}
     >
       {label}
     </button>
   );
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-sm font-bold text-gray-600 mr-1">表示:</span>
-      {btn('appointment', '予約', 'bg-teal-600 text-white shadow')}
-      {btn('other', '予約以外', 'bg-violet-600 text-white shadow')}
+    <div className={`flex flex-wrap items-center ${compact ? 'gap-0.5' : 'gap-2'}`}>
+      {!compact && <span className="text-sm font-bold text-gray-600 mr-1">表示:</span>}
+      {btn('appointment', compact ? '予約' : '予約', 'bg-teal-600 text-white shadow')}
+      {btn('other', compact ? '他' : '予約以外', 'bg-violet-600 text-white shadow')}
     </div>
   );
 }
@@ -855,10 +859,11 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
   };
 
   return (
-    <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 overflow-hidden max-sm:shadow">
-      <div className="px-2 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-slate-200">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-1 sm:gap-2">
+    <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 overflow-hidden max-sm:shadow max-sm:flex max-sm:flex-col max-sm:min-h-[calc(100dvh-6.5rem)] max-sm:rounded-lg">
+      <div className="shrink-0 px-1 py-1 sm:px-4 sm:py-3 bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-slate-200 max-sm:py-0.5">
+        {/* スマホ: 月移動＋追加 / デスクトップ: 従来レイアウト */}
+        <div className="hidden sm:flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             <CalendarDays className="text-teal-600 shrink-0" size={20} />
             <span className="truncate">予約確認表（月間）</span>
           </h2>
@@ -874,7 +879,30 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
             </button>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div className="flex sm:hidden items-center justify-between gap-1">
+          <div className="flex items-center gap-0.5 min-w-0">
+            <button type="button" onClick={() => shiftMonth(-1)} className="p-1 rounded border bg-white" aria-label="前月">
+              <ChevronLeft size={14} />
+            </button>
+            <span className="px-1 text-xs font-bold text-gray-800 whitespace-nowrap">
+              {viewYear}/{viewMonth}
+            </span>
+            <button type="button" onClick={() => shiftMonth(1)} className="p-1 rounded border bg-white" aria-label="翌月">
+              <ChevronRight size={14} />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => openCreate(getTodayLocalYmd())}
+            className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-white text-[10px] font-bold shrink-0 ${
+              calendarViewMode === 'appointment' ? 'bg-teal-600' : 'bg-violet-600'
+            }`}
+          >
+            <Plus size={12} />
+            {calendarViewMode === 'appointment' ? '予約+' : '予定+'}
+          </button>
+        </div>
+        <div className="mt-3 hidden sm:flex flex-wrap items-center gap-3">
           <CalendarViewModeToggle value={calendarViewMode} onChange={requestViewMode} />
           <ClinicScopeToggle value={clinicScope} onChange={setClinicScope} />
           <div className="relative flex-1 min-w-[220px]">
@@ -933,6 +961,55 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
             {calendarViewMode === 'appointment' ? '予約追加' : '予定を追加'}
           </button>
         </div>
+        <div className="sm:hidden flex flex-col gap-0.5 mt-0.5">
+          <div className="flex flex-wrap items-center gap-0.5">
+            <CalendarViewModeToggle value={calendarViewMode} onChange={requestViewMode} compact />
+            <ClinicScopeToggle value={clinicScope} onChange={setClinicScope} compact />
+          </div>
+          <div className="relative min-w-0">
+            <input
+              type="text"
+              data-ime="ja"
+              value={searchQuery}
+              onFocus={(e) => {
+                ensureJapaneseImeForInput(e.currentTarget);
+                setShowHeaderCustomerResults(true);
+              }}
+              onBlur={() => window.setTimeout(() => setShowHeaderCustomerResults(false), 120)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowHeaderCustomerResults(true);
+              }}
+              onKeyDown={handleHeaderSearchKeyDown}
+              placeholder={calendarViewMode === 'appointment' ? 'かな・氏名・番号' : '表示名・メモ'}
+              className="w-full px-2 py-0.5 border rounded text-[11px] leading-tight h-6"
+              lang="ja"
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            {calendarViewMode === 'appointment' && showHeaderCustomerResults && searchQuery.trim() && headerCustomerResults.length > 0 && (
+              <div ref={headerResultsRef} className="absolute left-0 right-0 top-full z-[90] mt-0.5 max-h-48 overflow-y-auto rounded-lg border border-blue-200 bg-white shadow-xl">
+                {headerCustomerResults.map((customer, idx) => (
+                  <button
+                    key={customer.id}
+                    type="button"
+                    data-header-customer-idx={idx}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setHeaderCustomerHighlight(idx)}
+                    onClick={() => handleSelectHeaderCustomer(customer)}
+                    className={`w-full border-b border-gray-100 px-2 py-1 text-left last:border-0 hover:bg-blue-50 text-xs ${
+                      idx === headerCustomerHighlight ? 'bg-blue-50 ring-1 ring-blue-300' : ''
+                    }`}
+                  >
+                    <div className="font-bold text-gray-800 truncate">{customer.name}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
         <p className="mt-2 text-xs text-gray-600 hidden sm:block">
           {calendarViewMode === 'appointment' ? (
             <>
@@ -964,12 +1041,12 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
         </div>
       )}
 
-      <div className="p-0.5 sm:p-3 max-sm:-mx-0.5">
-        <div className={`${CALENDAR_MONTH_GRID} mb-px sm:mb-1`}>
+      <div className="p-0.5 sm:p-3 max-sm:p-0 max-sm:flex-1 max-sm:min-h-0 max-sm:flex max-sm:flex-col">
+        <div className={`${CALENDAR_MONTH_GRID} mb-px sm:mb-1 max-sm:shrink-0`}>
           {WEEKDAY_LABELS.map((w, i) => (
             <div
               key={w}
-              className={`text-center text-[10px] sm:text-xs font-bold py-0.5 sm:py-1 leading-none ${
+              className={`text-center font-bold leading-none max-sm:text-[9px] max-sm:py-0 text-[10px] sm:text-xs sm:py-1 ${
                 i === 0 ? 'text-red-600' : i === 6 ? 'text-blue-600' : 'text-gray-600'
               }`}
             >
@@ -982,12 +1059,15 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
           <div className="text-center text-sm text-gray-500 py-8">読み込み中...</div>
         ) : (
           <div
-            className={`${CALENDAR_MONTH_GRID} panel-scrollbar max-sm:max-h-[calc(100dvh-14rem)] sm:max-h-[36rem] overflow-y-auto`}
+            className={`${CALENDAR_MONTH_GRID} sm:max-h-[36rem] sm:overflow-y-auto panel-scrollbar max-sm:flex-1 max-sm:min-h-0 max-sm:overflow-hidden max-sm:[grid-auto-rows:minmax(0,1fr)]`}
           >
             {calendarCells.map((cell, idx) => {
               if (cell.kind === 'blank') {
                 return (
-                  <div key={`blank-${idx}`} className="min-h-[3.5rem] sm:min-h-[8rem] bg-slate-50/50 rounded-sm sm:rounded-lg" />
+                  <div
+                    key={`blank-${idx}`}
+                    className="min-h-0 max-sm:h-full sm:min-h-[8rem] bg-slate-50/50 rounded-sm sm:rounded-lg"
+                  />
                 );
               }
               const list = byDate.get(cell.ymd) || [];
@@ -1009,18 +1089,18 @@ export default function ReservationCalendar({ onOpenVisitWithReservation, onOpen
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') setDayDetailDate(cell.ymd);
                   }}
-                  className={`min-h-[3.5rem] sm:min-h-[8rem] rounded-sm sm:rounded-lg border p-px sm:p-1 text-left hover:ring-1 sm:hover:ring-2 hover:ring-teal-300 transition-shadow cursor-pointer ${
+                  className={`min-h-0 max-sm:h-full max-sm:flex max-sm:flex-col max-sm:overflow-hidden sm:min-h-[8rem] rounded-sm sm:rounded-lg border p-px sm:p-1 text-left hover:ring-1 sm:hover:ring-2 hover:ring-teal-300 transition-shadow cursor-pointer ${
                     isToday ? 'border-teal-400 bg-teal-50/40' : 'border-slate-200 bg-white'
                   }`}
                 >
                   <div
-                    className={`text-[10px] sm:text-xs font-bold leading-none mb-px sm:mb-1 px-px ${
+                    className={`text-[9px] sm:text-xs font-bold leading-none mb-px sm:mb-1 px-px shrink-0 max-sm:leading-none ${
                       isToday ? 'text-teal-800' : 'text-gray-700'
                     }`}
                   >
                     {cell.day}
                   </div>
-                  <div className="space-y-px sm:space-y-0.5">
+                  <div className="space-y-px sm:space-y-0.5 max-sm:min-h-0 max-sm:flex-1 max-sm:overflow-hidden">
                     {timeline.slice(0, DAY_CELL_VISIBLE_LIMIT).map((item) =>
                       renderTimelineItem(item, colorRules, openEdit, true)
                     )}

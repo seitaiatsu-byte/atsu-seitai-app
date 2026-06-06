@@ -83,8 +83,8 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-24">
       {currentTab === 'home' && !showVisitForm && !showProductForm && !showSubscriptionForm && (
-        <div className="max-w-7xl mx-auto p-4 space-y-4">
-          <PageHeader title="あつ整体院・TOP" onBack={goHome} hideBack />
+        <div className="max-w-7xl mx-auto p-4 max-sm:p-1 max-sm:pb-0 space-y-4 max-sm:space-y-0">
+          <PageHeader title="あつ整体院・TOP" onBack={goHome} hideBack mobileMinimal />
           <ReservationCalendar
             onOpenVisitWithReservation={(payload) => {
               guardNavigation(() => {
