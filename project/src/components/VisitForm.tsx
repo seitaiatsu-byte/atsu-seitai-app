@@ -43,6 +43,12 @@ function formatCompactDate(raw: unknown): string {
   return s.replace(/-/g, '/');
 }
 
+function formatYearMonth(yearMonth: string): string {
+  const [y, m] = yearMonth.split('-');
+  if (!y || !m) return yearMonth;
+  return `${y}年${Number(m)}月`;
+}
+
 function formatYen(raw: unknown): string {
   const n = Number(raw || 0);
   return `¥${Number.isFinite(n) ? Math.round(n).toLocaleString() : '0'}`;
@@ -122,6 +128,8 @@ export default function VisitForm({
   const [historyFilter, setHistoryFilter] = useState('');
   const [inputPanelOpen, setInputPanelOpen] = useState(Boolean(initialCustomer));
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
+  const [openHistoryYears, setOpenHistoryYears] = useState<Set<string>>(new Set());
+  const [openHistoryMonths, setOpenHistoryMonths] = useState<Set<string>>(new Set());
   const [openHistoryDates, setOpenHistoryDates] = useState<Set<string>>(new Set());
   const [pendingReservationId, setPendingReservationId] = useState<string | null>(linkedReservationId);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
@@ -543,14 +551,115 @@ export default function VisitForm({
       }));
   }, [filteredRecentRecords]);
 
+  const historyTree = useMemo(() => {
+    type DayGroup = (typeof historyGroupsByDate)[number];
+    const yearBuckets = new Map<string, Map<string, DayGroup[]>>();
+    const undated: DayGroup[] = [];
+
+    historyGroupsByDate.forEach((dayGroup) => {
+      if (dayGroup.date === '日付なし' || !/^\d{4}-\d{2}-\d{2}$/.test(dayGroup.date)) {
+        undated.push(dayGroup);
+        return;
+      }
+      const [year, month] = dayGroup.date.split('-');
+      const yearMonth = `${year}-${month}`;
+      if (!yearBuckets.has(year)) yearBuckets.set(year, new Map());
+      const monthMap = yearBuckets.get(year)!;
+      if (!monthMap.has(yearMonth)) monthMap.set(yearMonth, []);
+      monthMap.get(yearMonth)!.push(dayGroup);
+    });
+
+    const years = [...yearBuckets.entries()]
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([year, monthMap]) => {
+        const months = [...monthMap.entries()]
+          .sort(([a], [b]) => b.localeCompare(a))
+          .map(([yearMonth, days]) => ({
+            yearMonth,
+            label: formatYearMonth(yearMonth),
+            days,
+            total: days.reduce((sum, d) => sum + d.total, 0),
+            count: days.reduce((sum, d) => sum + d.records.length, 0),
+          }));
+        return {
+          year,
+          label: `${year}年`,
+          months,
+          total: months.reduce((sum, m) => sum + m.total, 0),
+          count: months.reduce((sum, m) => sum + m.count, 0),
+        };
+      });
+
+    if (undated.length > 0) {
+      years.push({
+        year: '__undated__',
+        label: '日付なし',
+        months: [
+          {
+            yearMonth: '__undated__',
+            label: '日付なし',
+            days: undated,
+            total: undated.reduce((sum, d) => sum + d.total, 0),
+            count: undated.reduce((sum, d) => sum + d.records.length, 0),
+          },
+        ],
+        total: undated.reduce((sum, d) => sum + d.total, 0),
+        count: undated.reduce((sum, d) => sum + d.records.length, 0),
+      });
+    }
+
+    return years;
+  }, [historyGroupsByDate]);
+
   useEffect(() => {
-    if (!historyPanelOpen || historyGroupsByDate.length === 0) return;
+    if (!historyPanelOpen || historyTree.length === 0) return;
+    const q = normalizeSearchText(historyFilter);
+
+    if (q) {
+      setOpenHistoryYears(new Set(historyTree.map((y) => y.year)));
+      setOpenHistoryMonths(new Set(historyTree.flatMap((y) => y.months.map((m) => m.yearMonth))));
+      setOpenHistoryDates(new Set(historyGroupsByDate.map((g) => g.date)));
+      return;
+    }
+
+    const firstYear = historyTree[0];
+    const firstMonth = firstYear?.months[0];
+    const firstDay = firstMonth?.days[0];
+
+    setOpenHistoryYears((prev) => {
+      const available = new Set(historyTree.map((y) => y.year));
+      if ([...prev].some((year) => available.has(year))) return prev;
+      return firstYear ? new Set([firstYear.year]) : new Set();
+    });
+    setOpenHistoryMonths((prev) => {
+      const available = new Set(historyTree.flatMap((y) => y.months.map((m) => m.yearMonth)));
+      if ([...prev].some((yearMonth) => available.has(yearMonth))) return prev;
+      return firstMonth ? new Set([firstMonth.yearMonth]) : new Set();
+    });
     setOpenHistoryDates((prev) => {
       const available = new Set(historyGroupsByDate.map((g) => g.date));
       if ([...prev].some((date) => available.has(date))) return prev;
-      return new Set([historyGroupsByDate[0].date]);
+      return firstDay ? new Set([firstDay.date]) : new Set();
     });
-  }, [historyGroupsByDate, historyPanelOpen]);
+  }, [historyTree, historyGroupsByDate, historyPanelOpen, historyFilter]);
+
+  const toggleHistoryYear = (year: string) => {
+    setOpenHistoryYears((prev) => {
+      const next = new Set(prev);
+      if (next.has(year)) next.delete(year);
+      else next.add(year);
+      return next;
+    });
+  };
+
+  const toggleHistoryMonth = (yearMonth: string) => {
+    setOpenHistoryMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(yearMonth)) next.delete(yearMonth);
+      else next.add(yearMonth);
+      return next;
+    });
+  };
 
   const toggleHistoryDate = (date: string) => {
     setOpenHistoryDates((prev) => {
@@ -854,7 +963,7 @@ export default function VisitForm({
                 顧客番号・氏名・担当・メニュー名で検索できます。帯色：1–4999＝川西（緑）、5000以降＝高槻（青）（全{recentRecords.length}件
                 {historyFilter ? `／表示${filteredRecentRecords.length}件` : ''}）。
               </p>
-              <p className="text-xs font-bold text-slate-500">横1行表示 / 左で修正・右端で削除</p>
+              <p className="text-xs font-bold text-slate-500">年→月→日で折りたたみ / 横1行表示 / 左で修正・右端で削除</p>
             </div>
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -878,91 +987,163 @@ export default function VisitForm({
               <p className="text-sm text-gray-500 py-4">検索条件に一致する履歴はありません</p>
             ) : (
               <div className="space-y-2 max-h-[34rem] overflow-y-auto pr-1">
-                {historyGroupsByDate.map((group) => {
-                  const isOpen = openHistoryDates.has(group.date);
+                {historyTree.map((yearGroup) => {
+                  const yearOpen = openHistoryYears.has(yearGroup.year);
                   return (
-                    <div key={group.date} className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                    <div key={yearGroup.year} className="border border-slate-300 rounded-xl overflow-hidden bg-white">
                       <button
                         type="button"
-                        onClick={() => toggleHistoryDate(group.date)}
-                        className="w-full flex items-center justify-between gap-3 bg-slate-50 px-3 py-2 text-left hover:bg-slate-100"
+                        onClick={() => toggleHistoryYear(yearGroup.year)}
+                        className="w-full flex items-center justify-between gap-3 bg-slate-100 px-3 py-2.5 text-left hover:bg-slate-200/80"
                       >
                         <span className="flex items-center gap-2 min-w-0">
-                          {isOpen ? <ChevronDown size={18} className="shrink-0 text-slate-600" /> : <ChevronRight size={18} className="shrink-0 text-slate-600" />}
-                          <span className="font-bold text-slate-800">{formatCompactDate(group.date)}</span>
-                          <span className="text-xs font-bold text-slate-500">{group.records.length}件</span>
+                          {yearOpen ? (
+                            <ChevronDown size={18} className="shrink-0 text-slate-700" />
+                          ) : (
+                            <ChevronRight size={18} className="shrink-0 text-slate-700" />
+                          )}
+                          <span className="font-bold text-base text-slate-900">{yearGroup.label}</span>
+                          <span className="text-xs font-bold text-slate-600">{yearGroup.count}件</span>
                         </span>
-                        <span className="text-sm font-bold text-blue-700 whitespace-nowrap">計 {formatYen(group.total)}</span>
+                        <span className="text-sm font-bold text-blue-700 whitespace-nowrap">計 {formatYen(yearGroup.total)}</span>
                       </button>
-                      {isOpen && (
-                        <div className="overflow-auto border-t border-slate-200">
-                          <div className="min-w-[48rem]">
-                            <div className="grid grid-cols-[3.2rem_2.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem_3.2rem] items-center gap-x-1.5 gap-y-0 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
-                              <div className="sticky left-0 z-10 bg-slate-100 -ml-1.5 pl-1.5">修正</div>
-                              <div>月日</div>
-                              <div>番号</div>
-                              <div>氏名</div>
-                              <div>実通院</div>
-                              <div>メニュー</div>
-                              <div>金額</div>
-                              <div>支払/種類</div>
-                              <div>担当</div>
-                              <div className="sticky right-0 z-10 bg-slate-100 -mr-1.5 pr-1.5 text-right">削除</div>
-                            </div>
-                            <ul className="divide-y divide-slate-100">
-                              {group.records.map((r) => {
-                                const customerName = r.import_customer_name || r.customers?.name || '—';
-                                const customerNumber = r.customers?.customer_number || '—';
-                                const paymentMethod = formatPaymentMethodLabel(r.payment_method, methodNameMap);
-                                const paymentDetail = formatPaymentDetailLabel(r.payment_detail_id, detailNameMap, r.import_kind_text, r.memo);
-                                const rowBand = customerNumberHistoryRowClass(r.customers?.customer_number);
-                                return (
-                                  <li
-                                    key={r.id}
-                                    className={`grid grid-cols-[3.2rem_2.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem_3.2rem] items-center gap-x-1.5 gap-y-0 px-1.5 py-1 text-[11px] ${rowBand}`}
-                                  >
-                                    <div className="sticky left-0 z-10 shrink-0 bg-inherit -ml-1.5 pl-1.5 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.12)]">
-                                      <button
-                                        type="button"
-                                        onClick={() => startEdit(r)}
-                                        className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap touch-manipulation"
-                                      >
-                                        <Edit2 size={12} />
-                                        修正
-                                      </button>
-                                    </div>
-                                    <div
-                                      className="font-bold text-slate-800 whitespace-nowrap pl-0.5"
-                                      title={formatCompactDate(r.visit_date)}
-                                    >
-                                      {formatVisitMonthDay(r.visit_date)}
-                                    </div>
-                                    <div className="font-bold text-slate-800 truncate" title={customerNumber}>{customerNumber}</div>
-                                    <div className="font-bold text-slate-800 truncate" title={customerName}>{customerName}</div>
-                                    <div className="font-bold text-blue-700 whitespace-nowrap">
-                                      {r.be_equivalent_count == null ? '—' : `${r.be_equivalent_count}回`}
-                                    </div>
-                                    <div className="truncate text-slate-800" title={r.menu_name || ''}>{r.menu_name || '—'}</div>
-                                    <div className="font-bold text-slate-900 whitespace-nowrap">{formatYen(r.amount)}</div>
-                                    <div className="truncate text-slate-600" title={`${paymentMethod} / ${paymentDetail}`}>
-                                      {paymentMethod}{paymentDetail !== '-' ? ` / ${paymentDetail}` : ''}
-                                    </div>
-                                    <div className="truncate text-slate-700" title={r.staff_name || ''}>{r.staff_name || '—'}</div>
-                                    <div className="sticky right-0 z-10 flex justify-end shrink-0 bg-inherit -mr-1.5 pr-1.5 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.12)]">
-                                      <button
-                                        type="button"
-                                        onClick={() => void deleteRecentRecord(r)}
-                                        className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap touch-manipulation"
-                                      >
-                                        <Trash2 size={12} />
-                                        削除
-                                      </button>
-                                    </div>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          </div>
+                      {yearOpen && (
+                        <div className="border-t border-slate-200 p-2 space-y-1.5 bg-slate-50/60">
+                          {yearGroup.months.map((monthGroup) => {
+                            const monthOpen = openHistoryMonths.has(monthGroup.yearMonth);
+                            return (
+                              <div key={monthGroup.yearMonth} className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleHistoryMonth(monthGroup.yearMonth)}
+                                  className="w-full flex items-center justify-between gap-3 bg-slate-50 px-3 py-2 text-left hover:bg-slate-100"
+                                >
+                                  <span className="flex items-center gap-2 min-w-0 pl-1">
+                                    {monthOpen ? (
+                                      <ChevronDown size={16} className="shrink-0 text-slate-600" />
+                                    ) : (
+                                      <ChevronRight size={16} className="shrink-0 text-slate-600" />
+                                    )}
+                                    <span className="font-bold text-sm text-slate-800">{monthGroup.label}</span>
+                                    <span className="text-xs font-bold text-slate-500">{monthGroup.count}件</span>
+                                  </span>
+                                  <span className="text-sm font-bold text-blue-700 whitespace-nowrap">計 {formatYen(monthGroup.total)}</span>
+                                </button>
+                                {monthOpen && (
+                                  <div className="border-t border-slate-200 p-1.5 space-y-1 bg-white">
+                                    {monthGroup.days.map((group) => {
+                                      const dayOpen = openHistoryDates.has(group.date);
+                                      return (
+                                        <div key={group.date} className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleHistoryDate(group.date)}
+                                            className="w-full flex items-center justify-between gap-3 bg-slate-50/80 px-3 py-1.5 text-left hover:bg-slate-100"
+                                          >
+                                            <span className="flex items-center gap-2 min-w-0 pl-2">
+                                              {dayOpen ? (
+                                                <ChevronDown size={16} className="shrink-0 text-slate-600" />
+                                              ) : (
+                                                <ChevronRight size={16} className="shrink-0 text-slate-600" />
+                                              )}
+                                              <span className="font-bold text-sm text-slate-800">{formatCompactDate(group.date)}</span>
+                                              <span className="text-xs font-bold text-slate-500">{group.records.length}件</span>
+                                            </span>
+                                            <span className="text-sm font-bold text-blue-700 whitespace-nowrap">計 {formatYen(group.total)}</span>
+                                          </button>
+                                          {dayOpen && (
+                                            <div className="overflow-auto border-t border-slate-200">
+                                              <div className="min-w-[48rem]">
+                                                <div className="grid grid-cols-[3.2rem_2.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem_3.2rem] items-center gap-x-1.5 gap-y-0 bg-slate-100 px-1.5 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
+                                                  <div className="sticky left-0 z-10 bg-slate-100 -ml-1.5 pl-1.5">修正</div>
+                                                  <div>月日</div>
+                                                  <div>番号</div>
+                                                  <div>氏名</div>
+                                                  <div>実通院</div>
+                                                  <div>メニュー</div>
+                                                  <div>金額</div>
+                                                  <div>支払/種類</div>
+                                                  <div>担当</div>
+                                                  <div className="sticky right-0 z-10 bg-slate-100 -mr-1.5 pr-1.5 text-right">削除</div>
+                                                </div>
+                                                <ul className="divide-y divide-slate-100">
+                                                  {group.records.map((r) => {
+                                                    const customerName = r.import_customer_name || r.customers?.name || '—';
+                                                    const customerNumber = r.customers?.customer_number || '—';
+                                                    const paymentMethod = formatPaymentMethodLabel(r.payment_method, methodNameMap);
+                                                    const paymentDetail = formatPaymentDetailLabel(
+                                                      r.payment_detail_id,
+                                                      detailNameMap,
+                                                      r.import_kind_text,
+                                                      r.memo
+                                                    );
+                                                    const rowBand = customerNumberHistoryRowClass(r.customers?.customer_number);
+                                                    return (
+                                                      <li
+                                                        key={r.id}
+                                                        className={`grid grid-cols-[3.2rem_2.5rem_3.5rem_5.5rem_3.2rem_minmax(6.5rem,1fr)_5rem_6.5rem_4rem_3.2rem] items-center gap-x-1.5 gap-y-0 px-1.5 py-1 text-[11px] ${rowBand}`}
+                                                      >
+                                                        <div className="sticky left-0 z-10 shrink-0 bg-inherit -ml-1.5 pl-1.5 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.12)]">
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => startEdit(r)}
+                                                            className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 whitespace-nowrap touch-manipulation"
+                                                          >
+                                                            <Edit2 size={12} />
+                                                            修正
+                                                          </button>
+                                                        </div>
+                                                        <div
+                                                          className="font-bold text-slate-800 whitespace-nowrap pl-0.5"
+                                                          title={formatCompactDate(r.visit_date)}
+                                                        >
+                                                          {formatVisitMonthDay(r.visit_date)}
+                                                        </div>
+                                                        <div className="font-bold text-slate-800 truncate" title={customerNumber}>
+                                                          {customerNumber}
+                                                        </div>
+                                                        <div className="font-bold text-slate-800 truncate" title={customerName}>
+                                                          {customerName}
+                                                        </div>
+                                                        <div className="font-bold text-blue-700 whitespace-nowrap">
+                                                          {r.be_equivalent_count == null ? '—' : `${r.be_equivalent_count}回`}
+                                                        </div>
+                                                        <div className="truncate text-slate-800" title={r.menu_name || ''}>
+                                                          {r.menu_name || '—'}
+                                                        </div>
+                                                        <div className="font-bold text-slate-900 whitespace-nowrap">{formatYen(r.amount)}</div>
+                                                        <div className="truncate text-slate-600" title={`${paymentMethod} / ${paymentDetail}`}>
+                                                          {paymentMethod}
+                                                          {paymentDetail !== '-' ? ` / ${paymentDetail}` : ''}
+                                                        </div>
+                                                        <div className="truncate text-slate-700" title={r.staff_name || ''}>
+                                                          {r.staff_name || '—'}
+                                                        </div>
+                                                        <div className="sticky right-0 z-10 flex justify-end shrink-0 bg-inherit -mr-1.5 pr-1.5 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.12)]">
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => void deleteRecentRecord(r)}
+                                                            className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded border border-red-300 text-red-700 font-bold hover:bg-red-50 whitespace-nowrap touch-manipulation"
+                                                          >
+                                                            <Trash2 size={12} />
+                                                            削除
+                                                          </button>
+                                                        </div>
+                                                      </li>
+                                                    );
+                                                  })}
+                                                </ul>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
