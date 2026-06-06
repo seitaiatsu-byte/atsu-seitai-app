@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+input[data-person-search="true"],
+input[data-ime="ja"]:not([data-ime="off"]),
 input[lang="ja"]:not([data-ime="off"]),
 textarea[lang="ja"]:not([data-ime="off"]) {
   ime-mode: active;

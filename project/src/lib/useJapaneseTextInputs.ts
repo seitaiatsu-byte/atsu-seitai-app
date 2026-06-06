@@ -68,11 +68,16 @@ export function focusWithJapaneseIme(el: HTMLInputElement | HTMLTextAreaElement 
   requestAnimationFrame(run);
 }
 
+function applyPersonSearchIme(el: HTMLInputElement | HTMLTextAreaElement): void {
+  ensureJapaneseImeForInput(el);
+  focusWithJapaneseIme(el);
+}
+
 /** ヒト検索欄（時間・金額以外）向けの共通 input 属性 */
 export function personSearchInputProps(
   extra?: InputHTMLAttributes<HTMLInputElement>
 ): InputHTMLAttributes<HTMLInputElement> {
-  const { onFocus, ...rest } = extra ?? {};
+  const { onFocus, onMouseDown, onClick, ...rest } = extra ?? {};
   return {
     type: 'text',
     lang: 'ja',
@@ -82,10 +87,18 @@ export function personSearchInputProps(
     autoCapitalize: 'off',
     autoCorrect: 'off',
     spellCheck: false,
+    onMouseDown: (e) => {
+      applyPersonSearchIme(e.currentTarget);
+      onMouseDown?.(e);
+    },
     onFocus: ((e) => {
-      ensureJapaneseImeForInput(e.currentTarget);
+      applyPersonSearchIme(e.currentTarget);
       onFocus?.(e);
     }) as FocusEventHandler<HTMLInputElement>,
+    onClick: (e) => {
+      applyPersonSearchIme(e.currentTarget);
+      onClick?.(e);
+    },
     ...rest,
   };
 }
@@ -115,6 +128,11 @@ export function useJapaneseTextInputs(): void {
 
     const onFocusIn = (event: FocusEvent) => {
       const target = event.target;
+      if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+      if (target.getAttribute('data-person-search') === 'true') {
+        applyPersonSearchIme(target);
+        return;
+      }
       if (shouldUseJapaneseInput(target)) applyJapaneseInputToElement(target);
     };
 

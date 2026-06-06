@@ -4,7 +4,7 @@ import type { Database } from '../lib/database.types';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
 import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
-import { ensureJapaneseImeForInput, focusWithJapaneseIme, personSearchInputProps } from '../lib/useJapaneseTextInputs';
+import { focusWithJapaneseIme, personSearchInputProps } from '../lib/useJapaneseTextInputs';
 
 export type CustomerRow = Database['public']['Tables']['customers']['Row'];
 
@@ -190,8 +190,7 @@ export default function CustomerSearchPanel({
 
   useEffect(() => {
     if (selectedCustomer) return;
-    const el = searchInputRef.current;
-    if (el) ensureJapaneseImeForInput(el);
+    focusCustomerSearchInput(searchInputRef.current);
   }, [selectedCustomer]);
 
   useEffect(() => {
