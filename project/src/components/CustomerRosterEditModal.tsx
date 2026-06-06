@@ -3,7 +3,11 @@ import { Save } from 'lucide-react';
 import ModalCloseButton from './ModalCloseButton';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
-import { applyPhoneToCustomerPayload, readPhoneFromCustomerRow } from '../lib/customerPhoneFields';
+import {
+  applyPhoneToCustomerPayload,
+  CUSTOMER_PHONE_PROTECTED_COLUMNS,
+  readPhoneFromCustomerRow,
+} from '../lib/customerPhoneFields';
 import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
 import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
 import { guardNavigation, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
@@ -25,6 +29,13 @@ const OPTIONAL_KEYS: string[] = [
   'referral_source_id',
   'referral_source_3',
 ];
+
+const PROTECTED_UPDATE_COLUMNS = new Set([
+  'name',
+  'name_kana',
+  'customer_number',
+  ...CUSTOMER_PHONE_PROTECTED_COLUMNS,
+]);
 
 type Props = {
   customer: Customer | null;
@@ -186,6 +197,11 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
 
       const missing = extractMissingColumnFromError(m);
       if (missing) {
+        if (PROTECTED_UPDATE_COLUMNS.has(missing)) {
+          setErr(`電話番号など必須列（${missing}）の保存に失敗しました: ${m}`);
+          setSaving(false);
+          return;
+        }
         if (missing in work) {
           delete work[missing];
         } else {

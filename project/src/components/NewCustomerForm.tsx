@@ -11,7 +11,11 @@ import {
   PLACEHOLDER_CUSTOMER_NUMBER,
   resolveNextRealCustomerNumber,
 } from '../lib/customerNumber';
-import { applyPhoneToCustomerPayload, readPhoneFromCustomerRow } from '../lib/customerPhoneFields';
+import {
+  applyPhoneToCustomerPayload,
+  CUSTOMER_PHONE_PROTECTED_COLUMNS,
+  readPhoneFromCustomerRow,
+} from '../lib/customerPhoneFields';
 import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
 import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
 import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
@@ -413,6 +417,7 @@ export default function NewCustomerForm({
         'name',
         'name_kana',
         'customer_number',
+        ...CUSTOMER_PHONE_PROTECTED_COLUMNS,
         'chief_complaint',
         'chief_complaint_1',
         'chief_complaint_2',
@@ -724,6 +729,7 @@ export default function NewCustomerForm({
               <input
                 type="tel"
                 inputMode="tel"
+                data-ime="off"
                 value={formData.phone_number}
                 onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
                 onBlur={(e) => {
