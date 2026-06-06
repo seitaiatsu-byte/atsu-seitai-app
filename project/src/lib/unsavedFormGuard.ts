@@ -13,15 +13,17 @@ export function hasUnsavedForms(): boolean {
   return dirtyFormIds.size > 0;
 }
 
-/** 未保存の入力があるとき false（アラート表示済み） */
+/** 未保存の入力があればアラートを出す（遷移は妨げない） */
 export function confirmLeaveIfUnsaved(): boolean {
   if (!hasUnsavedForms()) return true;
   alert(UNSAVED_LEAVE_MESSAGE);
-  return false;
+  return true;
 }
 
+/** 未保存があればアラート後にそのまま action を実行 */
 export function guardNavigation(action: () => void): void {
-  if (confirmLeaveIfUnsaved()) action();
+  confirmLeaveIfUnsaved();
+  action();
 }
 
 export function useUnsavedFormGuard(formId: string, isDirty: boolean): void {

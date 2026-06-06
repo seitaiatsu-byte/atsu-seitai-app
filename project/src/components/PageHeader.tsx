@@ -24,7 +24,7 @@ export default function PageHeader({ title, onBack, right, hideBack, mobileMinim
         <button
           type="button"
           onClick={() => {
-            if (!confirmLeaveIfUnsaved()) return;
+            confirmLeaveIfUnsaved();
             onBack();
           }}
           className="inline-flex items-center gap-1 px-3 py-2 rounded-xl font-bold text-gray-700 bg-white border-2 border-gray-200 shadow-sm hover:bg-gray-50 transition-colors"
