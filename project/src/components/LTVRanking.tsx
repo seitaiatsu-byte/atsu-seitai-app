@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, User, DollarSign, Calendar } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { clinicMatchesRecord } from '../lib/clinic';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
@@ -279,71 +279,32 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
         ) : rankings.length === 0 ? (
           <div className="text-center py-12 text-gray-500">データがありません</div>
         ) : (
-          <div className="panel-scrollbar max-h-[56rem] overflow-y-auto pr-1 space-y-1.5">
-            <div className="flex items-center gap-3 p-2.5 bg-gray-100 rounded-lg font-bold text-xs text-gray-700">
-              <span className="w-8 text-center">順位</span>
-              <span className="min-w-0 flex-1">顧客情報</span>
-              <span className="text-right">累計売上 / 回数 / 最終活動</span>
-            </div>
-
+          <div className="panel-scrollbar max-h-[56rem] overflow-y-auto pr-1 space-y-1 max-sm:space-y-0.5">
             {rankings.map((customer, index) => {
               const daysSince = getDaysSinceLastVisit(customer.last_activity_date);
               const isWarning = daysSince > 30;
               const isDanger = daysSince > 60;
+              const recencyClass = isDanger
+                ? 'text-red-700'
+                : isWarning
+                  ? 'text-amber-700'
+                  : 'text-green-700';
 
               return (
                 <div
                   key={customer.customer_id}
-                  className={`flex items-center gap-2 p-2.5 rounded-lg border transition-all hover:shadow-md ${
-                    index < 3
-                      ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-300'
-                      : 'bg-white border-gray-200'
+                  className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 max-sm:px-1.5 max-sm:py-1 ${
+                    index < 3 ? 'bg-yellow-50/80 border-yellow-200' : 'bg-white border-gray-200'
                   }`}
                 >
-                  <div className="flex items-center justify-center shrink-0">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                        index === 0
-                          ? 'bg-yellow-400 text-white'
-                          : index === 1
-                            ? 'bg-gray-300 text-white'
-                            : index === 2
-                              ? 'bg-orange-400 text-white'
-                              : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {index + 1}
-                    </div>
+                  <div className="min-w-0 flex-1 text-sm max-sm:text-xs font-bold text-gray-800 truncate">
+                    {index + 1}. {customer.customer_name}
+                    <span className="text-gray-500 font-normal ml-1">({customer.customer_number || '-'})</span>
                   </div>
-
-                  <div className="min-w-0 flex items-center gap-1.5 flex-1">
-                    <User size={14} className="text-gray-400 shrink-0" />
-                    <div className="min-w-0 leading-tight">
-                      <div className="font-bold text-sm text-gray-900 truncate">{customer.customer_name}</div>
-                      <div className="text-xs text-gray-500 truncate">
-                        {customer.customer_number || '-'} / {customer.phone_number || '-'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <div className="flex items-center gap-1">
-                      <DollarSign size={14} className="text-green-600" />
-                      <span className="font-bold text-base text-green-700">¥{Math.round(customer.total_ltv).toLocaleString()}</span>
-                    </div>
-                    <div className="bg-blue-100 px-2.5 py-1 rounded-full">
-                      <span className="font-bold text-xs text-blue-800">{customer.visit_count}回</span>
-                    </div>
-                    <div
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                        isDanger ? 'bg-red-100 text-red-800' : isWarning ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1">
-                        <Calendar size={12} />
-                        <span>{daysSince}日前</span>
-                      </div>
-                    </div>
+                  <div className="shrink-0 flex items-center gap-2 max-sm:gap-1 text-xs max-sm:text-[10px] whitespace-nowrap">
+                    <span className="font-bold text-green-700">¥{Math.round(customer.total_ltv).toLocaleString()}</span>
+                    <span className="text-blue-800 font-bold">{customer.visit_count}回</span>
+                    <span className={`font-bold ${recencyClass}`}>{daysSince}日前</span>
                   </div>
                 </div>
               );
@@ -372,13 +333,20 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
           <h3 className="text-lg font-bold text-orange-800 mb-3">物販ランキング（数量・金額）</h3>
           <div className="panel-scrollbar space-y-1.5 max-h-[34rem] overflow-y-auto pr-1">
             {productRankings.map((r, i) => (
-              <div key={r.customer_id} className="rounded-lg border px-2.5 py-1.5">
-                <div className="text-sm font-bold text-gray-800">
+              <div
+                key={r.customer_id}
+                className="rounded-lg border px-2.5 py-1.5 max-sm:px-1.5 max-sm:py-1 flex items-center justify-between gap-2"
+              >
+                <div className="min-w-0 text-sm max-sm:text-xs font-bold text-gray-800 truncate">
                   {i + 1}. {r.customer_name}
                   <span className="text-xs text-gray-500 ml-1">({r.customer_number || '-'})</span>
                 </div>
-                <div className="text-xs text-gray-600 mt-1">数量: {r.total_quantity}個</div>
-                <div className="text-sm font-bold text-orange-700">¥{Math.round(r.total_amount).toLocaleString()}</div>
+                <div className="shrink-0 flex items-center gap-2 max-sm:gap-1 text-xs max-sm:text-[10px]">
+                  <span className="text-gray-600">数量:{r.total_quantity}個</span>
+                  <span className="text-sm max-sm:text-xs font-bold text-orange-700">
+                    ¥{Math.round(r.total_amount).toLocaleString()}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -388,12 +356,15 @@ export default function LTVRanking({ clinicScope }: LTVRankingProps) {
           <h3 className="text-lg font-bold text-purple-800 mb-3">サブスクランキング</h3>
           <div className="panel-scrollbar space-y-1.5 max-h-[34rem] overflow-y-auto pr-1">
             {subscriptionRankings.map((r, i) => (
-              <div key={r.customer_id} className="rounded-lg border px-2.5 py-1.5 flex items-center justify-between gap-2">
-                <div className="min-w-0 text-sm font-bold text-gray-800 truncate">
+              <div
+                key={r.customer_id}
+                className="rounded-lg border px-2.5 py-1.5 max-sm:px-1.5 max-sm:py-1 flex items-center justify-between gap-2"
+              >
+                <div className="min-w-0 text-sm max-sm:text-xs font-bold text-gray-800 truncate">
                   {i + 1}. {r.customer_name}
                   <span className="text-xs text-gray-500 ml-1">({r.customer_number || '-'})</span>
                 </div>
-                <div className="shrink-0 flex items-center gap-2 text-xs">
+                <div className="shrink-0 flex items-center gap-2 max-sm:gap-1 text-xs max-sm:text-[10px]">
                   <span className="text-gray-600">件数:{r.total_count}件</span>
                   <span className="text-sm font-bold text-purple-700">¥{Math.round(r.total_amount).toLocaleString()}</span>
                 </div>
