@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { MapPin, Users, Download, Pencil, ChevronRight } from 'lucide-react';
+import { MapPin, Download, Pencil, ChevronRight } from 'lucide-react';
 import ModalCloseButton from './ModalCloseButton';
 import { supabase } from '../lib/supabase';
 import { fetchAllCustomersByCreatedDesc, type CustomerRow } from '../lib/fetchAllCustomers';
@@ -253,9 +253,21 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
     close: '\u9589\u3058\u308b',
   };
 
+  const segmentBtnClass = (key: SegmentKey, active: boolean) => {
+    if (!active) return 'bg-gray-100 text-gray-700 hover:bg-gray-200';
+    if (key === 'takatsuki') return 'bg-blue-600 text-white shadow';
+    if (key === 'kawanishi') return 'bg-orange-500 text-white shadow';
+    return 'bg-slate-700 text-white shadow';
+  };
+
+  const modeBtnClass = (active: boolean) =>
+    active
+      ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow'
+      : 'bg-gray-100 text-gray-700 hover:bg-gray-200';
+
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div className="bg-white rounded-2xl shadow-lg p-6 max-sm:p-2 max-sm:rounded-xl">
+      <div className="hidden sm:flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
           <MapPin className="text-green-600" size={32} />
           <h2 className="text-2xl font-bold text-gray-800">{t.title}</h2>
@@ -271,61 +283,63 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
         </button>
       </div>
 
-      <p className="text-sm text-gray-600 mb-4">{t.help}</p>
+      <div className="sm:hidden flex items-center justify-between gap-2 mb-1">
+        <h2 className="text-sm font-bold text-gray-800">{t.title}</h2>
+        <button
+          type="button"
+          onClick={handleExportAll}
+          disabled={loading || allCustomers.length === 0}
+          aria-label={t.csvAll}
+          className="p-1.5 rounded-lg font-bold text-white bg-gradient-to-r from-green-500 to-emerald-500 disabled:opacity-50"
+        >
+          <Download size={16} />
+        </button>
+      </div>
 
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <p className="hidden sm:block text-sm text-gray-600 mb-3">{t.help}</p>
+
+      <div className="grid grid-cols-3 gap-1 sm:gap-2 mb-1 sm:mb-3">
         {SEGMENT_TABS.map(({ key, label }) => (
           <button
             key={key}
             type="button"
             onClick={() => switchSegment(key)}
-            className={`py-3 px-3 rounded-xl font-bold transition-all ${
+            className={`py-1 px-1 sm:py-3 sm:px-3 rounded-lg sm:rounded-xl text-[10px] sm:text-base font-bold transition-all ${segmentBtnClass(
+              key,
               activeSegment === key
-                ? key === 'takatsuki'
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : key === 'kawanishi'
-                    ? 'bg-orange-500 text-white shadow-lg'
-                    : 'bg-slate-700 text-white shadow-lg'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            )}`}
           >
             {label}
           </button>
         ))}
       </div>
-      <p className="text-xs text-gray-500 mb-4">{segmentTitle(activeSegment)}</p>
+      <p className="text-[10px] sm:text-xs text-gray-500 mb-1 sm:mb-3 leading-tight">{segmentTitle(activeSegment)}</p>
 
-      <div className="grid grid-cols-3 gap-2 mb-6">
+      <div className="grid grid-cols-3 gap-1 sm:gap-2 mb-2 sm:mb-4">
         <button
           type="button"
           onClick={() => switchMode('prefecture')}
-          className={`py-3 px-4 rounded-xl font-bold transition-all ${
+          className={`py-1 px-1 sm:py-3 sm:px-4 rounded-lg sm:rounded-xl text-[10px] sm:text-base font-bold transition-all ${modeBtnClass(
             viewMode === 'prefecture'
-              ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
+          )}`}
         >
           {t.pref}
         </button>
         <button
           type="button"
           onClick={() => switchMode('city')}
-          className={`py-3 px-4 rounded-xl font-bold transition-all ${
+          className={`py-1 px-1 sm:py-3 sm:px-4 rounded-lg sm:rounded-xl text-[10px] sm:text-base font-bold transition-all ${modeBtnClass(
             viewMode === 'city'
-              ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
+          )}`}
         >
           {t.city}
         </button>
         <button
           type="button"
           onClick={() => switchMode('town')}
-          className={`py-3 px-4 rounded-xl font-bold transition-all ${
+          className={`py-1 px-1 sm:py-3 sm:px-4 rounded-lg sm:rounded-xl text-[10px] sm:text-base font-bold transition-all ${modeBtnClass(
             viewMode === 'town'
-              ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
+          )}`}
         >
           {t.town}
         </button>
@@ -340,59 +354,52 @@ export default function RegionalAnalysis({ clinicScope }: RegionalAnalysisProps)
           <p className="text-sm mt-2">{t.noDataHint}</p>
         </div>
       ) : (
-        <div className="panel-scrollbar max-h-[44rem] overflow-y-auto pr-1 space-y-2">
+        <div className="panel-scrollbar max-h-[44rem] overflow-y-auto pr-1 space-y-1 max-sm:space-y-0.5">
           {activeData.map((item, index) => {
             const percentage = (item.customerCount / activeMaxCount) * 100;
             const isTop3 = index < 3;
+            const rankClass =
+              index === 0
+                ? 'text-yellow-600'
+                : index === 1
+                  ? 'text-gray-500'
+                  : index === 2
+                    ? 'text-orange-600'
+                    : 'text-gray-600';
             return (
               <button
                 key={`${activeSegment}:${item.region}`}
                 type="button"
                 onClick={() => setSelectedRegion({ segment: activeSegment, region: item.region })}
-                className={`w-full text-left rounded-xl border p-3 transition-all hover:shadow-lg hover:border-green-400 ${
+                className={`w-full text-left rounded-lg border px-2 py-1.5 max-sm:px-1.5 max-sm:py-1 transition-all hover:border-green-400 ${
                   isTop3
                     ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300'
                     : 'bg-white border-gray-200'
                 }`}
               >
-                <div className="flex items-center justify-between mb-1 gap-2">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <div
-                      className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                        index === 0
-                          ? 'bg-yellow-400 text-white'
-                          : index === 1
-                            ? 'bg-gray-300 text-white'
-                            : index === 2
-                              ? 'bg-orange-400 text-white'
-                              : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {index + 1}
-                    </div>
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <MapPin size={16} className="text-green-600 shrink-0" />
-                      <span className="font-bold text-base text-gray-900 truncate">{item.region}</span>
-                    </div>
+                <div className="flex items-center justify-between gap-1 sm:gap-2">
+                  <div className="min-w-0 flex-1 text-xs sm:text-sm font-bold text-gray-900 truncate">
+                    <span className={`${rankClass} mr-0.5`}>{index + 1}.</span>
+                    <MapPin size={12} className="text-green-600 shrink-0 inline sm:hidden mr-0.5" />
+                    {item.region}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 text-xs">
-                    <span className="inline-flex items-center gap-1 text-gray-700">
-                      <Users size={14} className="text-blue-600" />
-                      <span className="font-bold text-blue-700">{item.customerCount}</span>{t.people}
-                    </span>
+                  <div className="shrink-0 flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs whitespace-nowrap">
+                    <span className="font-bold text-blue-700">{item.customerCount}{t.people}</span>
                     <span className="text-gray-600">来院{item.visitCount}{t.visitsUnit}</span>
-                    <span className="font-bold text-green-700">{t.yen}{item.totalRevenue.toLocaleString()}</span>
-                    <ChevronRight size={18} className="text-gray-400 shrink-0" />
+                    <span className="font-bold text-green-700">
+                      {t.yen}
+                      {item.totalRevenue.toLocaleString()}
+                    </span>
+                    <ChevronRight size={14} className="text-gray-400 shrink-0 hidden sm:block" />
                   </div>
                 </div>
 
-                <div className="relative h-4 bg-gray-100 rounded-full overflow-hidden mb-1.5">
+                <div className="relative h-1 sm:h-1.5 bg-gray-100 rounded-full overflow-hidden mt-0.5 sm:mt-1">
                   <div
                     className="absolute h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500"
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
-
               </button>
             );
           })}
