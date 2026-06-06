@@ -5,8 +5,8 @@ import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import {
   applyPhoneToCustomerPayload,
-  CUSTOMER_PHONE_PROTECTED_COLUMNS,
   readPhoneFromCustomerRow,
+  retryAfterMissingPhoneColumn,
 } from '../lib/customerPhoneFields';
 import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
 import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
@@ -30,12 +30,7 @@ const OPTIONAL_KEYS: string[] = [
   'referral_source_3',
 ];
 
-const PROTECTED_UPDATE_COLUMNS = new Set([
-  'name',
-  'name_kana',
-  'customer_number',
-  ...CUSTOMER_PHONE_PROTECTED_COLUMNS,
-]);
+const PROTECTED_UPDATE_COLUMNS = new Set(['name', 'name_kana', 'customer_number']);
 
 type Props = {
   customer: Customer | null;
@@ -197,8 +192,12 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
 
       const missing = extractMissingColumnFromError(m);
       if (missing) {
+        if (retryAfterMissingPhoneColumn(work, missing, phone)) {
+          work = { ...work };
+          continue;
+        }
         if (PROTECTED_UPDATE_COLUMNS.has(missing)) {
-          setErr(`電話番号など必須列（${missing}）の保存に失敗しました: ${m}`);
+          setErr(`必須列（${missing}）の保存に失敗しました: ${m}`);
           setSaving(false);
           return;
         }

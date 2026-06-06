@@ -13,8 +13,8 @@ import {
 } from '../lib/customerNumber';
 import {
   applyPhoneToCustomerPayload,
-  CUSTOMER_PHONE_PROTECTED_COLUMNS,
   readPhoneFromCustomerRow,
+  retryAfterMissingPhoneColumn,
 } from '../lib/customerPhoneFields';
 import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
 import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
@@ -417,7 +417,6 @@ export default function NewCustomerForm({
         'name',
         'name_kana',
         'customer_number',
-        ...CUSTOMER_PHONE_PROTECTED_COLUMNS,
         'chief_complaint',
         'chief_complaint_1',
         'chief_complaint_2',
@@ -451,6 +450,16 @@ export default function NewCustomerForm({
             continue;
           }
           const missingCol = extractMissingColumnFromError(msg);
+          if (
+            missingCol &&
+            retryAfterMissingPhoneColumn(
+              workingUpdate as Record<string, unknown>,
+              missingCol,
+              formData.phone_number
+            )
+          ) {
+            continue;
+          }
           if (missingCol && !PROTECTED_COLUMNS.has(missingCol) && missingCol in workingUpdate) {
             delete (workingUpdate as Record<string, unknown>)[missingCol];
             continue;
@@ -511,6 +520,16 @@ export default function NewCustomerForm({
             continue;
           }
           const missing = extractMissingColumnFromError(msg);
+          if (
+            missing &&
+            retryAfterMissingPhoneColumn(
+              workingPayload as Record<string, unknown>,
+              missing,
+              formData.phone_number
+            )
+          ) {
+            continue;
+          }
           if (missing && !PROTECTED_COLUMNS.has(missing)) {
             const key = missing as keyof Database['public']['Tables']['customers']['Insert'];
             if (key in workingPayload) {

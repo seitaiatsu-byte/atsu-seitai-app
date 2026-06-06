@@ -5,7 +5,12 @@ import type { Database } from '../lib/database.types';
 import { fetchAllCustomersByCreatedDesc, fetchCustomerCountExact } from '../lib/fetchAllCustomers';
 import { fetchExistingCustomerNameBirthKeySet } from '../lib/fetchNameBirthKeys';
 import { normalizeCsvHeaderLabel, resolveCsvColumnMap, normalizePhoneDigitsForDb } from '../lib/customerImportHelpers';
-import { applyPhoneToCustomerPayload } from '../lib/customerPhoneFields';
+import {
+  applyPhoneToCustomerPayload,
+  isCustomerPhoneColumn,
+  readPhoneFromCustomerRow,
+  retryAfterMissingPhoneColumn,
+} from '../lib/customerPhoneFields';
 import { personSearchInputProps } from '../lib/useJapaneseTextInputs';
 import {
   getAgeYearsFromCustomer,
@@ -151,6 +156,15 @@ async function insertCustomersWithSanitize(
       continue;
     }
     const missing = extractMissingColumnFromError(msg);
+    if (missing && isCustomerPhoneColumn(missing)) {
+      working = working.map((r) => {
+        const next = { ...r };
+        retryAfterMissingPhoneColumn(next, missing, readPhoneFromCustomerRow(next));
+        return next;
+      });
+      if (!dropped.includes(missing)) dropped.push(missing);
+      continue;
+    }
     if (missing && !PROTECTED_CUSTOMER_COLUMNS.has(missing)) {
       working = working.map((r) => {
         const next = { ...r };
@@ -200,6 +214,15 @@ async function updateCustomersWithSanitize(
       continue;
     }
     const missing = extractMissingColumnFromError(msg);
+    if (missing && isCustomerPhoneColumn(missing)) {
+      working = working.map((u) => {
+        const next = { id: u.id, data: { ...u.data } };
+        retryAfterMissingPhoneColumn(next.data, missing, readPhoneFromCustomerRow(next.data));
+        return next;
+      });
+      if (!dropped.includes(missing)) dropped.push(missing);
+      continue;
+    }
     if (missing && !PROTECTED_CUSTOMER_COLUMNS.has(missing)) {
       working = working.map((u) => {
         const next = { id: u.id, data: { ...u.data } };
