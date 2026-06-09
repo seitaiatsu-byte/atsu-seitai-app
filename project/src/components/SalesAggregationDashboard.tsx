@@ -10,6 +10,8 @@ import { repeatRateSecond, repeatRateSixth, type CustomerForRepeat } from '../li
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import { isRealCustomerNumber, placeholderCustomerIds } from '../lib/customerNumber';
 import RepeatAnalysis from './RepeatAnalysis';
+import UtilizationAnalysis from './UtilizationAnalysis';
+import { computeUtilizationForPeriod } from '../lib/utilizationMetrics';
 
 type ClinicFilter = 'kawanishi' | 'takatsuki' | 'all';
 type PageTab = 'sales' | 'analysis';
@@ -429,7 +431,6 @@ export default function SalesAggregationDashboard() {
         const [y, m] = ym.split('-').map((x) => parseInt(x, 10));
         const monthStart = `${y}-${pad2(m)}-01`;
         const monthEnd = `${y}-${pad2(m)}-${pad2(new Date(y, m, 0).getDate())}`;
-        const daysInMonth = new Date(y, m, 0).getDate();
         const mustExcludeKeywords = Array.from(new Set([...rules.excludeKeywords, '初']));
         const adKeywords = rules.adSourceKeywords.map((x) => x.toLowerCase());
         const durationRules = parseDurationRules(rules.menuDurationRules);
@@ -509,11 +510,22 @@ export default function SalesAggregationDashboard() {
           const day = coerceRecordDayYmd(v.visit_date);
           return !!day && day >= monthStart && day <= monthEnd;
         });
-        const slotsUsed = monthVisits.length;
-        const maxSlots = Math.max(1, rules.dailyMaxSlots) * daysInMonth;
-        setActualSlotsUsed(slotsUsed);
-        setMaxSlotsTotal(maxSlots);
-        setUtilizationRate(Math.round((slotsUsed / maxSlots) * 1000) / 10);
+        const monthUtil = computeUtilizationForPeriod({
+          visits: monthVisits.map((v) => ({
+            visit_date: coerceRecordDayYmd(v.visit_date) || '',
+            menu_name: String(v.menu_name ?? ''),
+            clinic_name: String(v.clinic_name ?? ''),
+          })),
+          excludeKeywords: mustExcludeKeywords,
+          dailyMaxSlots: rules.dailyMaxSlots,
+          clinicFilter: 'all',
+          startYmd: monthStart,
+          endYmd: monthEnd,
+          label: ym,
+        });
+        setActualSlotsUsed(monthUtil.slotsUsed);
+        setMaxSlotsTotal(monthUtil.maxSlots);
+        setUtilizationRate(monthUtil.utilizationRate);
 
         let minuteRevenue = 0;
         let minuteTotal = 0;
@@ -993,6 +1005,8 @@ export default function SalesAggregationDashboard() {
             </div>
           ) : activeAnalysis === 'repeat' ? (
             <RepeatAnalysis />
+          ) : activeAnalysis === 'utilization' ? (
+            <UtilizationAnalysis />
           ) : (
             <div className="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50 p-5">
               <div className="text-sm text-blue-800 font-bold mb-1">{activeMeta.title}</div>
