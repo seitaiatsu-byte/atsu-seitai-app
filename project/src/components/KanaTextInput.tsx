@@ -1,5 +1,5 @@
 import { forwardRef, useState, type InputHTMLAttributes } from 'react';
-import { formatPersonSearchInput } from '../lib/personSearchText';
+import { finalizePersonSearchInput, formatPersonSearchInput } from '../lib/personSearchText';
 import { kanaTextInputProps } from '../lib/useJapaneseTextInputs';
 
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type' | 'value'> & {
@@ -9,7 +9,7 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type' | '
 
 /** ふりがな欄：PC のかな IME 優先 + ローマ字は自動でひらがな化 */
 const KanaTextInput = forwardRef<HTMLInputElement, Props>(function KanaTextInput(
-  { value, onChange, onCompositionStart, onCompositionEnd, ...rest },
+  { value, onChange, onCompositionStart, onCompositionEnd, onBlur, ...rest },
   ref
 ) {
   const [composing, setComposing] = useState(false);
@@ -20,6 +20,10 @@ const KanaTextInput = forwardRef<HTMLInputElement, Props>(function KanaTextInput
       {...kanaTextInputProps({
         ...rest,
         value,
+        onBlur: (e) => {
+          onChange(finalizePersonSearchInput(e.currentTarget.value));
+          onBlur?.(e);
+        },
         onCompositionStart: (e) => {
           setComposing(true);
           onCompositionStart?.(e);

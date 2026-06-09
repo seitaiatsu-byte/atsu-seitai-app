@@ -1,5 +1,5 @@
 import { forwardRef, useState, type InputHTMLAttributes } from 'react';
-import { formatPersonSearchInput } from '../lib/personSearchText';
+import { finalizePersonSearchInput, formatPersonSearchInput } from '../lib/personSearchText';
 import { personSearchInputProps } from '../lib/useJapaneseTextInputs';
 
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type' | 'value'> & {
@@ -8,7 +8,7 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type' | '
 };
 
 const PersonSearchInput = forwardRef<HTMLInputElement, Props>(function PersonSearchInput(
-  { value, onChange, onCompositionStart, onCompositionEnd, ...rest },
+  { value, onChange, onCompositionStart, onCompositionEnd, onBlur, ...rest },
   ref
 ) {
   const [composing, setComposing] = useState(false);
@@ -19,6 +19,10 @@ const PersonSearchInput = forwardRef<HTMLInputElement, Props>(function PersonSea
       {...personSearchInputProps({
         ...rest,
         value,
+        onBlur: (e) => {
+          onChange(finalizePersonSearchInput(e.currentTarget.value));
+          onBlur?.(e);
+        },
         onCompositionStart: (e) => {
           setComposing(true);
           onCompositionStart?.(e);
