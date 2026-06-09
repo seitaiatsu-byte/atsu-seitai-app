@@ -19,6 +19,12 @@ import {
 import { getKanaForRoster, getMemoForRoster, type CustomerRowRecord } from '../lib/customerRosterFieldResolve';
 import { fetchBusinessRules } from '../lib/businessRules';
 import {
+  computeCustomerLtvMetrics,
+  formatCustomerLtvPeriodLabel,
+  resolveCustomerLtvPeriod,
+  type CustomerLtvPeriodMode,
+} from '../lib/customerChartMetrics';
+import {
   filterQualifyingVisits,
   firstQualifyingVisitDate,
   qualifyingVisitRepeatCount,
@@ -125,6 +131,11 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
   const [staffOptions, setStaffOptions] = useState<{ id: string; name: string }[]>([]);
   const [menuOptions, setMenuOptions] = useState<MenuMaster[]>([]);
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([]);
+  const [menuDurationRules, setMenuDurationRules] = useState('');
+  const [defaultTreatmentMinutes, setDefaultTreatmentMinutes] = useState(60);
+  const [ltvPeriodMode, setLtvPeriodMode] = useState<CustomerLtvPeriodMode>('all');
+  const [ltvCustomStart, setLtvCustomStart] = useState('');
+  const [ltvCustomEnd, setLtvCustomEnd] = useState('');
   const [referral1FromMaster, setReferral1FromMaster] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState<ChartSummaryPanel>(null);
   const [activeRows, setActiveRows] = useState<ActiveChartRow[]>([]);
@@ -169,7 +180,11 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
   );
 
   useEffect(() => {
-    fetchBusinessRules().then((r) => setExcludeKeywords(r.excludeKeywords));
+    fetchBusinessRules().then((r) => {
+      setExcludeKeywords(r.excludeKeywords);
+      setMenuDurationRules(r.menuDurationRules);
+      setDefaultTreatmentMinutes(r.defaultTreatmentMinutes);
+    });
   }, []);
 
   useEffect(() => {
@@ -336,6 +351,9 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
 
   useEffect(() => {
     setSummaryOpen(null);
+    setLtvPeriodMode('all');
+    setLtvCustomStart('');
+    setLtvCustomEnd('');
   }, [selectedCustomer?.id]);
 
   /** メニューマスタ読込後に id を同期（開いた直後は options 未読込で二重 option になるのを防ぐ） */
@@ -356,12 +374,32 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
     return () => window.removeEventListener('records-updated', onRecordsUpdated);
   }, [loadCustomerData, loadActiveChartRows]);
 
-  const totalLtv = useMemo(() => {
-    const vt = visits.reduce((a, v) => a + Number(v.amount || 0), 0);
-    const pt = products.reduce((a, p) => a + Number(p.amount || 0), 0);
-    const st = subs.reduce((a, s) => a + Number(s.amount || 0), 0);
-    return vt + pt + st;
-  }, [visits, products, subs]);
+  const ltvPeriodRange = useMemo(
+    () =>
+      resolveCustomerLtvPeriod({
+        mode: ltvPeriodMode,
+        customStart: ltvCustomStart,
+        customEnd: ltvCustomEnd,
+      }),
+    [ltvPeriodMode, ltvCustomStart, ltvCustomEnd]
+  );
+
+  const ltvMetrics = useMemo(
+    () =>
+      computeCustomerLtvMetrics({
+        visits,
+        products,
+        subs,
+        startYmd: ltvPeriodRange.startYmd,
+        endYmd: ltvPeriodRange.endYmd,
+        menuDurationRules,
+        defaultTreatmentMinutes,
+      }),
+    [visits, products, subs, ltvPeriodRange, menuDurationRules, defaultTreatmentMinutes]
+  );
+
+  const totalLtv = ltvMetrics.ltvTotal;
+  const ltvPeriodLabel = formatCustomerLtvPeriodLabel(ltvPeriodRange.startYmd, ltvPeriodRange.endYmd);
 
   const visitOrdinalById = useMemo(() => {
     const sortedAsc = [...visits].sort((a, b) => {
@@ -871,10 +909,87 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                   <div className="truncate"><span className="font-bold text-gray-600">メモ:</span> <span className="font-bold text-gray-800">{rosterMemo}</span></div>
                 )}
               </div>
-              <div className="md:text-right">
-                <div className="font-bold text-pink-700">総LTV</div>
-                <div className="text-xl font-bold text-pink-900">¥{Math.round(totalLtv).toLocaleString()}</div>
+            </div>
+
+            <div className="bg-white/90 rounded-lg px-2.5 py-2 border border-violet-200 space-y-2">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <div className="text-[10px] font-bold text-violet-700">LTV・分単価（{ltvPeriodLabel}）</div>
+                  <div className="text-2xl font-bold text-pink-900">¥{Math.round(totalLtv).toLocaleString()}</div>
+                  <div className="text-[10px] text-gray-600 mt-0.5">
+                    来院¥{Math.round(ltvMetrics.visitRevenue).toLocaleString()} / 物販¥
+                    {Math.round(ltvMetrics.productRevenue).toLocaleString()} / サブスク¥
+                    {Math.round(ltvMetrics.subscriptionRevenue).toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] font-bold text-violet-700">実効分単価</div>
+                  <div className="text-xl font-bold text-violet-900">
+                    {ltvMetrics.yenPerMinute != null ? `¥${ltvMetrics.yenPerMinute.toLocaleString()}/分` : '—'}
+                  </div>
+                  <div className="text-[10px] text-gray-600 mt-0.5">
+                    来院{ltvMetrics.visitCount}回 / 枠{ltvMetrics.totalMinutes.toLocaleString()}分
+                  </div>
+                </div>
               </div>
+
+              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                <span className="font-bold text-gray-600 shrink-0">期間:</span>
+                {(
+                  [
+                    ['all', '全期間'],
+                    ['last6m', '直近6ヶ月'],
+                    ['last12m', '直近12ヶ月'],
+                    ['custom', '期間指定'],
+                  ] as const
+                ).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setLtvPeriodMode(mode)}
+                    className={`px-2 py-0.5 rounded-full border font-bold transition-colors ${
+                      ltvPeriodMode === mode
+                        ? 'bg-violet-600 text-white border-violet-600'
+                        : 'bg-white text-violet-800 border-violet-200 hover:bg-violet-50'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+                {ltvPeriodMode === 'custom' && (
+                  <>
+                    <input
+                      type="date"
+                      value={ltvCustomStart}
+                      onChange={(e) => setLtvCustomStart(e.target.value)}
+                      className="px-2 py-0.5 rounded border border-violet-200 text-xs"
+                    />
+                    <span className="text-gray-500">〜</span>
+                    <input
+                      type="date"
+                      value={ltvCustomEnd}
+                      onChange={(e) => setLtvCustomEnd(e.target.value)}
+                      className="px-2 py-0.5 rounded border border-violet-200 text-xs"
+                    />
+                  </>
+                )}
+              </div>
+
+              <p className="text-[10px] text-violet-900/80 leading-relaxed">
+                分単価 ＝ 期間内の来院売上合計 ÷ 合計枠時間（分）。プログラム一括代＋毎回施術料も来院金額に入っていれば自動で反映されます。
+                {ltvMetrics.estimatedMinutesCount > 0 && (
+                  <span className="text-amber-800">
+                    {' '}
+                    枠時間未入力{ltvMetrics.estimatedMinutesCount}件はメニュー目安で推測。
+                  </span>
+                )}
+                {ltvMetrics.skippedVisitCount > 0 && (
+                  <span className="text-amber-800">
+                    {' '}
+                    金額あり・枠時間不明{ltvMetrics.skippedVisitCount}件は分単価から除外。
+                  </span>
+                )}
+              </p>
             </div>
 
             <div className="bg-white/80 rounded-lg px-2.5 py-1.5 border border-blue-200 text-xs text-gray-700 truncate">
