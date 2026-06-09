@@ -14,6 +14,10 @@ import {
   saveOtherCalendarPasswordInitial,
 } from '../lib/otherCalendarAuth';
 import AlertFollowRangeEditor from './AlertFollowRangeEditor';
+import {
+  DEFAULT_CHURN_CONFIG,
+  DEFAULT_PROGRAM_KEYWORDS,
+} from '../lib/churnConfig';
 
 type BusinessRule = {
   id: string;
@@ -26,6 +30,16 @@ export default function BusinessRulesConfig() {
   const [inactiveDays, setInactiveDays] = useState('30');
   const [excludeKeywords, setExcludeKeywords] = useState('BE,初回,体験');
   const [churnLapsedDays, setChurnLapsedDays] = useState('90');
+  const [churnProgramKeywords, setChurnProgramKeywords] = useState(DEFAULT_PROGRAM_KEYWORDS.join(','));
+  const [churnWindowsSingle, setChurnWindowsSingle] = useState(
+    DEFAULT_CHURN_CONFIG.windowsSingle.join(',')
+  );
+  const [churnWindowsProgram, setChurnWindowsProgram] = useState(
+    DEFAULT_CHURN_CONFIG.windowsProgram.join(',')
+  );
+  const [churnWindowsTicket, setChurnWindowsTicket] = useState(
+    DEFAULT_CHURN_CONFIG.windowsTicket.join(',')
+  );
   const [dailyMaxSlots, setDailyMaxSlots] = useState('20');
   const [monthlyAdSpend, setMonthlyAdSpend] = useState('0');
   const [adSourceKeywords, setAdSourceKeywords] = useState('広告,インスタ,instagram,meta,google,line');
@@ -84,6 +98,14 @@ export default function BusinessRulesConfig() {
       if (inactiveRule) setInactiveDays(inactiveRule.rule_value);
       if (excludeRule) setExcludeKeywords(excludeRule.rule_value);
       if (churnRule) setChurnLapsedDays(churnRule.rule_value);
+      const churnKwRule = data.find((r: BusinessRule) => r.rule_key === 'churn_program_keywords');
+      const churnWinSingleRule = data.find((r: BusinessRule) => r.rule_key === 'churn_windows_single');
+      const churnWinProgramRule = data.find((r: BusinessRule) => r.rule_key === 'churn_windows_program');
+      const churnWinTicketRule = data.find((r: BusinessRule) => r.rule_key === 'churn_windows_ticket');
+      if (churnKwRule) setChurnProgramKeywords(churnKwRule.rule_value);
+      if (churnWinSingleRule) setChurnWindowsSingle(churnWinSingleRule.rule_value);
+      if (churnWinProgramRule) setChurnWindowsProgram(churnWinProgramRule.rule_value);
+      if (churnWinTicketRule) setChurnWindowsTicket(churnWinTicketRule.rule_value);
       if (maxSlotsRule) setDailyMaxSlots(maxSlotsRule.rule_value);
       if (adSpendRule) setMonthlyAdSpend(adSpendRule.rule_value);
       if (adKeywordsRule) setAdSourceKeywords(adKeywordsRule.rule_value);
@@ -189,6 +211,42 @@ export default function BusinessRulesConfig() {
         rule_key: 'churn_lapsed_days',
         rule_value: churnLapsedDays,
         description: '離患判定の経過日数（最終活動からの日数・分析用デフォルト90日）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'churn_program_keywords',
+        rule_value: churnProgramKeywords,
+        description: '離患率：プログラム契約判定キーワード（メニュー名・支払詳細、カンマ区切り）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'churn_windows_single',
+        rule_value: churnWindowsSingle,
+        description: '離患率：都度契約の観察窓（日数、カンマ区切り。例: 90,180）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'churn_windows_program',
+        rule_value: churnWindowsProgram,
+        description: '離患率：プログラム契約の観察窓（日数、カンマ区切り）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'churn_windows_ticket',
+        rule_value: churnWindowsTicket,
+        description: '離患率：回数券契約の観察窓（日数、カンマ区切り）',
       },
       { onConflict: 'rule_key' }
     );
@@ -323,23 +381,85 @@ export default function BusinessRulesConfig() {
             onClick={() => togglePanel('churn')}
             className="w-full p-5 flex items-center justify-between text-left"
           >
-            <h3 className="font-bold text-teal-900 text-lg">離患判定日数（分析）</h3>
+            <h3 className="font-bold text-teal-900 text-lg">離患率・離患判定（分析）</h3>
             <span className="text-teal-700 font-bold">{openPanels.churn ? '▲' : '▼'}</span>
           </button>
           {openPanels.churn && (
-            <div className="px-5 pb-5">
-              <p className="text-sm text-gray-600 mb-2">
-                半年/12ヶ月離患率などの分析で「最終来院・物販・サブスクのいずれも無い状態が続いた日数」の閾値に使用します（既定90日）。
+            <div className="px-5 pb-5 space-y-4">
+              <p className="text-sm text-gray-600">
+                アラートページ上部の<strong>契約タイプ別離患率</strong>（コホート型）と、従来の経過日数分析の設定です。
+                詳細は <code className="text-xs bg-white px-1 rounded">docs/churn-rate-design.md</code>
               </p>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  value={churnLapsedDays}
-                  onChange={(e) => setChurnLapsedDays(e.target.value)}
-                  className="w-32 px-4 py-3 border-2 border-gray-300 rounded-lg text-lg font-bold text-center"
-                  min={1}
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  プログラム判定キーワード（カンマ区切り）
+                </label>
+                <textarea
+                  value={churnProgramKeywords}
+                  onChange={(e) => setChurnProgramKeywords(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-mono"
+                  placeholder="6M,6ヶ月,プログラム,..."
                 />
-                <span className="text-lg font-bold text-gray-700">日</span>
+                <p className="text-xs text-gray-500 mt-1">
+                  成約来院のメニュー名・支払詳細に含まれる語で「②プログラム」に分類します。
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="block text-sm font-bold text-orange-800 mb-1">都度の観察窓（日）</label>
+                  <input
+                    type="text"
+                    value={churnWindowsSingle}
+                    onChange={(e) => setChurnWindowsSingle(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-orange-200 rounded-lg text-sm font-mono"
+                    placeholder="90,180"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-blue-800 mb-1">プログラムの観察窓（日）</label>
+                  <input
+                    type="text"
+                    value={churnWindowsProgram}
+                    onChange={(e) => setChurnWindowsProgram(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-blue-200 rounded-lg text-sm font-mono"
+                    placeholder="180,365,548,730"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-violet-800 mb-1">回数券の観察窓（日）</label>
+                  <input
+                    type="text"
+                    value={churnWindowsTicket}
+                    onChange={(e) => setChurnWindowsTicket(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-violet-200 rounded-lg text-sm font-mono"
+                    placeholder="180,365,548,730"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                観察窓は成約日からの日数です（例: 180=6ヶ月）。観察期間が終わった人だけが分母に入ります。
+              </p>
+
+              <div className="pt-2 border-t border-teal-200">
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  レガシー：最終活動からの離患経過日数
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  従来の「最終来院・物販・サブスクが無い状態」の閾値（既定90日）。新しいコホート離患率とは別指標です。
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    value={churnLapsedDays}
+                    onChange={(e) => setChurnLapsedDays(e.target.value)}
+                    className="w-32 px-4 py-3 border-2 border-gray-300 rounded-lg text-lg font-bold text-center"
+                    min={1}
+                  />
+                  <span className="text-lg font-bold text-gray-700">日</span>
+                </div>
               </div>
             </div>
           )}

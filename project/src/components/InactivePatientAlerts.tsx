@@ -13,6 +13,7 @@ import {
   labelRedRange,
   labelYellowRange,
 } from '../lib/alertFollowConfig';
+import ChurnRateSummary from './ChurnRateSummary';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 
@@ -364,6 +365,8 @@ export default function InactivePatientAlerts() {
 
   return (
     <div className="space-y-4 sm:space-y-5">
+      <ChurnRateSummary />
+
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
