@@ -78,14 +78,15 @@ function applySubstituteAndBridge(holidays: Set<string>, year: number): void {
         }
       }
     }
+    // 国民の休日: 祝日に挟まれた「平日」のみ（翌日が祝日だから休み、の誤判定をしない）
     for (let m = 1; m <= 12; m++) {
       const daysInMonth = new Date(year, m, 0).getDate();
-      for (let d = 1; d < daysInMonth; d++) {
+      for (let d = 1; d <= daysInMonth; d++) {
         const cur = ymd(year, m, d);
-        const next = ymd(year, m, d + 1);
-        if (holidays.has(cur) || holidays.has(next)) continue;
+        if (holidays.has(cur) || weekdayFromYmd(cur) === 0) continue;
         const prev = addDays(cur, -1);
-        if (holidays.has(prev) && weekdayFromYmd(cur) !== 0) {
+        const next = addDays(cur, 1);
+        if (holidays.has(prev) && holidays.has(next)) {
           holidays.add(cur);
           changed = true;
         }

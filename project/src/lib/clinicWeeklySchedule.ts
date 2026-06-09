@@ -96,6 +96,21 @@ function addDaysYmd(ymdStr: string, days: number): string {
   return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
 }
 
+export function dayCapacityForClinic(
+  ymdStr: string,
+  clinic: 'takatsuki' | 'kawanishi',
+  schedule: UtilizationScheduleConfig,
+  useWeekly: boolean
+): number {
+  if (schedule.excludeHolidays && isJapanesePublicHoliday(ymdStr)) return 0;
+  const weekday = ymdToWeekdayKey(ymdStr);
+  if (!useWeekly) {
+    if (weekday === 'sun') return 0;
+    return schedule.legacyDailyMaxSlots;
+  }
+  return schedule[clinic][weekday] || 0;
+}
+
 function dayCapacity(
   ymdStr: string,
   clinicFilter: 'all' | 'takatsuki' | 'kawanishi',
@@ -204,4 +219,15 @@ export async function fetchUtilizationSchedule(): Promise<UtilizationScheduleCon
 export function hasWeeklyScheduleConfigured(schedule: UtilizationScheduleConfig): boolean {
   const sum = (s: ClinicDaySlots) => WEEKDAY_KEYS.reduce((a, k) => a + (s[k] || 0), 0);
   return sum(schedule.takatsuki) > 0 || sum(schedule.kawanishi) > 0;
+}
+
+export function weeklySlotSum(slots: ClinicDaySlots): number {
+  return WEEKDAY_KEYS.reduce((a, k) => a + (slots[k] || 0), 0);
+}
+
+export function resolveClinicKey(clinicName: string | null | undefined): 'takatsuki' | 'kawanishi' | null {
+  const v = clinicName || '';
+  if (v.includes('高槻')) return 'takatsuki';
+  if (v.includes('川西')) return 'kawanishi';
+  return null;
 }

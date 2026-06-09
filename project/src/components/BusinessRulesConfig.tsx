@@ -23,6 +23,7 @@ import {
   DEFAULT_TAKATSUKI_SCHEDULE,
   parseClinicDaySlots,
   serializeClinicDaySlots,
+  weeklySlotSum,
   type ClinicDaySlots,
 } from '../lib/clinicWeeklySchedule';
 import ClinicWeeklyScheduleEditor from './ClinicWeeklyScheduleEditor';
@@ -554,17 +555,20 @@ export default function BusinessRulesConfig() {
               </p>
 
               <ClinicWeeklyScheduleEditor
-                title="高槻院（月〜土）"
+                title={`高槻院（月〜土）— 週合計 ${weeklySlotSum(takatsukiWeekly)} 枠`}
                 slots={takatsukiWeekly}
                 onChange={setTakatsukiWeekly}
                 accentClass="text-blue-800"
               />
               <ClinicWeeklyScheduleEditor
-                title="川西院（月〜土）"
+                title={`川西院（月〜土）— 週合計 ${weeklySlotSum(kawanishiWeekly)} 枠`}
                 slots={kawanishiWeekly}
                 onChange={setKawanishiWeekly}
                 accentClass="text-orange-800"
               />
+              <p className="text-[11px] text-gray-500">
+                1ヶ月の供給枠の目安 ≒ 週合計 × 4週（GWなど祝日は自動で除く）。過去月も<strong>今の設定</strong>で再計算します。
+              </p>
 
               <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <input

@@ -50,6 +50,9 @@ function ResultRow({ result }: { result: UtilizationResult }) {
       </div>
       <div className="text-[10px] opacity-80 mt-0.5">
         {fmtSlots(result.slotsUsed)} / {result.maxSlots} 枠（営業{result.operatingDays}日）
+        {result.offScheduleSlotsUsed > 0 && (
+          <span className="ml-1 text-gray-500">枠外来院 {fmtSlots(result.offScheduleSlotsUsed)} は除外</span>
+        )}
         {result.lowSample && <span className="ml-1 text-amber-700 font-bold">参考</span>}
       </div>
     </div>
@@ -67,6 +70,9 @@ function MainRateCard({ result }: { result: UtilizationResult | null }) {
       <div className="text-4xl font-black mt-1">{result.utilizationRate}%</div>
       <div className="text-xs mt-1 opacity-80">
         {fmtSlots(result.slotsUsed)} / {result.maxSlots} 枠（営業{result.operatingDays}日）
+        {result.offScheduleSlotsUsed > 0 && (
+          <span className="ml-1 opacity-70">※枠外 {fmtSlots(result.offScheduleSlotsUsed)} 除外</span>
+        )}
         {result.lowSample && <span className="ml-1 text-amber-700 font-bold">（短期間・参考値）</span>}
       </div>
       <p className="text-[11px] mt-2 leading-snug opacity-90">{band.action}</p>

@@ -1,7 +1,9 @@
 import { clinicMatchesRecord } from './clinic';
 import {
   computeCapacityForPeriod,
+  dayCapacityForClinic,
   hasWeeklyScheduleConfigured,
+  resolveClinicKey,
   type UtilizationScheduleConfig,
 } from './clinicWeeklySchedule';
 import { totalWeightedSlotsUsed } from './menuSlotRules';
@@ -78,6 +80,8 @@ export type UtilizationResult = {
   utilizationRate: number;
   calendarDays: number;
   operatingDays: number;
+  /** 休診曜日・祝日など供給枠0の日の来院（加重枠） */
+  offScheduleSlotsUsed: number;
   lowSample: boolean;
 };
 
@@ -184,12 +188,39 @@ export function computeUtilizationForPeriod(params: {
     const d = ymdOnly(v.visit_date);
     return d >= startYmd && d <= endYmd;
   });
+  const useWeekly = hasWeeklyScheduleConfigured(schedule);
+
+  const onSchedule: typeof inPeriod = [];
+  const offSchedule: typeof inPeriod = [];
+  for (const v of inPeriod) {
+    const d = ymdOnly(v.visit_date);
+    const clinicKey = resolveClinicKey(v.clinic_name);
+    let cap = 0;
+    if (clinicFilter === 'all') {
+      if (clinicKey === 'takatsuki') cap = dayCapacityForClinic(d, 'takatsuki', schedule, useWeekly);
+      else if (clinicKey === 'kawanishi') cap = dayCapacityForClinic(d, 'kawanishi', schedule, useWeekly);
+      else {
+        cap =
+          dayCapacityForClinic(d, 'takatsuki', schedule, useWeekly) +
+          dayCapacityForClinic(d, 'kawanishi', schedule, useWeekly);
+      }
+    } else {
+      cap = dayCapacityForClinic(d, clinicFilter, schedule, useWeekly);
+    }
+    if (cap > 0) onSchedule.push(v);
+    else offSchedule.push(v);
+  }
+
   const slotsUsed = totalWeightedSlotsUsed(
-    inPeriod,
+    onSchedule,
     schedule.menuSlotRules,
     schedule.defaultMenuSlotWeight
   );
-  const useWeekly = hasWeeklyScheduleConfigured(schedule);
+  const offScheduleSlotsUsed = totalWeightedSlotsUsed(
+    offSchedule,
+    schedule.menuSlotRules,
+    schedule.defaultMenuSlotWeight
+  );
   const { maxSlots, operatingDays, calendarDays } = computeCapacityForPeriod({
     startYmd,
     endYmd,
@@ -209,6 +240,7 @@ export function computeUtilizationForPeriod(params: {
     utilizationRate,
     calendarDays,
     operatingDays,
+    offScheduleSlotsUsed,
     lowSample: operatingDays < 5,
   };
 }
