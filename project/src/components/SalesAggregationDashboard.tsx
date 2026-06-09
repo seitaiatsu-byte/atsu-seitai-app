@@ -43,16 +43,16 @@ type DailyBreakdownItem = {
 };
 
 const ANALYSIS_ITEMS: AnalysisItem[] = [
-  { key: 'sales', title: '売上集計', subtitle: '日別・月別・年別の売上分析', icon: DollarSign },
-  { key: 'slips', title: '伝票一覧', subtitle: '施術伝票の一覧と詳細', icon: FileText },
-  { key: 'ltv', title: 'LTV分析', subtitle: '顧客生涯価値の分析', icon: TrendingUp },
-  { key: 'repeat', title: 'リピート分析', subtitle: '新規・リピート比率の推移', icon: Repeat },
-  { key: 'new-vs-existing', title: '新規/既存分析', subtitle: '新規・既存患者の比率推移', icon: Activity },
-  { key: 'roas', title: 'ROAS分析', subtitle: '広告費用対効果の分析', icon: Megaphone },
-  { key: 'unit-time', title: '時間単価', subtitle: '時間あたりの売上効率', icon: Clock3 },
-  { key: 'utilization', title: '稼働率', subtitle: '予約枠の稼働状況', icon: BarChart3 },
-  { key: 'cross', title: 'クロス集計', subtitle: '多角的な売上LTV分析', icon: Grid3X3 },
-  { key: 'area', title: 'エリア分析', subtitle: 'エリア別LTV分析・地域カテゴリ', icon: MapIcon },
+  { key: 'sales', title: '経営サマリー', subtitle: '今月のKPI（会員・離脱・稼働率など）', icon: DollarSign },
+  { key: 'utilization', title: '稼働率', subtitle: '実来院ベースの枠消化', icon: BarChart3 },
+  { key: 'repeat', title: 'リピート分析', subtitle: '2回目・6回目到達率（簡易）', icon: Repeat },
+  { key: 'slips', title: '伝票一覧', subtitle: '未実装', icon: FileText },
+  { key: 'ltv', title: 'LTV分析', subtitle: '未実装', icon: TrendingUp },
+  { key: 'new-vs-existing', title: '新規/既存分析', subtitle: '未実装', icon: Activity },
+  { key: 'roas', title: 'ROAS分析', subtitle: '未実装（サマリーに一部あり）', icon: Megaphone },
+  { key: 'unit-time', title: '時間単価', subtitle: '未実装（サマリーに一部あり）', icon: Clock3 },
+  { key: 'cross', title: 'クロス集計', subtitle: '未実装', icon: Grid3X3 },
+  { key: 'area', title: 'エリア分析', subtitle: '未実装', icon: MapIcon },
 ];
 
 const yen = (v: number) => `${Math.round(v).toLocaleString()}`;
@@ -1009,10 +1009,10 @@ export default function SalesAggregationDashboard() {
           ) : activeAnalysis === 'utilization' ? (
             <UtilizationAnalysis />
           ) : (
-            <div className="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50 p-5">
-              <div className="text-sm text-blue-800 font-bold mb-1">{activeMeta.title}</div>
-              <div className="text-sm text-blue-700">
-                この画面はプレースホルダーです。次のステップで「{activeMeta.title}」の詳細分析コンテンツを実装できます。
+            <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 p-5">
+              <div className="text-sm text-gray-800 font-bold mb-1">{activeMeta.title}</div>
+              <div className="text-sm text-gray-600">
+                まだ作っていません。必要になったら実装します。
               </div>
             </div>
           )}
