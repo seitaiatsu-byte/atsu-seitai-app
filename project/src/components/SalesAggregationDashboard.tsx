@@ -11,6 +11,8 @@ import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import { isRealCustomerNumber, placeholderCustomerIds } from '../lib/customerNumber';
 import RepeatAnalysis from './RepeatAnalysis';
 import UtilizationAnalysis from './UtilizationAnalysis';
+import UnitPriceAnalysis from './UnitPriceAnalysis';
+import { effectiveTreatmentMinutes, parseMenuDurationRules, yenPerMinute } from '../lib/treatmentMinutes';
 import { fetchUtilizationSchedule } from '../lib/clinicWeeklySchedule';
 import { computeUtilizationForPeriod } from '../lib/utilizationMetrics';
 
@@ -50,7 +52,7 @@ const ANALYSIS_ITEMS: AnalysisItem[] = [
   { key: 'ltv', title: 'LTV分析', subtitle: '未実装', icon: TrendingUp },
   { key: 'new-vs-existing', title: '新規/既存分析', subtitle: '未実装', icon: Activity },
   { key: 'roas', title: 'ROAS分析', subtitle: '未実装（サマリーに一部あり）', icon: Megaphone },
-  { key: 'unit-time', title: '時間単価', subtitle: '未実装（サマリーに一部あり）', icon: Clock3 },
+  { key: 'unit-time', title: '時間単価', subtitle: '金額÷枠時間（来院入力ベース）', icon: Clock3 },
   { key: 'cross', title: 'クロス集計', subtitle: '未実装', icon: Grid3X3 },
   { key: 'area', title: 'エリア分析', subtitle: '未実装', icon: MapIcon },
 ];
@@ -434,11 +436,9 @@ export default function SalesAggregationDashboard() {
         const monthEnd = `${y}-${pad2(m)}-${pad2(new Date(y, m, 0).getDate())}`;
         const mustExcludeKeywords = Array.from(new Set([...rules.excludeKeywords, '初']));
         const adKeywords = rules.adSourceKeywords.map((x) => x.toLowerCase());
-        const durationRules = parseDurationRules(rules.menuDurationRules);
-
         const [customersRes, visitsRes, productRes, subsRes] = await Promise.all([
           supabase.from('customers').select('id,name,clinic_name,referral_source,main_source,created_at'),
-          supabase.from('visit_records').select('customer_id,visit_date,menu_name,amount,clinic_name'),
+          supabase.from('visit_records').select('customer_id,visit_date,menu_name,amount,clinic_name,treatment_minutes'),
           supabase.from('product_sales').select('customer_id,sale_date,amount,clinic_name'),
           supabase.from('subscription_records').select('customer_id,start_date,amount,clinic_name'),
         ]);
@@ -528,19 +528,23 @@ export default function SalesAggregationDashboard() {
         setMaxSlotsTotal(monthUtil.maxSlots);
         setUtilizationRate(monthUtil.utilizationRate);
 
+        const durationRuleList = parseMenuDurationRules(rules.menuDurationRules);
         let minuteRevenue = 0;
         let minuteTotal = 0;
         for (const v of monthVisits) {
-          const menuLabel = normalizeText(v.menu_name);
           const amount = coerceAmount(v.amount);
           if (amount <= 0) continue;
-          let minutes = rules.defaultTreatmentMinutes;
-          const hit = durationRules.find((r) => menuLabel.includes(r.keyword));
-          if (hit) minutes = hit.minutes;
+          const eff = effectiveTreatmentMinutes({
+            treatment_minutes: v.treatment_minutes as number | null | undefined,
+            menu_name: String(v.menu_name ?? ''),
+            rules: durationRuleList,
+            defaultMinutes: rules.defaultTreatmentMinutes,
+          });
+          if (!eff) continue;
           minuteRevenue += amount;
-          minuteTotal += Math.max(1, minutes);
+          minuteTotal += eff.minutes;
         }
-        setYenPerMinute(minuteTotal > 0 ? Math.round((minuteRevenue / minuteTotal) * 10) / 10 : 0);
+        setYenPerMinute(yenPerMinute(minuteRevenue, minuteTotal));
 
         const adCustomerIds = new Set<string>();
         for (const [cid, c] of customerMap.entries()) {
@@ -1008,6 +1012,8 @@ export default function SalesAggregationDashboard() {
             <RepeatAnalysis />
           ) : activeAnalysis === 'utilization' ? (
             <UtilizationAnalysis />
+          ) : activeAnalysis === 'unit-time' ? (
+            <UnitPriceAnalysis />
           ) : (
             <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 p-5">
               <div className="text-sm text-gray-800 font-bold mb-1">{activeMeta.title}</div>

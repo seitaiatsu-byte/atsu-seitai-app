@@ -23,6 +23,12 @@ import {
   hasVisitOnDate,
   validateExplicitAmount,
 } from '../lib/registrationValidation';
+import { fetchBusinessRules } from '../lib/businessRules';
+import {
+  guessMinutesFromMenu,
+  parseMenuDurationRules,
+  type MenuDurationRule,
+} from '../lib/treatmentMinutes';
 import {
   claimPlaceholderReservation,
   findScheduledPlaceholderReservationsOnDate,
@@ -118,6 +124,9 @@ export default function VisitForm({
   const [menuNameFree, setMenuNameFree] = useState('');
   const [maintenanceCost, setMaintenanceCost] = useState('0');
   const [memo, setMemo] = useState('');
+  const [treatmentMinutes, setTreatmentMinutes] = useState('');
+  const [durationRules, setDurationRules] = useState<MenuDurationRule[]>([]);
+  const [defaultTreatmentMinutes, setDefaultTreatmentMinutes] = useState(60);
   const [importKindLegacy, setImportKindLegacy] = useState<string | null>(null);
 
   const [methodNameMap, setMethodNameMap] = useState<Record<string, string>>({});
@@ -186,7 +195,23 @@ export default function VisitForm({
     if (s) setStaffList(s);
     if (pma) setMethodNameMap(buildIdToNameMap(pma as { id: string; name: string }[]));
     if (pda) setDetailNameMap(buildIdToNameMap(pda as { id: string; name: string }[]));
+    try {
+      const rules = await fetchBusinessRules();
+      setDurationRules(parseMenuDurationRules(rules.menuDurationRules));
+      setDefaultTreatmentMinutes(rules.defaultTreatmentMinutes);
+    } catch {
+      setDurationRules([]);
+      setDefaultTreatmentMinutes(60);
+    }
   }, []);
+
+  useEffect(() => {
+    if (editingId) return;
+    const menuObj = menus.find((m) => m.id === selectedMenu);
+    const name = (menuObj?.name || menuNameFree.trim() || '') as string;
+    if (!name) return;
+    setTreatmentMinutes(String(guessMinutesFromMenu(name, durationRules, defaultTreatmentMinutes)));
+  }, [selectedMenu, menuNameFree, menus, durationRules, defaultTreatmentMinutes, editingId]);
 
   const loadRecentRecords = useCallback(async () => {
     const PAGE = 500;
@@ -265,6 +290,7 @@ export default function VisitForm({
     setBeEquiv('');
     setMenuNameFree('');
     setMaintenanceCost('0');
+    setTreatmentMinutes('');
     setSelectedFiles([]);
     setPreviewUrls([]);
     setCurrentMediaUrls([]);
@@ -322,6 +348,11 @@ export default function VisitForm({
     const amountError = validateExplicitAmount(amount);
     if (amountError) return alert(amountError);
 
+    const minutesVal = parseInt(treatmentMinutes.trim(), 10);
+    if (!Number.isFinite(minutesVal) || minutesVal <= 0) {
+      return alert('枠時間（分）を入力してください（その回の施術に使った時間）');
+    }
+
     if (!editingId && (await hasVisitOnDate(selectedCustomer.id, visitDate))) {
       const cn = formatCustomerNumberForMessage(selectedCustomer.customer_number);
       setDuplicateError(
@@ -366,6 +397,7 @@ export default function VisitForm({
         import_csv_visit_count: importCsvVisitCount.trim() || null,
         import_ticket_count_raw: importTicketRaw.trim() || (pu ? String(pu) : null),
         be_equivalent_count: beNum != null && Number.isFinite(beNum) ? beNum : null,
+        treatment_minutes: minutesVal,
       };
 
       const { data: record, error: dbError } = editingId
@@ -511,6 +543,15 @@ export default function VisitForm({
     setBeEquiv(r.be_equivalent_count != null ? String(r.be_equivalent_count) : '');
     setMaintenanceCost(r.maintenance_cost != null ? String(r.maintenance_cost) : '0');
     setMemo(stripKindPrefixFromMemo(r.memo) || '');
+    const recordedMinutes = r.treatment_minutes;
+    if (recordedMinutes != null && Number(recordedMinutes) > 0) {
+      setTreatmentMinutes(String(recordedMinutes));
+    } else {
+      const name = r.menu_name || menus.find((m) => m.id === r.menu_id)?.name || '';
+      setTreatmentMinutes(
+        String(guessMinutesFromMenu(name, durationRules, defaultTreatmentMinutes))
+      );
+    }
     setCurrentMediaUrls(r.media_urls || []);
     setPreviewUrls([]);
     setSelectedFiles([]);
@@ -831,6 +872,31 @@ export default function VisitForm({
               className="w-full mt-2 p-2 border-2 border-dashed border-slate-200 rounded-lg text-sm"
               placeholder="メニュー名（マスタ外・任意）"
             />
+          </div>
+
+          <div className="bg-violet-50 p-4 rounded-xl border-2 border-violet-200">
+            <label className="block text-sm font-bold text-violet-900 mb-1">枠時間（分）</label>
+            <p className="text-[11px] text-violet-800/80 mb-2 leading-snug">
+              その回、実際に取った施術時間。メニューを選ぶと目安が入りますが、長い・短いときは直して保存してください。
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                inputMode="numeric"
+                data-ime="off"
+                min={1}
+                max={300}
+                value={treatmentMinutes}
+                onChange={(e) => setTreatmentMinutes(e.target.value)}
+                className="w-28 p-3 border-2 border-violet-300 rounded-lg font-bold text-xl text-center text-violet-900 bg-white"
+              />
+              <span className="text-sm font-bold text-violet-800">分</span>
+              {amount.trim() && treatmentMinutes.trim() && Number(amount) > 0 && Number(treatmentMinutes) > 0 && (
+                <span className="text-xs text-violet-700 ml-auto">
+                  参考: ¥{Math.round(Number(amount) / Number(treatmentMinutes))}/分
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

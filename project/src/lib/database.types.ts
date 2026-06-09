@@ -325,6 +325,7 @@ export type Database = {
           import_ticket_count_raw: string | null;
           be_equivalent_count: number | null;
           import_kind_text: string | null;
+          treatment_minutes: number | null;
         };
         Insert: {
           id?: string;
@@ -349,6 +350,7 @@ export type Database = {
           import_ticket_count_raw?: string | null;
           be_equivalent_count?: number | null;
           import_kind_text?: string | null;
+          treatment_minutes?: number | null;
         };
         Update: {
           id?: string;
@@ -373,6 +375,7 @@ export type Database = {
           import_ticket_count_raw?: string | null;
           be_equivalent_count?: number | null;
           import_kind_text?: string | null;
+          treatment_minutes?: number | null;
         };
         Relationships: [];
       };
