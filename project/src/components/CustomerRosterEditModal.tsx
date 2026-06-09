@@ -11,6 +11,9 @@ import {
 import { extractMissingColumnFromError, isUuidString } from '../lib/supabaseColumnErrors';
 import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/loadChiefComplaintMaster';
 import { guardNavigation, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
+import JapaneseTextInput from './JapaneseTextInput';
+import KanaTextInput from './KanaTextInput';
+import JapaneseTextarea from './JapaneseTextarea';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type ReferralRow = Database['public']['Tables']['referral_source_master']['Row'];
@@ -247,11 +250,11 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div>
               <label className="block font-bold text-gray-800 mb-1">氏名</label>
-              <input className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={name} onChange={(e) => setName(e.target.value)} />
+              <JapaneseTextInput className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div>
               <label className="block font-bold text-gray-800 mb-1">ふりがな</label>
-              <input className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={nameKana} onChange={(e) => setNameKana(e.target.value)} />
+              <KanaTextInput className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={nameKana} onChange={setNameKana} />
             </div>
             <div>
               <label className="block font-bold text-gray-800 mb-1">顧客番号</label>
@@ -264,6 +267,8 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
             <div>
               <label className="block font-bold text-gray-800 mb-1">電話番号</label>
               <input
+                type="tel"
+                data-ime="off"
                 className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 font-mono"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -271,7 +276,6 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
                   const digits = readPhoneFromCustomerRow({ phone_number: e.target.value });
                   if (digits) setPhone(digits);
                 }}
-                inputMode="tel"
               />
             </div>
             <div>
@@ -304,19 +308,19 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
               <label className="block font-bold text-gray-800 mb-1">府県</label>
-              <input className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={prefecture} onChange={(e) => setPrefecture(e.target.value)} />
+              <JapaneseTextInput className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={prefecture} onChange={(e) => setPrefecture(e.target.value)} />
             </div>
             <div>
               <label className="block font-bold text-gray-800 mb-1">市</label>
-              <input className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={city} onChange={(e) => setCity(e.target.value)} />
+              <JapaneseTextInput className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={city} onChange={(e) => setCity(e.target.value)} />
             </div>
             <div>
               <label className="block font-bold text-gray-800 mb-1">町</label>
-              <input className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={town} onChange={(e) => setTown(e.target.value)} />
+              <JapaneseTextInput className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={town} onChange={(e) => setTown(e.target.value)} />
             </div>
             <div>
               <label className="block font-bold text-gray-800 mb-1">住所</label>
-              <input className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={address} onChange={(e) => setAddress(e.target.value)} />
+              <JapaneseTextInput className="w-full border-2 border-gray-200 rounded-lg px-3 py-2" value={address} onChange={(e) => setAddress(e.target.value)} />
             </div>
           </div>
 
@@ -398,7 +402,7 @@ export default function CustomerRosterEditModal({ customer, open, onClose, onSav
 
           <div>
             <label className="block font-bold text-gray-800 mb-1">メモ</label>
-            <textarea className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 min-h-[96px]" value={memo} onChange={(e) => setMemo(e.target.value)} />
+            <JapaneseTextarea className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 min-h-[96px]" value={memo} onChange={(e) => setMemo(e.target.value)} />
           </div>
 
           {err && <div className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg p-3">{err}</div>}

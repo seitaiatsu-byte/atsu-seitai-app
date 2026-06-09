@@ -3,6 +3,7 @@ import { Calendar, CreditCard, Save, ShoppingBag, Upload, X, History, ChevronDow
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import CustomerSearchPanel from './CustomerSearchPanel';
+import JapaneseTextarea from './JapaneseTextarea';
 import { CLINIC_OPTIONS, customerNumberHistoryRowClass, type ClinicFullName } from '../lib/clinic';
 import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
 import {
@@ -547,7 +548,7 @@ export default function ProductSaleForm() {
 
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2">メモ</label>
-          <textarea
+          <JapaneseTextarea
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             rows={3}

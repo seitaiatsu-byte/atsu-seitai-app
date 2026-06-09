@@ -15,6 +15,7 @@ import {
 import { useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 import { normalizePersonSearchText } from '../lib/personSearchText';
 import PersonSearchInput from './PersonSearchInput';
+import JapaneseTextarea from './JapaneseTextarea';
 import { getFirstDayOfCurrentMonthLocalYmd } from '../lib/visitDateParse';
 
 type SubscriptionMaster = Database['public']['Tables']['subscription_master']['Row'];
@@ -649,7 +650,7 @@ export default function SubscriptionForm() {
 
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">メモ</label>
-            <textarea
+            <JapaneseTextarea
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               rows={3}

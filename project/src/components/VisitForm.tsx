@@ -15,6 +15,8 @@ import { recalcBeEquivalentCountsForCustomers } from '../lib/beEquivalentRecalc'
 import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
 import { normalizePersonSearchText } from '../lib/personSearchText';
 import PersonSearchInput from './PersonSearchInput';
+import JapaneseTextInput from './JapaneseTextInput';
+import JapaneseTextarea from './JapaneseTextarea';
 import { useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 import {
   formatCustomerNumberForMessage,
@@ -823,10 +825,7 @@ export default function VisitForm({
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">マスタにない名称は下に直接入力（CSV/取込と同じ menu_name に保存されます）</p>
-            <input
-              type="text"
-              inputMode="text"
-              lang="ja"
+            <JapaneseTextInput
               value={menuNameFree}
               onChange={(e) => setMenuNameFree(e.target.value)}
               className="w-full mt-2 p-2 border-2 border-dashed border-slate-200 rounded-lg text-sm"
@@ -898,7 +897,7 @@ export default function VisitForm({
             </div>
           </div>
 
-          <textarea value={memo} onChange={e => setMemo(e.target.value)} className="w-full p-3 border-2 rounded-lg text-sm" placeholder="メモを入力..." rows={2} lang="ja" />
+          <JapaneseTextarea value={memo} onChange={(e) => setMemo(e.target.value)} className="w-full p-3 border-2 rounded-lg text-sm" placeholder="メモを入力..." rows={2} />
 
           <div className="p-3 sm:p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
             <div className="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">

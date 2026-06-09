@@ -7,6 +7,7 @@ import ClinicScopeToggle, { type ClinicScope } from './ClinicScopeToggle';
 import FlexibleTimeInput from './FlexibleTimeInput';
 import { normalizePersonSearchText } from '../lib/personSearchText';
 import PersonSearchInput from './PersonSearchInput';
+import JapaneseTextInput from './JapaneseTextInput';
 import { guardNavigation, useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
 import SecretInputField, { OTHER_CAL_PASSWORD_HINT } from './SecretInputField';
 import ModalCloseButton from './ModalCloseButton';
@@ -1392,13 +1393,11 @@ export default function ReservationCalendar({
                 <>
                   <div>
                     <label className="block text-xs font-bold text-gray-600 mb-1">表示名</label>
-                    <input
-                      type="text"
+                    <JapaneseTextInput
                       value={formBlockTitle}
                       onChange={(e) => setFormBlockTitle(e.target.value)}
                       placeholder="例: 渉外 / 昼休み / 会議（カレンダーにこの文字だけ出ます）"
                       className="w-full border rounded-lg px-2 py-2 text-base font-medium"
-                      lang="ja"
                     />
                   </div>
                   <div>

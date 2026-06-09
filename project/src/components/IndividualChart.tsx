@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Download, Edit2, Image as ImageIcon, Trash2,
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import CustomerSearchPanel from './CustomerSearchPanel';
+import JapaneseTextarea from './JapaneseTextarea';
 import CustomerRosterEditModal from './CustomerRosterEditModal';
 import ModalCloseButton from './ModalCloseButton';
 import { getCustomerBirthDate } from '../lib/customerBirthday';
@@ -1363,7 +1364,7 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1">メモ</label>
-              <textarea
+              <JapaneseTextarea
                 value={editVisitMemo}
                 onChange={(e) => setEditVisitMemo(e.target.value)}
                 rows={3}

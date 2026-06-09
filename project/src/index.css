@@ -3,6 +3,9 @@
 @tailwind utilities;
 
 input[data-person-search="true"],
+input[data-kana-input="true"],
+input[data-japanese-text="true"],
+textarea[data-japanese-text="true"],
 input[data-ime="ja"]:not([data-ime="off"]),
 input[lang="ja"]:not([data-ime="off"]),
 textarea[lang="ja"]:not([data-ime="off"]) {

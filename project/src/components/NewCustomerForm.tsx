@@ -21,6 +21,9 @@ import { loadChiefComplaintMaster, type ChiefComplaintMasterRow } from '../lib/l
 import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard';
 import { hasCustomerNumber } from '../lib/registrationValidation';
 import { useUnsavedFormGuard } from '../lib/unsavedFormGuard';
+import JapaneseTextInput from './JapaneseTextInput';
+import KanaTextInput from './KanaTextInput';
+import JapaneseTextarea from './JapaneseTextarea';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type ReferralRow = Database['public']['Tables']['referral_source_master']['Row'];
@@ -662,8 +665,7 @@ export default function NewCustomerForm({
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 氏名 <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
+              <JapaneseTextInput
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
@@ -675,10 +677,9 @@ export default function NewCustomerForm({
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 ふりがな <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
+              <KanaTextInput
                 value={formData.name_kana}
-                onChange={(e) => setFormData({ ...formData, name_kana: e.target.value })}
+                onChange={(v) => setFormData({ ...formData, name_kana: v })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
                 placeholder="やまだ たろう"
               />
@@ -808,8 +809,7 @@ export default function NewCustomerForm({
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 府県
               </label>
-              <input
-                type="text"
+              <JapaneseTextInput
                 value={formData.prefecture}
                 onChange={(e) => setFormData({ ...formData, prefecture: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-orange-500 outline-none"
@@ -821,8 +821,7 @@ export default function NewCustomerForm({
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 市
               </label>
-              <input
-                type="text"
+              <JapaneseTextInput
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-orange-500 outline-none"
@@ -834,8 +833,7 @@ export default function NewCustomerForm({
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 町
               </label>
-              <input
-                type="text"
+              <JapaneseTextInput
                 value={formData.town}
                 onChange={(e) => setFormData({ ...formData, town: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-orange-500 outline-none"
@@ -960,7 +958,7 @@ export default function NewCustomerForm({
             <label className="block text-sm font-bold text-gray-700 mb-2">
               備考・特記事項
             </label>
-            <textarea
+            <JapaneseTextarea
               value={formData.memo}
               onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
               className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
