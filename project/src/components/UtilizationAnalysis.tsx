@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart3, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchBusinessRules } from '../lib/businessRules';
+import { fetchUtilizationSchedule, type UtilizationScheduleConfig } from '../lib/clinicWeeklySchedule';
 import { CLINIC_OPTIONS } from '../lib/clinic';
 import { parseLocalVisitDateToYmd } from '../lib/visitDateParse';
 import UtilizationGuidanceHint from './UtilizationGuidanceHint';
@@ -25,6 +26,7 @@ type ViewMode = 'month' | 'year' | 'range' | 'season';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const toYm = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+const fmtSlots = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 function bandColorClass(rate: number): string {
   const band = utilizationBandForRate(rate);
@@ -47,7 +49,7 @@ function ResultRow({ result }: { result: UtilizationResult }) {
         <span className="text-xl font-black">{result.utilizationRate}%</span>
       </div>
       <div className="text-[10px] opacity-80 mt-0.5">
-        {result.slotsUsed} / {result.maxSlots} 枠（{result.calendarDays}日）
+        {fmtSlots(result.slotsUsed)} / {result.maxSlots} 枠（営業{result.operatingDays}日）
         {result.lowSample && <span className="ml-1 text-amber-700 font-bold">参考</span>}
       </div>
     </div>
@@ -64,7 +66,7 @@ function MainRateCard({ result }: { result: UtilizationResult | null }) {
       <div className="text-xs font-bold opacity-80">{result.label}</div>
       <div className="text-4xl font-black mt-1">{result.utilizationRate}%</div>
       <div className="text-xs mt-1 opacity-80">
-        {result.slotsUsed} / {result.maxSlots} 枠
+        {fmtSlots(result.slotsUsed)} / {result.maxSlots} 枠（営業{result.operatingDays}日）
         {result.lowSample && <span className="ml-1 text-amber-700 font-bold">（短期間・参考値）</span>}
       </div>
       <p className="text-[11px] mt-2 leading-snug opacity-90">{band.action}</p>
@@ -82,7 +84,7 @@ export default function UtilizationAnalysis() {
   const [rangeEndYm, setRangeEndYm] = useState(toYm(now));
   const [seasonYear, setSeasonYear] = useState(now.getFullYear());
   const [visits, setVisits] = useState<UtilizationVisitRow[]>([]);
-  const [dailyMaxSlots, setDailyMaxSlots] = useState(20);
+  const [schedule, setSchedule] = useState<UtilizationScheduleConfig | null>(null);
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>(['BE', '初回', '体験', '初']);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,10 +93,10 @@ export default function UtilizationAnalysis() {
     setLoading(true);
     setError(null);
     try {
-      const rules = await fetchBusinessRules();
+      const [rules, sched] = await Promise.all([fetchBusinessRules(), fetchUtilizationSchedule()]);
       const mustExclude = Array.from(new Set([...rules.excludeKeywords, '初']));
       setExcludeKeywords(mustExclude);
-      setDailyMaxSlots(rules.dailyMaxSlots);
+      setSchedule(sched);
 
       const { data, error: visitErr } = await supabase
         .from('visit_records')
@@ -129,17 +131,18 @@ export default function UtilizationAnalysis() {
 
   const availableYears = useMemo(() => discoverYearsFromVisits(visits), [visits]);
 
-  const baseParams = useMemo(
-    () => ({
+  const baseParams = useMemo(() => {
+    if (!schedule) return null;
+    return {
       visits,
       excludeKeywords,
-      dailyMaxSlots,
+      schedule,
       clinicFilter,
-    }),
-    [visits, excludeKeywords, dailyMaxSlots, clinicFilter]
-  );
+    };
+  }, [visits, excludeKeywords, schedule, clinicFilter]);
 
   const monthResult = useMemo(() => {
+    if (!baseParams) return null;
     const { startYmd, endYmd } = ymToRange(selectedYm);
     const [y, m] = selectedYm.split('-');
     return computeUtilizationForPeriod({
@@ -151,6 +154,7 @@ export default function UtilizationAnalysis() {
   }, [baseParams, selectedYm]);
 
   const yearResult = useMemo(() => {
+    if (!baseParams) return null;
     const { startYmd, endYmd } = yearToRange(selectedYear);
     return computeUtilizationForPeriod({
       ...baseParams,
@@ -160,12 +164,13 @@ export default function UtilizationAnalysis() {
     });
   }, [baseParams, selectedYear]);
 
-  const rangeMonths = useMemo(
-    () => computeMonthlyUtilization({ ...baseParams, months: listMonthsInRange(rangeStartYm, rangeEndYm) }),
-    [baseParams, rangeStartYm, rangeEndYm]
-  );
+  const rangeMonths = useMemo(() => {
+    if (!baseParams) return [];
+    return computeMonthlyUtilization({ ...baseParams, months: listMonthsInRange(rangeStartYm, rangeEndYm) });
+  }, [baseParams, rangeStartYm, rangeEndYm]);
 
   const rangeTotal = useMemo(() => {
+    if (!baseParams) return null;
     const { startYmd, endYmd } = rangeYmToYmd(rangeStartYm, rangeEndYm);
     return computeUtilizationForPeriod({
       ...baseParams,
@@ -176,6 +181,7 @@ export default function UtilizationAnalysis() {
   }, [baseParams, rangeStartYm, rangeEndYm]);
 
   const decemberYoY = useMemo(() => {
+    if (!baseParams) return [];
     const years =
       availableYears.length > 0
         ? availableYears
@@ -183,10 +189,10 @@ export default function UtilizationAnalysis() {
     return computeDecemberYoY({ ...baseParams, years });
   }, [baseParams, availableYears, selectedYear]);
 
-  const seasonPair = useMemo(
-    () => computeSeasonPair({ ...baseParams, year: seasonYear }),
-    [baseParams, seasonYear]
-  );
+  const seasonPair = useMemo(() => {
+    if (!baseParams) return null;
+    return computeSeasonPair({ ...baseParams, year: seasonYear });
+  }, [baseParams, seasonYear]);
 
   const yearOptions = useMemo(() => {
     if (availableYears.length) return availableYears;
@@ -203,7 +209,7 @@ export default function UtilizationAnalysis() {
             <div>
               <h2 className="text-base sm:text-lg font-bold text-sky-900 leading-tight">稼働率分析</h2>
               <p className="text-[10px] sm:text-xs text-sky-800/80">
-                有効来院 ÷（日次最大枠 × 期間日数）。設定は経営ルールの「稼働率（最大枠数）」
+                加重枠（メニュー別）÷ 曜日別上限枠（祝日休診）。設定は「稼働率（週間枠・院別）」
               </p>
             </div>
           </div>
@@ -274,7 +280,11 @@ export default function UtilizationAnalysis() {
           <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
         )}
 
-        {!loading && !error && viewMode === 'month' && (
+        {!loading && !error && !baseParams && (
+          <p className="text-sm text-gray-500">スケジュール設定を読み込めませんでした。</p>
+        )}
+
+        {!loading && !error && baseParams && viewMode === 'month' && (
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-bold text-gray-700">
               対象月
@@ -286,10 +296,13 @@ export default function UtilizationAnalysis() {
               />
             </label>
             <MainRateCard result={monthResult} />
+            {schedule?.excludeHolidays && (
+              <p className="text-[10px] text-gray-500">祝日は国民の祝日カレンダーに従い分母から除外しています。</p>
+            )}
           </div>
         )}
 
-        {!loading && !error && viewMode === 'year' && (
+        {!loading && !error && baseParams && viewMode === 'year' && (
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-bold text-gray-700">
               対象年
@@ -325,7 +338,7 @@ export default function UtilizationAnalysis() {
           </div>
         )}
 
-        {!loading && !error && viewMode === 'range' && (
+        {!loading && !error && baseParams && viewMode === 'range' && (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-3 text-sm font-bold text-gray-700">
               <label className="flex items-center gap-2">
@@ -359,7 +372,7 @@ export default function UtilizationAnalysis() {
           </div>
         )}
 
-        {!loading && !error && viewMode === 'season' && (
+        {!loading && !error && baseParams && viewMode === 'season' && seasonPair && (
           <div className="space-y-4">
             <section>
               <h3 className="text-sm font-bold text-gray-800 mb-2">12月 前年比較</h3>

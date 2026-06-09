@@ -11,6 +11,7 @@ import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import { isRealCustomerNumber, placeholderCustomerIds } from '../lib/customerNumber';
 import RepeatAnalysis from './RepeatAnalysis';
 import UtilizationAnalysis from './UtilizationAnalysis';
+import { fetchUtilizationSchedule } from '../lib/clinicWeeklySchedule';
 import { computeUtilizationForPeriod } from '../lib/utilizationMetrics';
 
 type ClinicFilter = 'kawanishi' | 'takatsuki' | 'all';
@@ -426,7 +427,7 @@ export default function SalesAggregationDashboard() {
       setAnalysisLoading(true);
       setAnalysisError(null);
       try {
-        const rules = await fetchBusinessRules();
+        const [rules, utilSchedule] = await Promise.all([fetchBusinessRules(), fetchUtilizationSchedule()]);
         const ym = normalizeYm(month);
         const [y, m] = ym.split('-').map((x) => parseInt(x, 10));
         const monthStart = `${y}-${pad2(m)}-01`;
@@ -517,8 +518,8 @@ export default function SalesAggregationDashboard() {
             clinic_name: String(v.clinic_name ?? ''),
           })),
           excludeKeywords: mustExcludeKeywords,
-          dailyMaxSlots: rules.dailyMaxSlots,
-          clinicFilter: 'all',
+          schedule: utilSchedule,
+          clinicFilter,
           startYmd: monthStart,
           endYmd: monthEnd,
           label: ym,

@@ -18,6 +18,14 @@ import {
   DEFAULT_CHURN_CONFIG,
   DEFAULT_PROGRAM_KEYWORDS,
 } from '../lib/churnConfig';
+import {
+  DEFAULT_KAWANISHI_SCHEDULE,
+  DEFAULT_TAKATSUKI_SCHEDULE,
+  parseClinicDaySlots,
+  serializeClinicDaySlots,
+  type ClinicDaySlots,
+} from '../lib/clinicWeeklySchedule';
+import ClinicWeeklyScheduleEditor from './ClinicWeeklyScheduleEditor';
 
 type BusinessRule = {
   id: string;
@@ -41,6 +49,11 @@ export default function BusinessRulesConfig() {
     DEFAULT_CHURN_CONFIG.windowsTicket.join(',')
   );
   const [dailyMaxSlots, setDailyMaxSlots] = useState('20');
+  const [takatsukiWeekly, setTakatsukiWeekly] = useState<ClinicDaySlots>({ ...DEFAULT_TAKATSUKI_SCHEDULE });
+  const [kawanishiWeekly, setKawanishiWeekly] = useState<ClinicDaySlots>({ ...DEFAULT_KAWANISHI_SCHEDULE });
+  const [utilExcludeHolidays, setUtilExcludeHolidays] = useState(true);
+  const [utilMenuSlotRules, setUtilMenuSlotRules] = useState('');
+  const [utilDefaultMenuSlot, setUtilDefaultMenuSlot] = useState('1');
   const [monthlyAdSpend, setMonthlyAdSpend] = useState('0');
   const [adSourceKeywords, setAdSourceKeywords] = useState('広告,インスタ,instagram,meta,google,line');
   const [menuDurationRules, setMenuDurationRules] = useState('');
@@ -107,6 +120,20 @@ export default function BusinessRulesConfig() {
       if (churnWinProgramRule) setChurnWindowsProgram(churnWinProgramRule.rule_value);
       if (churnWinTicketRule) setChurnWindowsTicket(churnWinTicketRule.rule_value);
       if (maxSlotsRule) setDailyMaxSlots(maxSlotsRule.rule_value);
+      const takWeekRule = data.find((r: BusinessRule) => r.rule_key === 'util_weekly_schedule_takatsuki');
+      const kawaWeekRule = data.find((r: BusinessRule) => r.rule_key === 'util_weekly_schedule_kawanishi');
+      const utilHolidayRule = data.find((r: BusinessRule) => r.rule_key === 'util_exclude_holidays');
+      if (takWeekRule) {
+        setTakatsukiWeekly(parseClinicDaySlots(takWeekRule.rule_value, DEFAULT_TAKATSUKI_SCHEDULE));
+      }
+      if (kawaWeekRule) {
+        setKawanishiWeekly(parseClinicDaySlots(kawaWeekRule.rule_value, DEFAULT_KAWANISHI_SCHEDULE));
+      }
+      if (utilHolidayRule) setUtilExcludeHolidays(utilHolidayRule.rule_value !== '0');
+      const utilMenuSlotRule = data.find((r: BusinessRule) => r.rule_key === 'util_menu_slot_rules');
+      const utilDefaultMenuSlotRule = data.find((r: BusinessRule) => r.rule_key === 'util_default_menu_slot');
+      if (utilMenuSlotRule) setUtilMenuSlotRules(utilMenuSlotRule.rule_value);
+      if (utilDefaultMenuSlotRule) setUtilDefaultMenuSlot(utilDefaultMenuSlotRule.rule_value);
       if (adSpendRule) setMonthlyAdSpend(adSpendRule.rule_value);
       if (adKeywordsRule) setAdSourceKeywords(adKeywordsRule.rule_value);
       if (menuDurationRule) setMenuDurationRules(menuDurationRule.rule_value);
@@ -255,7 +282,52 @@ export default function BusinessRulesConfig() {
       {
         rule_key: 'daily_max_slots',
         rule_value: dailyMaxSlots,
-        description: '稼働率計算に使う1日の最大予約枠数',
+        description: '稼働率：週間枠未設定時のフォールバック（全日一律枠数）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'util_weekly_schedule_takatsuki',
+        rule_value: serializeClinicDaySlots(takatsukiWeekly),
+        description: '稼働率：高槻院の曜日別最大枠（JSON。0=休診）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'util_weekly_schedule_kawanishi',
+        rule_value: serializeClinicDaySlots(kawanishiWeekly),
+        description: '稼働率：川西院の曜日別最大枠（JSON。0=休診）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'util_exclude_holidays',
+        rule_value: utilExcludeHolidays ? '1' : '0',
+        description: '稼働率：国民の祝日を休診として分母から除外（1=する）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'util_menu_slot_rules',
+        rule_value: utilMenuSlotRules,
+        description: '稼働率：メニュー別消費枠（1行1件 キーワード:枠数。例 60分:1 30分:0.5）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'util_default_menu_slot',
+        rule_value: utilDefaultMenuSlot,
+        description: '稼働率：メニュー別ルール未マッチ時の消費枠（通常1）',
       },
       { onConflict: 'rule_key' }
     );
@@ -471,20 +543,82 @@ export default function BusinessRulesConfig() {
             onClick={() => togglePanel('slots')}
             className="w-full p-5 flex items-center justify-between text-left"
           >
-            <h3 className="font-bold text-green-900 text-lg">稼働率（最大枠数）</h3>
+            <h3 className="font-bold text-green-900 text-lg">稼働率（週間枠・院別）</h3>
             <span className="text-green-700 font-bold">{openPanels.slots ? '▲' : '▼'}</span>
           </button>
           {openPanels.slots && (
-            <div className="px-5 pb-5">
-              <div className="flex items-center gap-3">
+            <div className="px-5 pb-5 space-y-4">
+              <p className="text-sm text-gray-600">
+                1人運営向けに、<strong>曜日ごとの最大予約枠</strong>を院別に設定します。0＝その曜日は休診。
+                土曜午前のみ少なめ、など実態に合わせて枠数を入れてください。
+              </p>
+
+              <ClinicWeeklyScheduleEditor
+                title="高槻院（月〜土）"
+                slots={takatsukiWeekly}
+                onChange={setTakatsukiWeekly}
+                accentClass="text-blue-800"
+              />
+              <ClinicWeeklyScheduleEditor
+                title="川西院（月〜土）"
+                slots={kawanishiWeekly}
+                onChange={setKawanishiWeekly}
+                accentClass="text-orange-800"
+              />
+
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <input
-                  type="number"
-                  value={dailyMaxSlots}
-                  onChange={(e) => setDailyMaxSlots(e.target.value)}
-                  className="w-32 px-4 py-3 border-2 border-gray-300 rounded-lg text-lg font-bold text-center"
-                  min={1}
+                  type="checkbox"
+                  checked={utilExcludeHolidays}
+                  onChange={(e) => setUtilExcludeHolidays(e.target.checked)}
+                  className="rounded border-gray-300"
                 />
-                <span className="text-lg font-bold text-gray-700">枠 / 日</span>
+                <span>
+                  国民の祝日は休診扱い（振替休日・国民の休日を含む一般的なカレンダー）
+                </span>
+              </label>
+
+              <div className="rounded-lg border border-green-200 bg-green-50/50 p-3 space-y-3">
+                <h4 className="text-sm font-bold text-green-900">メニュー別消費枠</h4>
+                <p className="text-[11px] text-gray-600 leading-snug">
+                  メニュー名に含まれる語でマッチ。1=標準1枠、0.5=半枠、2=2枠分。
+                  曜日の上限枠はこの加重枠の合計で計算します。
+                </p>
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-bold text-gray-700 whitespace-nowrap">未マッチ時</label>
+                  <input
+                    type="number"
+                    min={0.1}
+                    step={0.1}
+                    value={utilDefaultMenuSlot}
+                    onChange={(e) => setUtilDefaultMenuSlot(e.target.value)}
+                    className="w-20 px-2 py-1 border-2 border-gray-200 rounded-lg text-center font-bold text-sm"
+                  />
+                  <span className="text-xs text-gray-600">枠</span>
+                </div>
+                <textarea
+                  value={utilMenuSlotRules}
+                  onChange={(e) => setUtilMenuSlotRules(e.target.value)}
+                  rows={6}
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg font-mono text-sm bg-white"
+                  placeholder={'60分:1\n30分:0.5\n初回:1\n6M:1.5\nプログラム:1.5'}
+                />
+              </div>
+
+              <div className="pt-2 border-t border-green-200">
+                <p className="text-xs text-gray-500 mb-2">
+                  週間枠を保存する前の互換用。両院の週間枠が未設定のときだけ使います。
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    value={dailyMaxSlots}
+                    onChange={(e) => setDailyMaxSlots(e.target.value)}
+                    className="w-24 px-3 py-2 border-2 border-gray-200 rounded-lg font-bold text-center"
+                    min={1}
+                  />
+                  <span className="text-sm font-bold text-gray-600">枠 / 営業日（フォールバック）</span>
+                </div>
               </div>
             </div>
           )}

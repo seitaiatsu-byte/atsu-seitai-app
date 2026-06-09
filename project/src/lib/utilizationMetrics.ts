@@ -1,4 +1,10 @@
 import { clinicMatchesRecord } from './clinic';
+import {
+  computeCapacityForPeriod,
+  hasWeeklyScheduleConfigured,
+  type UtilizationScheduleConfig,
+} from './clinicWeeklySchedule';
+import { totalWeightedSlotsUsed } from './menuSlotRules';
 import { filterQualifyingVisits, type VisitLite } from './repeatMetrics';
 
 export type UtilizationVisitRow = VisitLite & {
@@ -71,6 +77,7 @@ export type UtilizationResult = {
   maxSlots: number;
   utilizationRate: number;
   calendarDays: number;
+  operatingDays: number;
   lowSample: boolean;
 };
 
@@ -164,23 +171,34 @@ export function discoverYearsFromVisits(visits: UtilizationVisitRow[]): number[]
 export function computeUtilizationForPeriod(params: {
   visits: UtilizationVisitRow[];
   excludeKeywords: string[];
-  dailyMaxSlots: number;
+  schedule: UtilizationScheduleConfig;
   clinicFilter: 'all' | 'takatsuki' | 'kawanishi';
   startYmd: string;
   endYmd: string;
   label?: string;
 }): UtilizationResult {
-  const { visits, excludeKeywords, dailyMaxSlots, clinicFilter, startYmd, endYmd, label } = params;
+  const { visits, excludeKeywords, schedule, clinicFilter, startYmd, endYmd, label } = params;
   const scoped = visits.filter((v) => clinicMatchesRecord(clinicFilter, v.clinic_name));
   const qualifying = filterQualifyingVisits(scoped, excludeKeywords);
   const inPeriod = qualifying.filter((v) => {
     const d = ymdOnly(v.visit_date);
     return d >= startYmd && d <= endYmd;
   });
-  const calendarDays = daysBetweenInclusive(startYmd, endYmd);
-  const slotsUsed = inPeriod.length;
-  const maxSlots = Math.max(1, dailyMaxSlots) * calendarDays;
-  const utilizationRate = maxSlots === 0 ? 0 : Math.round((slotsUsed / maxSlots) * 1000) / 10;
+  const slotsUsed = totalWeightedSlotsUsed(
+    inPeriod,
+    schedule.menuSlotRules,
+    schedule.defaultMenuSlotWeight
+  );
+  const useWeekly = hasWeeklyScheduleConfigured(schedule);
+  const { maxSlots, operatingDays, calendarDays } = computeCapacityForPeriod({
+    startYmd,
+    endYmd,
+    clinicFilter,
+    schedule,
+    useWeeklySchedule: useWeekly,
+  });
+  const denom = maxSlots > 0 ? maxSlots : 1;
+  const utilizationRate = maxSlots === 0 ? 0 : Math.round((slotsUsed / denom) * 1000) / 10;
 
   return {
     label: label ?? `${startYmd} 〜 ${endYmd}`,
@@ -190,14 +208,15 @@ export function computeUtilizationForPeriod(params: {
     maxSlots,
     utilizationRate,
     calendarDays,
-    lowSample: calendarDays < 14,
+    operatingDays,
+    lowSample: operatingDays < 5,
   };
 }
 
 export function computeMonthlyUtilization(params: {
   visits: UtilizationVisitRow[];
   excludeKeywords: string[];
-  dailyMaxSlots: number;
+  schedule: UtilizationScheduleConfig;
   clinicFilter: 'all' | 'takatsuki' | 'kawanishi';
   months: string[];
 }): UtilizationResult[] {
@@ -216,7 +235,7 @@ export function computeMonthlyUtilization(params: {
 export function computeDecemberYoY(params: {
   visits: UtilizationVisitRow[];
   excludeKeywords: string[];
-  dailyMaxSlots: number;
+  schedule: UtilizationScheduleConfig;
   clinicFilter: 'all' | 'takatsuki' | 'kawanishi';
   years: number[];
 }): UtilizationResult[] {
@@ -234,7 +253,7 @@ export function computeDecemberYoY(params: {
 export function computeSeasonPair(params: {
   visits: UtilizationVisitRow[];
   excludeKeywords: string[];
-  dailyMaxSlots: number;
+  schedule: UtilizationScheduleConfig;
   clinicFilter: 'all' | 'takatsuki' | 'kawanishi';
   year: number;
 }): { summer: UtilizationResult; winter: UtilizationResult } {
