@@ -23,12 +23,22 @@ interface CustomerSearchPanelProps {
 
 function focusCustomerSearchInput(el: HTMLInputElement | null) {
   if (!el) return;
-  try {
-    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  } catch {
-    /* ignore */
+  const run = () => {
+    try {
+      el.scrollIntoView({ block: 'center', behavior: 'auto' });
+    } catch {
+      /* ignore */
+    }
+    focusWithJapaneseIme(el);
+  };
+  // 登録直後はレイアウト更新を待ってからフォーカス（スマホでキーボードが出やすくする）
+  const delay =
+    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches ? 400 : 0;
+  if (delay > 0) {
+    window.setTimeout(run, delay);
+  } else {
+    run();
   }
-  focusWithJapaneseIme(el);
 }
 
 const border: Record<Accent, string> = {
@@ -251,7 +261,6 @@ export default function CustomerSearchPanel({
           onKeyDown={onSearchKeyDown}
           placeholder="ふりがなで検索（例: たなか）"
           className={`w-full px-4 py-3 border-2 rounded-lg outline-none ${border[accent]}`}
-          autoFocus
           role="combobox"
           aria-expanded={searchResults.length > 0}
           aria-activedescendant={searchResults.length ? `cust-opt-${highlightIndex}` : undefined}

@@ -326,7 +326,11 @@ export default function VisitForm({
       const d = options.highlightHistoryDate.slice(0, 10);
       if (d) setOpenHistoryDates((prev) => new Set(prev).add(d));
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const scrollBehavior =
+      typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+        ? 'auto'
+        : 'smooth';
+    window.scrollTo({ top: 0, behavior: scrollBehavior });
   };
 
   useEffect(() => {

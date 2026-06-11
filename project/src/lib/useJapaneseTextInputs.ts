@@ -57,9 +57,26 @@ export function ensureJapaneseImeForInput(el: HTMLInputElement | HTMLTextAreaEle
   }
 }
 
-/** 数値欄のあとでも、可能な限り日本語（かな）入力から始める */
+function isCoarsePointerDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(pointer: coarse)').matches;
+}
+
+/** 数値欄のあとでも、可能な限り日本語（かな）入力から始める（プログラムフォーカス用） */
 export function focusWithJapaneseIme(el: HTMLInputElement | HTMLTextAreaElement | null): void {
   if (!el) return;
+  ensureJapaneseImeForInput(el);
+
+  // スマホでは readOnly トグルがキーボードを出さない原因になるため使わない
+  if (isCoarsePointerDevice()) {
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
+    return;
+  }
+
   const run = () => {
     ensureJapaneseImeForInput(el);
     if (el instanceof HTMLInputElement) {
@@ -86,9 +103,9 @@ export function focusWithJapaneseIme(el: HTMLInputElement | HTMLTextAreaElement 
   requestAnimationFrame(run);
 }
 
-function applyJapaneseTextIme(el: HTMLInputElement | HTMLTextAreaElement): void {
+/** ユーザーがタップした欄：属性だけ整え、再フォーカスしない（キーボードを壊さない） */
+function prepareJapaneseTextInput(el: HTMLInputElement | HTMLTextAreaElement): void {
   ensureJapaneseImeForInput(el);
-  focusWithJapaneseIme(el);
 }
 
 function bindJapaneseImeHandlers(handlers?: {
@@ -98,15 +115,15 @@ function bindJapaneseImeHandlers(handlers?: {
 }) {
   return {
     onMouseDown: (e: React.MouseEvent<HTMLInputElement>) => {
-      applyJapaneseTextIme(e.currentTarget);
+      prepareJapaneseTextInput(e.currentTarget);
       handlers?.onMouseDown?.(e);
     },
     onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-      applyJapaneseTextIme(e.currentTarget);
+      prepareJapaneseTextInput(e.currentTarget);
       handlers?.onFocus?.(e);
     },
     onClick: (e: React.MouseEvent<HTMLInputElement>) => {
-      applyJapaneseTextIme(e.currentTarget);
+      prepareJapaneseTextInput(e.currentTarget);
       handlers?.onClick?.(e);
     },
   };
@@ -119,15 +136,15 @@ function bindJapaneseTextareaImeHandlers(handlers?: {
 }) {
   return {
     onMouseDown: (e: React.MouseEvent<HTMLTextAreaElement>) => {
-      applyJapaneseTextIme(e.currentTarget);
+      prepareJapaneseTextInput(e.currentTarget);
       handlers?.onMouseDown?.(e);
     },
     onFocus: (e: React.FocusEvent<HTMLTextAreaElement>) => {
-      applyJapaneseTextIme(e.currentTarget);
+      prepareJapaneseTextInput(e.currentTarget);
       handlers?.onFocus?.(e);
     },
     onClick: (e: React.MouseEvent<HTMLTextAreaElement>) => {
-      applyJapaneseTextIme(e.currentTarget);
+      prepareJapaneseTextInput(e.currentTarget);
       handlers?.onClick?.(e);
     },
   };
@@ -228,7 +245,7 @@ function handleJapaneseFocusIn(target: EventTarget | null): void {
     target.getAttribute('data-kana-input') === 'true' ||
     target.getAttribute('data-japanese-text') === 'true'
   ) {
-    applyJapaneseTextIme(target);
+    prepareJapaneseTextInput(target);
     return;
   }
   if (shouldUseJapaneseInput(target)) applyJapaneseInputToElement(target);
