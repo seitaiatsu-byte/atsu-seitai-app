@@ -200,7 +200,7 @@ function App() {
       )}
 
       {currentTab === 'reports' && (
-        <div className="max-w-7xl mx-auto p-4 space-y-4">
+        <div className="max-w-7xl mx-auto p-4 max-sm:p-2 space-y-4 max-sm:space-y-3">
           <PageHeader title="日報・月報" onBack={goHome} />
           <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-xl p-4 shadow border border-gray-100">
             <ClinicScopeToggle value={reportsClinic} onChange={setReportsClinic} />

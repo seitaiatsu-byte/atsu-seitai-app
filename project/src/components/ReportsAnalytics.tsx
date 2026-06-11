@@ -270,46 +270,67 @@ export default function ReportsAnalytics({ clinicScope }: ReportsAnalyticsProps)
     setLoading(false);
   };
 
+  const formatTrendYen = (n: number, compact: boolean) => {
+    const v = Math.round(n);
+    if (compact && v >= 10000) {
+      const man = v / 10000;
+      return `¥${Number.isInteger(man) ? man : man.toFixed(1)}万`;
+    }
+    if (compact && v >= 1000) return `¥${Math.round(v / 1000)}k`;
+    return `¥${v.toLocaleString()}`;
+  };
+
   const renderBarChart = () => {
     const data = viewMode === 'daily' ? dailyData : monthlyData;
     return (
-      <div className="space-y-2">
+      <div className="space-y-1 sm:space-y-1.5">
         {data.map((item) => {
           const date = viewMode === 'daily' ? (item as DailySales).date : (item as MonthlySales).month;
           const total = item.total;
+          const dateLabel =
+            viewMode === 'daily'
+              ? new Date(date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })
+              : date;
           return (
-            <div key={date} className="space-y-1">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-bold text-gray-700">
-                  {viewMode === 'daily'
-                    ? new Date(date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })
-                    : date}
-                </span>
-                <span className="font-bold text-gray-900">¥{total.toLocaleString()}</span>
+            <div key={date} className="flex items-center gap-2 py-0.5">
+              <span className="text-[11px] sm:text-sm font-bold text-gray-700 w-[4.2rem] sm:w-[5.5rem] shrink-0 tabular-nums">
+                {dateLabel}
+              </span>
+              <div className="flex-1 min-w-0 h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden flex">
+                {item.visitTotal > 0 && (
+                  <div
+                    className="bg-blue-500 h-full"
+                    style={{ width: `${total ? (item.visitTotal / total) * 100 : 0}%` }}
+                    title={`施術 ¥${item.visitTotal.toLocaleString()}`}
+                  />
+                )}
+                {item.productTotal > 0 && (
+                  <div
+                    className="bg-orange-500 h-full"
+                    style={{ width: `${total ? (item.productTotal / total) * 100 : 0}%` }}
+                    title={`物販 ¥${item.productTotal.toLocaleString()}`}
+                  />
+                )}
+                {item.subscriptionTotal > 0 && (
+                  <div
+                    className="bg-purple-500 h-full"
+                    style={{ width: `${total ? (item.subscriptionTotal / total) * 100 : 0}%` }}
+                    title={`他 ¥${item.subscriptionTotal.toLocaleString()}`}
+                  />
+                )}
               </div>
-              <div className="h-8 bg-gray-100 rounded-lg overflow-hidden flex w-full">
-                <div
-                  className="bg-blue-500 flex items-center justify-center text-white text-xs font-bold"
-                  style={{ width: `${total ? (item.visitTotal / total) * 100 : 0}%` }}
-                >
-                  {item.visitTotal > 0 && `¥${Math.floor(item.visitTotal / 1000)}k`}
-                </div>
-                <div
-                  className="bg-orange-500 flex items-center justify-center text-white text-xs font-bold"
-                  style={{ width: `${total ? (item.productTotal / total) * 100 : 0}%` }}
-                >
-                  {item.productTotal > 0 && `¥${Math.floor(item.productTotal / 1000)}k`}
-                </div>
-                <div
-                  className="bg-purple-500 flex items-center justify-center text-white text-xs font-bold"
-                  style={{ width: `${total ? (item.subscriptionTotal / total) * 100 : 0}%` }}
-                >
-                  {item.subscriptionTotal > 0 && `¥${Math.floor(item.subscriptionTotal / 1000)}k`}
-                </div>
-              </div>
+              <span className="text-[11px] sm:text-sm font-bold text-gray-900 shrink-0 tabular-nums text-right min-w-[3.5rem] sm:min-w-0">
+                <span className="sm:hidden">{formatTrendYen(total, true)}</span>
+                <span className="hidden sm:inline">¥{total.toLocaleString()}</span>
+              </span>
             </div>
           );
         })}
+        <p className="pt-1 text-[10px] text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5">
+          <span><span className="inline-block w-2 h-1.5 rounded-sm bg-blue-500 align-middle mr-0.5" />施術</span>
+          <span><span className="inline-block w-2 h-1.5 rounded-sm bg-orange-500 align-middle mr-0.5" />物販</span>
+          <span><span className="inline-block w-2 h-1.5 rounded-sm bg-purple-500 align-middle mr-0.5" />他</span>
+        </p>
       </div>
     );
   };
@@ -353,37 +374,19 @@ export default function ReportsAnalytics({ clinicScope }: ReportsAnalyticsProps)
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <BarChart3 size={20} />
-            {viewMode === 'daily' ? '直近30日間の売上推移' : '月別売上推移'}
-          </h3>
-          {loading ? (
-            <div className="text-center py-12 text-gray-500">読み込み中...</div>
-          ) : (
-            <div className="max-h-96 overflow-y-auto">{renderBarChart()}</div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <PieChart size={20} />
-            売上構成比（施術・物販・他）
-          </h3>
-          {loading || totalStats.grandTotal === 0 ? (
-            <div className="text-center py-12 text-gray-500">データがありません</div>
-          ) : (
-            <MiniPieChart
-              title="大分類"
-              slices={ratioPieSlices()}
-              colors={['#2563eb', '#ea580c', '#9333ea']}
-            />
-          )}
-        </div>
+      <div className="bg-white rounded-2xl shadow-lg p-6 max-sm:p-3 max-sm:rounded-xl">
+        <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+          <BarChart3 size={20} />
+          {viewMode === 'daily' ? '直近30日間の売上推移' : '月別売上推移'}
+        </h3>
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">読み込み中...</div>
+        ) : (
+          <div className="max-h-96 overflow-y-auto">{renderBarChart()}</div>
+        )}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-lg p-6">
+      <div className="bg-white rounded-2xl shadow-lg p-6 max-sm:p-3 max-sm:rounded-xl">
         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
           <PieChart size={20} />
           3種の円グラフ（施術内訳・物販内訳・他＝サブスク内訳）
@@ -399,28 +402,44 @@ export default function ReportsAnalytics({ clinicScope }: ReportsAnalyticsProps)
         )}
       </div>
 
-      <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl shadow-xl p-6">
-        <div className="flex items-center gap-2 mb-4">
+      <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl shadow-xl p-6 max-sm:p-4 max-sm:rounded-xl">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
           <DollarSign size={28} />
-          <h3 className="text-xl font-bold">
+          <h3 className="text-base sm:text-xl font-bold">
             {viewMode === 'daily' ? '直近30日間の合計（院別スコープ適用）' : '全期間の合計（院別スコープ適用）'}
           </h3>
         </div>
-        <div className="text-5xl font-bold mb-4">¥{totalStats.grandTotal.toLocaleString()}</div>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white bg-opacity-20 rounded-lg p-3">
-            <div className="text-sm font-bold mb-1">施術</div>
-            <div className="text-2xl font-bold">¥{totalStats.visitTotal.toLocaleString()}</div>
+        <div className="text-3xl sm:text-5xl font-bold mb-3 sm:mb-4">¥{totalStats.grandTotal.toLocaleString()}</div>
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="bg-white bg-opacity-20 rounded-lg p-2 sm:p-3">
+            <div className="text-xs sm:text-sm font-bold mb-1">施術</div>
+            <div className="text-lg sm:text-2xl font-bold">¥{totalStats.visitTotal.toLocaleString()}</div>
           </div>
-          <div className="bg-white bg-opacity-20 rounded-lg p-3">
-            <div className="text-sm font-bold mb-1">物販</div>
-            <div className="text-2xl font-bold">¥{totalStats.productTotal.toLocaleString()}</div>
+          <div className="bg-white bg-opacity-20 rounded-lg p-2 sm:p-3">
+            <div className="text-xs sm:text-sm font-bold mb-1">物販</div>
+            <div className="text-lg sm:text-2xl font-bold">¥{totalStats.productTotal.toLocaleString()}</div>
           </div>
-          <div className="bg-white bg-opacity-20 rounded-lg p-3">
-            <div className="text-sm font-bold mb-1">他</div>
-            <div className="text-2xl font-bold">¥{totalStats.subscriptionTotal.toLocaleString()}</div>
+          <div className="bg-white bg-opacity-20 rounded-lg p-2 sm:p-3">
+            <div className="text-xs sm:text-sm font-bold mb-1">他</div>
+            <div className="text-lg sm:text-2xl font-bold">¥{totalStats.subscriptionTotal.toLocaleString()}</div>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-lg p-6 max-sm:p-3 max-sm:rounded-xl">
+        <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+          <PieChart size={20} />
+          売上構成比（施術・物販・他）
+        </h3>
+        {loading || totalStats.grandTotal === 0 ? (
+          <div className="text-center py-8 text-gray-500">データがありません</div>
+        ) : (
+          <MiniPieChart
+            title="大分類"
+            slices={ratioPieSlices()}
+            colors={['#2563eb', '#ea580c', '#9333ea']}
+          />
+        )}
       </div>
     </div>
   );
