@@ -15,8 +15,10 @@ import { normalizePersonSearchText } from '../lib/personSearchText';
 import PersonSearchInput from './PersonSearchInput';
 import {
   getAgeYearsFromCustomer,
+  getClinicNameForDisplay,
   getPhoneWithMemoFallback,
 } from '../lib/customerDisplayFields';
+import { clinicNameToShortLabel } from '../lib/clinic';
 import {
   getKanaForRoster,
   getInflowLineFromRoster,
@@ -1044,13 +1046,13 @@ export default function CustomerImport() {
         </div>
       </div>
 
-      <div className="mt-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Users className="text-blue-600" size={28} />
-            <h3 className="text-xl font-bold text-gray-800">登録名簿一覧</h3>
+      <div className="mt-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg p-6 max-sm:p-3 max-sm:rounded-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Users className="text-blue-600 shrink-0" size={24} />
+            <h3 className="text-lg sm:text-xl font-bold text-gray-800">登録名簿一覧</h3>
           </div>
-          <div className="text-sm font-bold text-blue-600 bg-white px-4 py-2 rounded-lg shadow">
+          <div className="text-xs sm:text-sm font-bold text-blue-600 bg-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg shadow self-start sm:self-auto">
             {loadingList ? (
               '登録者数を取得中…'
             ) : (
@@ -1119,7 +1121,7 @@ export default function CustomerImport() {
             value={rosterSearch}
             onChange={setRosterSearch}
             placeholder="検索（かな・番号・名前）"
-            className="w-full md:w-[420px] px-4 py-2.5 rounded-lg border border-blue-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-300"
+            className="w-full px-3 sm:px-4 py-2.5 rounded-lg border border-blue-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-300"
           />
         </div>
 
@@ -1134,9 +1136,66 @@ export default function CustomerImport() {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-inner border border-gray-200">
+          <div className="bg-white rounded-xl shadow-inner border border-gray-200 -mx-1 max-sm:mx-0">
             <div ref={rosterListScrollRef} className="panel-scrollbar max-h-[44rem] overflow-auto">
-              <table className="w-full min-w-[1280px]">
+              {/* スマホ: 氏名が見える2行リスト */}
+              <div className="sm:hidden divide-y divide-gray-100">
+                {displayedCustomers.map((customer, idx) => {
+                  const asRow = customer as CustomerRowRecord;
+                  const age = getAgeYearsFromCustomer(customer);
+                  const kana = getKanaForRoster(asRow) ?? '—';
+                  const phone = getPhoneWithMemoFallback(customer) ?? '—';
+                  const clinic = clinicNameToShortLabel(getClinicNameForDisplay(customer));
+                  return (
+                    <div
+                      key={customer.id}
+                      className={`px-2.5 py-2 ${idx % 2 === 0 ? 'bg-gray-50/80' : 'bg-white'}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] font-bold text-gray-900 leading-tight">
+                            <span className="text-slate-500 font-mono mr-1">{customer.customer_number || '—'}</span>
+                            <span className="break-words">{customer.name || '—'}</span>
+                            {age != null && (
+                              <span className="text-gray-600 font-normal text-[11px] ml-1">{age}歳</span>
+                            )}
+                          </div>
+                          <div className="mt-0.5 text-[10px] text-gray-600 leading-snug line-clamp-2">
+                            {kana}
+                            {phone !== '—' ? ` · ${phone}` : ''}
+                            {clinic ? ` · ${clinic}` : ''}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 flex-col gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setRosterEdit(customer)}
+                            className="inline-flex items-center justify-center gap-0.5 px-2 py-1 text-[10px] font-bold text-indigo-700 border border-indigo-300 rounded-md bg-white"
+                          >
+                            <Pencil size={12} />
+                            修正
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteCustomer(customer)}
+                            disabled={deletingId === customer.id}
+                            className={`inline-flex items-center justify-center gap-0.5 px-2 py-1 text-[10px] font-bold border rounded-md ${
+                              deletingId === customer.id
+                                ? 'text-gray-400 border-gray-200 bg-gray-50'
+                                : 'text-red-700 border-red-300 bg-white'
+                            }`}
+                          >
+                            <Trash2 size={12} />
+                            {deletingId === customer.id ? '…' : '削除'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <table className="hidden sm:table w-full min-w-[1280px]">
                 <thead className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white sticky top-0">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-bold whitespace-nowrap">顧客番号</th>
@@ -1239,7 +1298,7 @@ export default function CustomerImport() {
               </table>
             </div>
             {sortedCustomers.length > 0 && totalListPages > 1 && (
-              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 bg-gray-50 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-2 sm:px-4 py-2 sm:py-3 border-t border-gray-200 bg-gray-50 text-xs sm:text-sm">
                 <span className="text-gray-600">
                   {listPageStart + 1}〜{listRangeEnd} 名を表示（表示対象 {sortedCustomers.length} 名 / 読込 {customers.length} 名 / DB 登録{' '}
                   {dbTotalCount ?? customers.length} 名・{LIST_ROWS_PER_PAGE} 名/ページ）
