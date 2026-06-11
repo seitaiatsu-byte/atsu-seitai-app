@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Calendar, Phone, Cake, UserCheck, RefreshCw } from 'lucide-react';
+import { AlertCircle, Calendar, Cake, UserCheck, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
 import type { Database } from '../lib/database.types';
@@ -66,6 +66,22 @@ function birthdayRowCardClass(daysSinceLastVisit: number | null): string {
 function compactPhone(v: string | null | undefined): string {
   const t = String(v || '').trim();
   return t || '-';
+}
+
+function compactYen(n: number): string {
+  const v = Math.round(n);
+  if (v >= 10000) {
+    const man = v / 10000;
+    return `¥${Number.isInteger(man) ? man : man.toFixed(1)}万`;
+  }
+  if (v >= 1000) return `¥${Math.round(v / 1000)}k`;
+  return `¥${v.toLocaleString()}`;
+}
+
+function shortMd(ymd: string): string {
+  const d = new Date(ymd);
+  if (Number.isNaN(d.getTime())) return ymd;
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 function lastVisitPerCustomer(visits: { customer_id: string; visit_date: string; amount?: number | null }[]) {
@@ -281,33 +297,18 @@ export default function InactivePatientAlerts() {
     b1.length === 0 && b2.length === 0 && filteredB3.length === 0 && !hasBirth;
 
   const renderBirthdayList = (items: BirthdayRow[]) => (
-    <div className="space-y-1.5">
+    <div className="space-y-0.5">
       {items.map((item) => (
         <div
           key={item.customer.id}
-          className={`rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 border transition-colors ${birthdayRowCardClass(item.daysSinceLastVisit)}`}
+          className={`flex items-center gap-1.5 rounded-md px-2 py-1 border transition-colors ${birthdayRowCardClass(item.daysSinceLastVisit)}`}
         >
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="font-bold text-sm text-gray-900 truncate leading-tight">{item.customer.name}</div>
-              {item.customer.name_kana ? (
-                <div className="text-[11px] text-gray-600 truncate">{item.customer.name_kana}</div>
-              ) : null}
-            </div>
-            <span className="inline-flex items-center gap-0.5 text-[11px] sm:text-xs font-bold text-gray-700 shrink-0 max-w-[42%]">
-              <Phone size={13} className="shrink-0" />
-              <span className="truncate">{compactPhone(item.customer.phone_number)}</span>
-            </span>
-          </div>
-          <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-gray-700">
-            {item.customer.customer_number != null && String(item.customer.customer_number).trim() !== '' && (
-              <span className="font-mono font-semibold">#{item.customer.customer_number}</span>
-            )}
-            <span>
-              {new Date(item.birthDate).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}（満
-              {item.displayAge}歳）
-            </span>
-          </div>
+          <span className="shrink-0 w-9 text-[11px] font-bold text-gray-800 tabular-nums">
+            {shortMd(item.birthDate)}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-xs font-bold text-gray-900">{item.customer.name}</span>
+          <span className="shrink-0 text-[10px] text-gray-700 whitespace-nowrap">満{item.displayAge}歳</span>
+          <span className="shrink-0 text-[10px] text-gray-600 max-w-[4.5rem] truncate">{compactPhone(item.customer.phone_number)}</span>
         </div>
       ))}
     </div>
@@ -321,30 +322,18 @@ export default function InactivePatientAlerts() {
           <Calendar size={18} className="shrink-0" />
           <span className="min-w-0">{title}（{items.length}名）</span>
         </h3>
-        <div className="space-y-1.5 max-h-96 overflow-y-auto">
+        <div className="space-y-0.5 max-sm:max-h-[32rem] max-h-96 overflow-y-auto">
           {items.map((item) => (
             <div
               key={item.customer.id}
-              className="rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-200 bg-gray-50"
+              className="flex items-center gap-1.5 rounded-md px-2 py-1 border border-gray-200 bg-gray-50"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="font-bold text-sm text-gray-900 truncate leading-tight">{item.customer.name}</div>
-                  {item.customer.name_kana ? (
-                    <div className="text-[11px] text-gray-600 truncate">{item.customer.name_kana}</div>
-                  ) : null}
-                </div>
-                <span className="inline-flex items-center gap-0.5 text-[11px] sm:text-xs font-bold text-gray-700 shrink-0 max-w-[42%]">
-                  <Phone size={13} className="shrink-0" />
-                  <span className="truncate">{compactPhone(item.customer.phone_number)}</span>
-                </span>
-              </div>
-              <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] sm:text-xs text-gray-700">
-                <span className="font-bold text-gray-800">{item.daysSince}日経過</span>
-                <span>最終 {new Date(item.lastVisitDate).toLocaleDateString('ja-JP')}</span>
-                <span>来院{item.visitCount}回</span>
-                <span>LTV ¥{Math.round(item.ltvApprox).toLocaleString()}</span>
-              </div>
+              <span className="min-w-0 flex-1 truncate text-xs font-bold text-gray-900">{item.customer.name}</span>
+              <span className="shrink-0 text-[10px] font-bold text-gray-800 whitespace-nowrap">{item.daysSince}日</span>
+              <span className="shrink-0 text-[10px] text-gray-600 whitespace-nowrap max-sm:hidden">{shortMd(item.lastVisitDate)}</span>
+              <span className="shrink-0 text-[10px] text-gray-600 whitespace-nowrap max-sm:hidden">{item.visitCount}回</span>
+              <span className="shrink-0 text-[10px] font-bold text-gray-700 whitespace-nowrap">{compactYen(item.ltvApprox)}</span>
+              <span className="shrink-0 text-[10px] text-gray-600 max-w-[4rem] truncate">{compactPhone(item.customer.phone_number)}</span>
             </div>
           ))}
         </div>
@@ -455,42 +444,39 @@ export default function InactivePatientAlerts() {
             <UserCheck className="text-emerald-600 shrink-0" size={18} />
             <span className="min-w-0">アクティブ会員（0〜{ACTIVE_DAY_MAX}日）</span>
           </h3>
-          <div className="mb-2 flex flex-wrap gap-2 text-xs">
+          <div className="mb-1.5 flex flex-wrap gap-1 text-[10px] sm:text-xs">
             <button
               type="button"
               onClick={() => toggleActiveSort('days')}
-              className="px-2 py-1 rounded border border-gray-300 bg-white font-bold text-gray-700"
+              className="px-1.5 py-0.5 rounded border border-gray-300 bg-white font-bold text-gray-700"
             >
-              経過日数 {sortMark('days')}
+              日数 {sortMark('days')}
             </button>
             <button
               type="button"
               onClick={() => toggleActiveSort('name')}
-              className="px-2 py-1 rounded border border-gray-300 bg-white font-bold text-gray-700"
+              className="px-1.5 py-0.5 rounded border border-gray-300 bg-white font-bold text-gray-700"
             >
               氏名 {sortMark('name')}
             </button>
             <button
               type="button"
               onClick={() => toggleActiveSort('last')}
-              className="px-2 py-1 rounded border border-gray-300 bg-white font-bold text-gray-700"
+              className="px-1.5 py-0.5 rounded border border-gray-300 bg-white font-bold text-gray-700"
             >
-              最新来院日 {sortMark('last')}
+              来院日 {sortMark('last')}
             </button>
           </div>
-          <div className="max-h-64 overflow-y-auto divide-y">
+          <div className="max-sm:max-h-[32rem] max-h-64 overflow-y-auto space-y-0.5">
             {activeMembersSorted.map((row) => (
-              <div key={row.customer.id} className={`py-1.5 px-2 border ${activeRowColorClass(row.daysSince)}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1 font-bold text-sm text-gray-800 truncate">{row.customer.name}</div>
-                  <span className="text-[11px] text-gray-600 shrink-0 max-w-[42%] truncate">
-                    {compactPhone(row.customer.phone_number)}
-                  </span>
-                </div>
-                <div className="text-[11px] text-gray-600 truncate">{row.customer.name_kana || ''}</div>
-                <div className="text-[11px] text-gray-600 mt-0.5">
-                  {row.daysSince}日経過 · 最終 {new Date(row.lastVisitDate).toLocaleDateString('ja-JP')}
-                </div>
+              <div
+                key={row.customer.id}
+                className={`flex items-center gap-1.5 rounded-md px-2 py-1 border ${activeRowColorClass(row.daysSince)}`}
+              >
+                <span className="min-w-0 flex-1 truncate text-xs font-bold text-gray-800">{row.customer.name}</span>
+                <span className="shrink-0 text-[10px] font-bold text-gray-700 whitespace-nowrap">{row.daysSince}日</span>
+                <span className="shrink-0 text-[10px] text-gray-600 whitespace-nowrap">{shortMd(row.lastVisitDate)}</span>
+                <span className="shrink-0 text-[10px] text-gray-600 max-w-[4rem] truncate">{compactPhone(row.customer.phone_number)}</span>
               </div>
             ))}
           </div>
@@ -503,38 +489,22 @@ export default function InactivePatientAlerts() {
             <Cake className="text-pink-600 shrink-0" size={18} />
             誕生日（今月・来月）
           </h3>
-          <p className="text-xs text-gray-600 mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span>
-              枠色＝最終来院からの目安:{' '}
-              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-blue-200 border border-blue-400 align-middle" />{' '}
-              3ヶ月以内
-            </span>
-            <span>
-              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-orange-100 border border-orange-300 align-middle" />{' '}
-              3ヶ月超〜半年以内
-            </span>
-            <span>
-              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-yellow-100 border border-yellow-300 align-middle" />{' '}
-              半年超〜1年以内
-            </span>
-            <span>
-              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-pink-100 border border-pink-200 align-middle" />{' '}
-              1年超〜1年半以内
-            </span>
+          <p className="text-[10px] sm:text-xs text-gray-600 mb-2 leading-snug">
+            枠色＝最終来院: <span className="inline-block w-2 h-2 rounded-sm bg-blue-200 border border-blue-400 align-middle" />3M
+            <span className="inline-block w-2 h-2 rounded-sm bg-orange-100 border border-orange-300 align-middle ml-1" />3-6M
+            <span className="inline-block w-2 h-2 rounded-sm bg-yellow-100 border border-yellow-300 align-middle ml-1" />6M-1Y
+            <span className="inline-block w-2 h-2 rounded-sm bg-pink-100 border border-pink-200 align-middle ml-1" />1-1.5Y
           </p>
-          <p className="text-xs text-gray-500 mb-4">
-            ※ 最終来院から1年半を超える方は、誕生日一覧には表示しません。
-          </p>
-          <div className="panel-scrollbar max-h-96 overflow-y-auto pr-1">
+          <div className="panel-scrollbar max-sm:max-h-[32rem] max-h-96 overflow-y-auto pr-1">
             {birthThis.length > 0 && (
-              <div className="mb-8">
-                <h4 className="text-md font-bold text-pink-900 mb-3 border-b-2 border-pink-200 pb-2">今月</h4>
+              <div className="mb-3">
+                <h4 className="text-sm font-bold text-pink-900 mb-1 border-b border-pink-200 pb-0.5">今月</h4>
                 {renderBirthdayList(birthThis)}
               </div>
             )}
             {birthNext.length > 0 && (
               <div>
-                <h4 className="text-md font-bold text-pink-900 mb-3 border-b-2 border-pink-200 pb-2">来月</h4>
+                <h4 className="text-sm font-bold text-pink-900 mb-1 border-b border-pink-200 pb-0.5">来月</h4>
                 {renderBirthdayList(birthNext)}
               </div>
             )}
