@@ -46,6 +46,9 @@ function App() {
   );
   const [visitSeed, setVisitSeed] = useState<VisitFromReservationPayload | null>(null);
   const [chartSeedCustomer, setChartSeedCustomer] = useState<CustomerRow | null>(null);
+  const [chartDetailOpen, setChartDetailOpen] = useState(false);
+  const [chartBackSignal, setChartBackSignal] = useState(0);
+  const [chartFromCalendar, setChartFromCalendar] = useState(false);
 
   const handleNewPatientRegisteredFromPlaceholder = async (
     customer: Database['public']['Tables']['customers']['Row']
@@ -85,7 +88,24 @@ function App() {
         setShowProductForm(false);
         setShowSubscriptionForm(false);
       }
+      if (tab === 'chart') {
+        setChartFromCalendar(false);
+      }
     });
+  };
+
+  const handleChartBack = () => {
+    if (chartDetailOpen) {
+      setChartSeedCustomer(null);
+      setChartBackSignal((n) => n + 1);
+      setChartDetailOpen(false);
+      if (chartFromCalendar) {
+        setChartFromCalendar(false);
+        goHome();
+      }
+      return;
+    }
+    goHome();
   };
 
   if (!isSupabaseConfigured) {
@@ -131,6 +151,8 @@ function App() {
             onOpenCustomerChart={(customer) => {
               guardNavigation(() => {
                 setChartSeedCustomer(customer);
+                setChartFromCalendar(true);
+                setChartDetailOpen(true);
                 setShowVisitForm(false);
                 setShowProductForm(false);
                 setShowSubscriptionForm(false);
@@ -205,9 +227,13 @@ function App() {
       )}
 
       {currentTab === 'chart' && (
-        <div className="max-w-7xl mx-auto p-4 space-y-6">
-          <PageHeader title="個人カルテ" onBack={goHome} />
-          <IndividualChart initialCustomer={chartSeedCustomer} />
+        <div className="max-w-7xl mx-auto p-4 max-sm:p-2 space-y-4 max-sm:space-y-2">
+          <PageHeader title="個人カルテ" onBack={handleChartBack} />
+          <IndividualChart
+            initialCustomer={chartSeedCustomer}
+            backToListSignal={chartBackSignal}
+            onDetailChange={setChartDetailOpen}
+          />
         </div>
       )}
 

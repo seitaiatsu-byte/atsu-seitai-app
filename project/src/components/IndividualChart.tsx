@@ -92,6 +92,30 @@ function compactMemo(raw: string | null | undefined): string {
   return s.length > 18 ? `${s.slice(0, 18)}…` : s;
 }
 
+function compactField(raw: string | null | undefined, max = 10): string {
+  const s = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '—';
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+}
+
+function formatLtvCompact(ltv: number): string {
+  const n = Math.round(ltv);
+  if (n >= 10000) {
+    const man = n / 10000;
+    return `¥${Number.isInteger(man) ? man : man.toFixed(1)}万`;
+  }
+  return `¥${n.toLocaleString()}`;
+}
+
+function formatActiveDateShort(date: string | null, days: number | null): string {
+  if (!date) return '来院なし';
+  const d = date.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return '—';
+  const [, m, day] = d.split('-');
+  const md = `${Number(m)}/${Number(day)}`;
+  return days != null ? `${md}(${days}日)` : md;
+}
+
 function visitTimelineMenuLabel(v: VisitRow, detailIdToName: Record<string, string>): string {
   const menu = (v.menu_name || '').trim();
   if (menu) return menu;
@@ -119,7 +143,16 @@ function resolveVisitEditMenuSelection(
   return { menuId: '', menuName: fallback };
 }
 
-export default function IndividualChart({ initialCustomer = null }: { initialCustomer?: Customer | null }) {
+export default function IndividualChart({
+  initialCustomer = null,
+  backToListSignal = 0,
+  onDetailChange,
+}: {
+  initialCustomer?: Customer | null;
+  /** 増えると一覧表示に戻す（ヘッダー戻る用） */
+  backToListSignal?: number;
+  onDetailChange?: (inDetail: boolean) => void;
+}) {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(initialCustomer);
   const [visits, setVisits] = useState<VisitRow[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
@@ -190,6 +223,15 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
   useEffect(() => {
     if (initialCustomer) setSelectedCustomer(initialCustomer);
   }, [initialCustomer?.id]);
+
+  useEffect(() => {
+    if (!backToListSignal) return;
+    setSelectedCustomer(null);
+  }, [backToListSignal]);
+
+  useEffect(() => {
+    onDetailChange?.(Boolean(selectedCustomer));
+  }, [selectedCustomer, onDetailChange]);
 
   useEffect(() => {
     if (!selectedCustomer) {
@@ -784,8 +826,8 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">個人カルテ</h2>
+    <div className="bg-white rounded-2xl shadow-lg p-6 max-sm:p-3 max-sm:rounded-xl">
+      <h2 className="text-2xl max-sm:text-lg font-bold text-gray-800 mb-4 max-sm:mb-2">個人カルテ</h2>
 
       {!selectedCustomer ? (
         <div className="space-y-4">
@@ -807,30 +849,62 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
               <div className="text-xs text-gray-500 py-4">読み込み中...</div>
             ) : (
               <div className="panel-scrollbar max-h-[34rem] overflow-y-auto">
-                <table className="w-full text-xs">
+                {/* スマホ: 1〜2行のコンパクト行 */}
+                <div className="sm:hidden space-y-1">
+                  {sortedActiveRows.map((r) => (
+                    <button
+                      key={r.customer.id}
+                      type="button"
+                      onClick={() => setSelectedCustomer(r.customer)}
+                      className={`w-full text-left rounded-lg border border-slate-200 px-2 py-1.5 ${activeRowBgClass(r.daysSinceLatestVisit)}`}
+                    >
+                      <div className="flex items-center justify-between gap-1 leading-tight">
+                        <div className="min-w-0 flex-1 text-[11px] font-bold text-slate-800 truncate">
+                          <span className="text-slate-500 font-semibold">{r.customer.customer_number || '—'}</span>{' '}
+                          {r.customer.name || '—'}
+                          <span className="text-slate-600 font-normal ml-1">
+                            {getAgeYearsFromCustomer(r.customer) ?? '—'}歳
+                          </span>
+                        </div>
+                        <span className="shrink-0 text-[11px] font-bold text-blue-700">
+                          {formatLtvCompact(r.ltv)}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-[10px] text-slate-600 leading-tight truncate">
+                        {compactField(r.symptom, 8)} · {compactField(r.route, 6)} · {compactField(r.latestMenu, 12)} ·{' '}
+                        <span className={latestVisitColorClass(r.daysSinceLatestVisit)}>
+                          {formatActiveDateShort(r.latestVisitDate, r.daysSinceLatestVisit)}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* PC: 表形式（列幅固定・省略） */}
+                <table className="hidden sm:table w-full table-fixed text-[11px] sm:text-xs">
                   <thead className="sticky top-0 bg-slate-100 z-10">
                     <tr className="text-left text-slate-700">
-                      <th className="px-2 py-2 w-8"> </th>
-                      <th className="px-2 py-2">
+                      <th className="px-1 py-1.5 w-7"> </th>
+                      <th className="px-1 py-1.5 w-[18%]">
                         <button type="button" onClick={() => toggleActiveSort('number')} className="font-bold">番号/氏名 {sortMark('number')}</button>
                       </th>
-                      <th className="px-2 py-2">
+                      <th className="px-1 py-1.5 w-[6%]">
                         <button type="button" onClick={() => toggleActiveSort('age')} className="font-bold">年齢 {sortMark('age')}</button>
                       </th>
-                      <th className="px-2 py-2">
+                      <th className="px-1 py-1.5 w-[14%]">
                         <button type="button" onClick={() => toggleActiveSort('symptom')} className="font-bold">症状 {sortMark('symptom')}</button>
                       </th>
-                      <th className="px-2 py-2">
+                      <th className="px-1 py-1.5 w-[8%]">
                         <button type="button" onClick={() => toggleActiveSort('route')} className="font-bold">経路 {sortMark('route')}</button>
                       </th>
-                      <th className="px-2 py-2">
+                      <th className="px-1 py-1.5 w-[16%]">
                         <button type="button" onClick={() => toggleActiveSort('menu')} className="font-bold">メニュー {sortMark('menu')}</button>
                       </th>
-                      <th className="px-2 py-2 text-right">
+                      <th className="px-1 py-1.5 w-[12%] text-right">
                         <button type="button" onClick={() => toggleActiveSort('ltv')} className="font-bold">LTV {sortMark('ltv')}</button>
                       </th>
-                      <th className="px-2 py-2">
-                        <button type="button" onClick={() => toggleActiveSort('latest')} className="font-bold">最新来院日 {sortMark('latest')}</button>
+                      <th className="px-1 py-1.5 w-[18%]">
+                        <button type="button" onClick={() => toggleActiveSort('latest')} className="font-bold">最新来院 {sortMark('latest')}</button>
                       </th>
                     </tr>
                   </thead>
@@ -841,24 +915,24 @@ export default function IndividualChart({ initialCustomer = null }: { initialCus
                         className={`border-b border-slate-100 cursor-pointer hover:brightness-[0.98] ${activeRowBgClass(r.daysSinceLatestVisit)}`}
                         onClick={() => setSelectedCustomer(r.customer)}
                       >
-                        <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-1 py-1" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={checkedActiveIds.has(r.customer.id)}
                             onChange={() => toggleActiveChecked(r.customer.id)}
                           />
                         </td>
-                        <td className="px-2 py-1.5 font-semibold">
-                          <span className="mr-2">{r.customer.customer_number || '—'}</span>
+                        <td className="px-1 py-1 font-semibold truncate">
+                          <span className="text-slate-500">{r.customer.customer_number || '—'}</span>{' '}
                           <span className="text-slate-700">{r.customer.name || '—'}</span>
                         </td>
-                        <td className="px-2 py-1.5">{getAgeYearsFromCustomer(r.customer) ?? '—'}歳</td>
-                        <td className="px-2 py-1.5">{r.symptom}</td>
-                        <td className="px-2 py-1.5">{r.route}</td>
-                        <td className="px-2 py-1.5">{r.latestMenu}</td>
-                        <td className="px-2 py-1.5 text-right font-bold text-blue-700">¥{Math.round(r.ltv).toLocaleString()}</td>
-                        <td className={`px-2 py-1.5 ${latestVisitColorClass(r.daysSinceLatestVisit)}`}>
-                          {r.latestVisitDate ? `${new Date(`${r.latestVisitDate}T12:00:00`).toLocaleDateString('ja-JP')}（${r.daysSinceLatestVisit}日経過）` : '来院なし'}
+                        <td className="px-1 py-1 whitespace-nowrap">{getAgeYearsFromCustomer(r.customer) ?? '—'}歳</td>
+                        <td className="px-1 py-1 truncate" title={r.symptom}>{compactField(r.symptom, 14)}</td>
+                        <td className="px-1 py-1 truncate" title={r.route}>{compactField(r.route, 8)}</td>
+                        <td className="px-1 py-1 truncate" title={r.latestMenu}>{compactField(r.latestMenu, 16)}</td>
+                        <td className="px-1 py-1 text-right font-bold text-blue-700 whitespace-nowrap">{formatLtvCompact(r.ltv)}</td>
+                        <td className={`px-1 py-1 truncate whitespace-nowrap ${latestVisitColorClass(r.daysSinceLatestVisit)}`}>
+                          {formatActiveDateShort(r.latestVisitDate, r.daysSinceLatestVisit)}
                         </td>
                       </tr>
                     ))}
