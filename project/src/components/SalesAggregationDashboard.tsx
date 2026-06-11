@@ -991,16 +991,42 @@ export default function SalesAggregationDashboard() {
           )}
 
           <p className="md:hidden text-lg font-black text-gray-900 -mb-1">{salesYearFromMonth(month)}</p>
-          <p className="md:hidden text-[11px] text-gray-500 mb-1">日付と合計のみ（タップで内訳）</p>
+          <p className="md:hidden text-xs text-gray-500 mb-2">タップで日計の内訳を表示</p>
 
-          <div className="overflow-x-auto border-2 border-green-200 rounded-xl">
-            <table className="w-full table-fixed text-xs md:text-sm">
+          <div className="md:hidden border-2 border-green-200 rounded-xl overflow-hidden">
+            <div className="bg-green-200 px-3 py-2 flex items-center justify-between text-sm font-bold text-gray-800">
+              <span>日付</span>
+              <span>合計</span>
+            </div>
+            <div className="max-h-[28rem] overflow-y-auto">
+              {rows.map((r) => {
+                const wk = weekdayKind(r.date);
+                const dateTextClass =
+                  wk === 'sun' ? 'text-red-600' : wk === 'sat' ? 'text-blue-600' : 'text-gray-800';
+                return (
+                  <button
+                    key={r.date}
+                    type="button"
+                    onClick={() => setSelectedBreakdownDate(r.date)}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2.5 border-b border-green-100 odd:bg-[#f5fff5] even:bg-white active:bg-amber-50"
+                    title="タップでこの日の内訳を表示"
+                  >
+                    <span className={`text-base font-bold shrink-0 ${dateTextClass}`}>{formatDateCompact(r.date)}</span>
+                    <span className="text-lg font-black text-blue-700 tabular-nums">{yen(r.dayTotal)}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between gap-2 px-3 py-3 bg-[#eef4ff] font-bold border-t border-green-200">
+              <span className="text-base text-gray-800">合計</span>
+              <span className="text-xl font-black text-blue-700 tabular-nums">{yen(totals.dayTotal)}</span>
+            </div>
+          </div>
+
+          <div className="hidden md:block overflow-x-auto border-2 border-green-200 rounded-xl">
+            <table className="w-full table-fixed text-sm">
               <thead>
-                <tr className="md:hidden bg-green-200 text-gray-800">
-                  <th className="border px-0.5 py-1 w-[4.25rem] text-left">日付</th>
-                  <th className="border px-0.5 py-1 text-right bg-amber-50">合計</th>
-                </tr>
-                <tr className="hidden md:table-row bg-green-200 text-gray-800">
+                <tr className="bg-green-200 text-gray-800">
                   <th rowSpan={2} className="border px-1 py-2 w-[140px]">
                     日付
                   </th>
@@ -1014,7 +1040,7 @@ export default function SalesAggregationDashboard() {
                     日計
                   </th>
                 </tr>
-                <tr className="hidden md:table-row bg-green-50 text-gray-700">
+                <tr className="bg-green-50 text-gray-700">
                   <th className="border px-1 py-1">振込</th>
                   <th className="border px-1 py-1">都度払い</th>
                   <th className="border px-1 py-1">回数券</th>
@@ -1041,18 +1067,17 @@ export default function SalesAggregationDashboard() {
                       onClick={() => setSelectedBreakdownDate(r.date)}
                       title="タップでこの日の内訳を表示"
                     >
-                      <td className={`border px-1 py-1 font-mono whitespace-nowrap max-md:px-0.5 max-md:text-[10px] ${dateTextClass}`}>
+                      <td className={`border px-1 py-1 font-mono whitespace-nowrap ${dateTextClass}`}>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedBreakdownDate(r.date);
                           }}
-                          className="underline underline-offset-2 hover:text-blue-800 text-left max-md:leading-tight"
+                          className="underline underline-offset-2 hover:text-blue-800 text-left"
                           title="この日の内訳を表示"
                         >
-                          <span className="md:hidden">{formatDateCompact(r.date)}</span>
-                          <span className="hidden md:inline">{formatDateWithWeekday(r.date)}</span>
+                          {formatDateWithWeekday(r.date)}
                         </button>
                       </td>
                       <td className={SALES_AMT_CELL}>{yen(r.cashTransfer)}</td>
@@ -1074,7 +1099,7 @@ export default function SalesAggregationDashboard() {
                             e.stopPropagation();
                             setSelectedBreakdownDate(r.date);
                           }}
-                          className="w-full text-right hover:text-blue-900 hover:bg-amber-100 rounded px-1 py-1 border border-transparent hover:border-blue-200 max-md:px-0"
+                          className="w-full text-right hover:text-blue-900 hover:bg-amber-100 rounded px-1 py-1 border border-transparent hover:border-blue-200"
                         >
                           <span className="underline underline-offset-2">{yen(r.dayTotal)}</span>
                         </button>
@@ -1084,11 +1109,7 @@ export default function SalesAggregationDashboard() {
                 })}
               </tbody>
               <tfoot>
-                <tr className="md:hidden bg-[#eef4ff] font-bold">
-                  <td className="border px-0.5 py-1">合計</td>
-                  <td className="border px-0.5 py-1 text-right bg-amber-100 text-blue-700 tabular-nums">{yen(totals.dayTotal)}</td>
-                </tr>
-                <tr className="hidden md:table-row bg-[#eef4ff] font-bold">
+                <tr className="bg-[#eef4ff] font-bold">
                   <td className="border px-1 py-2">合計</td>
                   <td className="border px-1 py-2 text-right">{yen(totals.cashTransfer)}</td>
                   <td className="border px-1 py-2 text-right">{yen(totals.cashSingle)}</td>
