@@ -135,6 +135,38 @@ function normalizeYm(ym: string): string {
   return toYm(new Date());
 }
 
+function defaultMonthlyTrendStartYm(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 11);
+  return toYm(d);
+}
+
+function listMonthsBetween(startYm: string, endYm: string): string[] {
+  const start = normalizeYm(startYm);
+  const end = normalizeYm(endYm);
+  if (start > end) return [];
+  const [sy, sm] = start.split('-').map((x) => parseInt(x, 10));
+  const [ey, em] = end.split('-').map((x) => parseInt(x, 10));
+  const out: string[] = [];
+  let y = sy;
+  let m = sm;
+  while (y < ey || (y === ey && m <= em)) {
+    out.push(`${y}-${pad2(m)}`);
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return out;
+}
+
+function formatYmJapanese(ym: string): string {
+  const normalized = normalizeYm(ym);
+  const [y, m] = normalized.split('-');
+  return `${y}年${parseInt(m, 10)}月`;
+}
+
 /** 来院記録の内訳分類（サブスク列には載せない。サブスク売上は subscription_records のみ） */
 function classifyVisitSalesType(label: string): 'transfer' | 'single' | 'coupon' | 'product' {
   const s = label.replace(/\s+/g, '').toLowerCase();
@@ -278,6 +310,8 @@ export default function SalesAggregationDashboard() {
   const [adRevenue, setAdRevenue] = useState(0);
   const [monthlyTrend, setMonthlyTrend] = useState<MonthlySalesTrend[]>([]);
   const [monthlyTrendLoading, setMonthlyTrendLoading] = useState(false);
+  const [monthlyTrendStartYm, setMonthlyTrendStartYm] = useState(defaultMonthlyTrendStartYm);
+  const [monthlyTrendEndYm, setMonthlyTrendEndYm] = useState(() => toYm(new Date()));
   const [periodStart, setPeriodStart] = useState(monthStartYmd);
   const [periodEnd, setPeriodEnd] = useState(() => toYmd(new Date()));
   const [periodStats, setPeriodStats] = useState<PeriodStats>({
@@ -641,6 +675,13 @@ export default function SalesAggregationDashboard() {
 
   useEffect(() => {
     const loadMonthlyTrend = async () => {
+      const startYm = normalizeYm(monthlyTrendStartYm);
+      const endYm = normalizeYm(monthlyTrendEndYm);
+      if (startYm > endYm) {
+        setMonthlyTrend([]);
+        return;
+      }
+
       setMonthlyTrendLoading(true);
       try {
         const MAX_ROWS = 80000;
@@ -660,48 +701,51 @@ export default function SalesAggregationDashboard() {
         );
 
         const monthlyMap: Record<string, { visitTotal: number; productTotal: number; subscriptionTotal: number }> = {};
-        const ensure = (month: string) => {
-          if (!monthlyMap[month]) monthlyMap[month] = { visitTotal: 0, productTotal: 0, subscriptionTotal: 0 };
-        };
+        listMonthsBetween(startYm, endYm).forEach((month) => {
+          monthlyMap[month] = { visitTotal: 0, productTotal: 0, subscriptionTotal: 0 };
+        });
+
+        const inRange = (month: string) => month >= startYm && month <= endYm;
 
         for (const v of visits) {
           const day = coerceRecordDayYmd(v.visit_date);
           if (!day) continue;
           const month = day.slice(0, 7);
-          ensure(month);
+          if (!inRange(month)) continue;
           monthlyMap[month].visitTotal += coerceAmount(v.amount);
         }
         for (const p of products) {
           const day = coerceRecordDayYmd(p.sale_date);
           if (!day) continue;
           const month = day.slice(0, 7);
-          ensure(month);
+          if (!inRange(month)) continue;
           monthlyMap[month].productTotal += coerceAmount(p.amount);
         }
         for (const s of subs) {
           const day = coerceRecordDayYmd(s.start_date);
           if (!day) continue;
           const month = day.slice(0, 7);
-          ensure(month);
+          if (!inRange(month)) continue;
           monthlyMap[month].subscriptionTotal += coerceAmount(s.amount);
         }
 
-        const monthlyArray: MonthlySalesTrend[] = Object.entries(monthlyMap)
-          .map(([month, totals]) => ({
+        const monthlyArray: MonthlySalesTrend[] = listMonthsBetween(startYm, endYm).map((month) => {
+          const totals = monthlyMap[month] || { visitTotal: 0, productTotal: 0, subscriptionTotal: 0 };
+          return {
             month,
             visitTotal: totals.visitTotal,
             productTotal: totals.productTotal,
             subscriptionTotal: totals.subscriptionTotal,
             total: totals.visitTotal + totals.productTotal + totals.subscriptionTotal,
-          }))
-          .sort((a, b) => a.month.localeCompare(b.month));
+          };
+        });
         setMonthlyTrend(monthlyArray);
       } finally {
         setMonthlyTrendLoading(false);
       }
     };
     void loadMonthlyTrend();
-  }, [clinicFilter, reloadTick]);
+  }, [clinicFilter, reloadTick, monthlyTrendStartYm, monthlyTrendEndYm]);
 
   useEffect(() => {
     const loadPeriodStats = async () => {
@@ -1152,7 +1196,33 @@ export default function SalesAggregationDashboard() {
               <TrendingUp size={20} />
               月別売上推移（施術・物販・他）
             </h3>
-            {monthlyTrendLoading ? (
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm">
+              <label className="flex items-center gap-1.5 font-bold text-gray-700">
+                <span className="text-xs text-gray-500">開始月</span>
+                <input
+                  type="month"
+                  value={normalizeYm(monthlyTrendStartYm)}
+                  onChange={(e) => setMonthlyTrendStartYm(normalizeYm(e.target.value))}
+                  className="px-2 py-1.5 border rounded-lg bg-white"
+                />
+              </label>
+              <span className="font-bold text-gray-500">～</span>
+              <label className="flex items-center gap-1.5 font-bold text-gray-700">
+                <span className="text-xs text-gray-500">終了月</span>
+                <input
+                  type="month"
+                  value={normalizeYm(monthlyTrendEndYm)}
+                  onChange={(e) => setMonthlyTrendEndYm(normalizeYm(e.target.value))}
+                  className="px-2 py-1.5 border rounded-lg bg-white"
+                />
+              </label>
+              <span className="text-xs text-gray-600 w-full sm:w-auto">
+                {formatYmJapanese(monthlyTrendStartYm)} ～ {formatYmJapanese(monthlyTrendEndYm)}
+              </span>
+            </div>
+            {normalizeYm(monthlyTrendStartYm) > normalizeYm(monthlyTrendEndYm) ? (
+              <div className="text-sm text-red-700 font-bold">終了月は開始月以降にしてください。</div>
+            ) : monthlyTrendLoading ? (
               <div className="text-center py-6 text-gray-500 text-sm">読み込み中...</div>
             ) : monthlyTrend.length === 0 ? (
               <div className="text-center py-6 text-gray-500 text-sm">データがありません</div>
