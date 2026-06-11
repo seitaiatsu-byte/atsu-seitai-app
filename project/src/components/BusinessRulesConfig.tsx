@@ -16,7 +16,10 @@ import {
 import AlertFollowRangeEditor from './AlertFollowRangeEditor';
 import {
   DEFAULT_CHURN_CONFIG,
+  DEFAULT_FINAL_VISIT_KEYWORDS,
+  DEFAULT_MAIN_PRODUCT_KEYWORDS,
   DEFAULT_PROGRAM_KEYWORDS,
+  DEFAULT_REVISIT_KEYWORDS,
 } from '../lib/churnConfig';
 import {
   DEFAULT_KAWANISHI_SCHEDULE,
@@ -39,15 +42,26 @@ export default function BusinessRulesConfig() {
   const [inactiveDays, setInactiveDays] = useState('30');
   const [excludeKeywords, setExcludeKeywords] = useState('BE,初回,体験');
   const [churnLapsedDays, setChurnLapsedDays] = useState('90');
+  const [churnMainProductKeywords, setChurnMainProductKeywords] = useState(
+    DEFAULT_MAIN_PRODUCT_KEYWORDS.join(',')
+  );
   const [churnProgramKeywords, setChurnProgramKeywords] = useState(DEFAULT_PROGRAM_KEYWORDS.join(','));
+  const [churnFinalVisitKeywords, setChurnFinalVisitKeywords] = useState(
+    DEFAULT_FINAL_VISIT_KEYWORDS.join(',')
+  );
+  const [churnRevisitKeywords, setChurnRevisitKeywords] = useState(DEFAULT_REVISIT_KEYWORDS.join(','));
+  const [churnWindowsFlat, setChurnWindowsFlat] = useState(DEFAULT_CHURN_CONFIG.windowsFlat.join(','));
   const [churnWindowsSingle, setChurnWindowsSingle] = useState(
     DEFAULT_CHURN_CONFIG.windowsSingle.join(',')
   );
-  const [churnWindowsProgram, setChurnWindowsProgram] = useState(
-    DEFAULT_CHURN_CONFIG.windowsProgram.join(',')
+  const [churnWindowsPostProgram, setChurnWindowsPostProgram] = useState(
+    DEFAULT_CHURN_CONFIG.windowsPostProgram.join(',')
   );
-  const [churnWindowsTicket, setChurnWindowsTicket] = useState(
-    DEFAULT_CHURN_CONFIG.windowsTicket.join(',')
+  const [churnWindowsPostTicket, setChurnWindowsPostTicket] = useState(
+    DEFAULT_CHURN_CONFIG.windowsPostTicket.join(',')
+  );
+  const [churnWindowsRevisit, setChurnWindowsRevisit] = useState(
+    DEFAULT_CHURN_CONFIG.windowsRevisit.join(',')
   );
   const [dailyMaxSlots, setDailyMaxSlots] = useState('20');
   const [takatsukiWeekly, setTakatsukiWeekly] = useState<ClinicDaySlots>({ ...DEFAULT_TAKATSUKI_SCHEDULE });
@@ -112,14 +126,32 @@ export default function BusinessRulesConfig() {
       if (inactiveRule) setInactiveDays(inactiveRule.rule_value);
       if (excludeRule) setExcludeKeywords(excludeRule.rule_value);
       if (churnRule) setChurnLapsedDays(churnRule.rule_value);
+      const churnMainKwRule = data.find((r: BusinessRule) => r.rule_key === 'churn_main_product_keywords');
       const churnKwRule = data.find((r: BusinessRule) => r.rule_key === 'churn_program_keywords');
+      const churnFinalKwRule = data.find((r: BusinessRule) => r.rule_key === 'churn_final_visit_keywords');
+      const churnRevisitKwRule = data.find((r: BusinessRule) => r.rule_key === 'churn_revisit_keywords');
+      const churnWinFlatRule = data.find((r: BusinessRule) => r.rule_key === 'churn_windows_flat');
       const churnWinSingleRule = data.find((r: BusinessRule) => r.rule_key === 'churn_windows_single');
+      const churnWinPostProgramRule = data.find(
+        (r: BusinessRule) => r.rule_key === 'churn_windows_post_program'
+      );
       const churnWinProgramRule = data.find((r: BusinessRule) => r.rule_key === 'churn_windows_program');
+      const churnWinPostTicketRule = data.find(
+        (r: BusinessRule) => r.rule_key === 'churn_windows_post_ticket'
+      );
       const churnWinTicketRule = data.find((r: BusinessRule) => r.rule_key === 'churn_windows_ticket');
+      const churnWinRevisitRule = data.find((r: BusinessRule) => r.rule_key === 'churn_windows_revisit');
+      if (churnMainKwRule) setChurnMainProductKeywords(churnMainKwRule.rule_value);
       if (churnKwRule) setChurnProgramKeywords(churnKwRule.rule_value);
+      if (churnFinalKwRule) setChurnFinalVisitKeywords(churnFinalKwRule.rule_value);
+      if (churnRevisitKwRule) setChurnRevisitKeywords(churnRevisitKwRule.rule_value);
+      if (churnWinFlatRule) setChurnWindowsFlat(churnWinFlatRule.rule_value);
       if (churnWinSingleRule) setChurnWindowsSingle(churnWinSingleRule.rule_value);
-      if (churnWinProgramRule) setChurnWindowsProgram(churnWinProgramRule.rule_value);
-      if (churnWinTicketRule) setChurnWindowsTicket(churnWinTicketRule.rule_value);
+      if (churnWinPostProgramRule) setChurnWindowsPostProgram(churnWinPostProgramRule.rule_value);
+      else if (churnWinProgramRule) setChurnWindowsPostProgram(churnWinProgramRule.rule_value);
+      if (churnWinPostTicketRule) setChurnWindowsPostTicket(churnWinPostTicketRule.rule_value);
+      else if (churnWinTicketRule) setChurnWindowsPostTicket(churnWinTicketRule.rule_value);
+      if (churnWinRevisitRule) setChurnWindowsRevisit(churnWinRevisitRule.rule_value);
       if (maxSlotsRule) setDailyMaxSlots(maxSlotsRule.rule_value);
       const takWeekRule = data.find((r: BusinessRule) => r.rule_key === 'util_weekly_schedule_takatsuki');
       const kawaWeekRule = data.find((r: BusinessRule) => r.rule_key === 'util_weekly_schedule_kawanishi');
@@ -245,9 +277,45 @@ export default function BusinessRulesConfig() {
 
     await supabase.from('business_rules').upsert(
       {
+        rule_key: 'churn_main_product_keywords',
+        rule_value: churnMainProductKeywords,
+        description: '離脱分析：本商品（BE）購入判定キーワード（カンマ区切り）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
         rule_key: 'churn_program_keywords',
         rule_value: churnProgramKeywords,
-        description: '離患率：プログラム契約判定キーワード（メニュー名・支払詳細、カンマ区切り）',
+        description: '離脱分析：プログラム契約判定キーワード（メニュー名・支払詳細、カンマ区切り）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'churn_final_visit_keywords',
+        rule_value: churnFinalVisitKeywords,
+        description: '離脱分析：最終回メニュー判定キーワード（カンマ区切り）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'churn_revisit_keywords',
+        rule_value: churnRevisitKeywords,
+        description: '離脱分析：再診メニュー判定キーワード（カンマ区切り）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'churn_windows_flat',
+        rule_value: churnWindowsFlat,
+        description: '離脱分析：A全体フラットの観察窓（日数、カンマ区切り）',
       },
       { onConflict: 'rule_key' }
     );
@@ -256,25 +324,34 @@ export default function BusinessRulesConfig() {
       {
         rule_key: 'churn_windows_single',
         rule_value: churnWindowsSingle,
-        description: '離患率：都度契約の観察窓（日数、カンマ区切り。例: 90,180）',
+        description: '離脱分析：B-1都度の観察窓（日数、カンマ区切り）',
       },
       { onConflict: 'rule_key' }
     );
 
     await supabase.from('business_rules').upsert(
       {
-        rule_key: 'churn_windows_program',
-        rule_value: churnWindowsProgram,
-        description: '離患率：プログラム契約の観察窓（日数、カンマ区切り）',
+        rule_key: 'churn_windows_post_program',
+        rule_value: churnWindowsPostProgram,
+        description: '離脱分析：B-3プログラム終了後の観察窓（日数、カンマ区切り）',
       },
       { onConflict: 'rule_key' }
     );
 
     await supabase.from('business_rules').upsert(
       {
-        rule_key: 'churn_windows_ticket',
-        rule_value: churnWindowsTicket,
-        description: '離患率：回数券契約の観察窓（日数、カンマ区切り）',
+        rule_key: 'churn_windows_post_ticket',
+        rule_value: churnWindowsPostTicket,
+        description: '離脱分析：B-2回数券消化後の観察窓（日数、カンマ区切り）',
+      },
+      { onConflict: 'rule_key' }
+    );
+
+    await supabase.from('business_rules').upsert(
+      {
+        rule_key: 'churn_windows_revisit',
+        rule_value: churnWindowsRevisit,
+        description: '離脱分析：C再診率の観察窓（日数、カンマ区切り）',
       },
       { onConflict: 'rule_key' }
     );
@@ -460,29 +537,73 @@ export default function BusinessRulesConfig() {
           {openPanels.churn && (
             <div className="px-5 pb-5 space-y-4">
               <p className="text-sm text-gray-600">
-                アラートページ上部の<strong>契約タイプ別離患率</strong>（コホート型）と、従来の経過日数分析の設定です。
+                アラートページ上部の<strong>本商品起点の離脱・継続・再診率</strong>の設定です。
+                通院除外は上の <strong>exclude_keywords</strong> のみ（ここでは勝手に足しません）。
                 詳細は <code className="text-xs bg-white px-1 rounded">docs/churn-rate-design.md</code>
               </p>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">
-                  プログラム判定キーワード（カンマ区切り）
-                </label>
-                <textarea
-                  value={churnProgramKeywords}
-                  onChange={(e) => setChurnProgramKeywords(e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-mono"
-                  placeholder="6M,6ヶ月,プログラム,..."
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  成約来院のメニュー名・支払詳細に含まれる語で「②プログラム」に分類します。
-                </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    本商品（BE）判定キーワード
+                  </label>
+                  <textarea
+                    value={churnMainProductKeywords}
+                    onChange={(e) => setChurnMainProductKeywords(e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-mono"
+                    placeholder="BE,本商品,..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    プログラム判定キーワード
+                  </label>
+                  <textarea
+                    value={churnProgramKeywords}
+                    onChange={(e) => setChurnProgramKeywords(e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-mono"
+                    placeholder="6M,6ヶ月,プログラム,..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                    最終回メニューキーワード
+                  </label>
+                  <textarea
+                    value={churnFinalVisitKeywords}
+                    onChange={(e) => setChurnFinalVisitKeywords(e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-mono"
+                    placeholder="プログラム最終,最終回,卒業"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">再診メニューキーワード</label>
+                  <textarea
+                    value={churnRevisitKeywords}
+                    onChange={(e) => setChurnRevisitKeywords(e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-mono"
+                    placeholder="再診,再開,..."
+                  />
+                </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
-                  <label className="block text-sm font-bold text-orange-800 mb-1">都度の観察窓（日）</label>
+                  <label className="block text-sm font-bold text-slate-800 mb-1">A 全体フラット（日）</label>
+                  <input
+                    type="text"
+                    value={churnWindowsFlat}
+                    onChange={(e) => setChurnWindowsFlat(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg text-sm font-mono"
+                    placeholder="90,180"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-orange-800 mb-1">B-1 都度（日）</label>
                   <input
                     type="text"
                     value={churnWindowsSingle}
@@ -492,28 +613,39 @@ export default function BusinessRulesConfig() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-blue-800 mb-1">プログラムの観察窓（日）</label>
+                  <label className="block text-sm font-bold text-violet-800 mb-1">B-2 券消化後（日）</label>
                   <input
                     type="text"
-                    value={churnWindowsProgram}
-                    onChange={(e) => setChurnWindowsProgram(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-blue-200 rounded-lg text-sm font-mono"
-                    placeholder="180,365,548,730"
+                    value={churnWindowsPostTicket}
+                    onChange={(e) => setChurnWindowsPostTicket(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-violet-200 rounded-lg text-sm font-mono"
+                    placeholder="90,180,365"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-violet-800 mb-1">回数券の観察窓（日）</label>
+                  <label className="block text-sm font-bold text-blue-800 mb-1">B-3 プログラム後（日）</label>
                   <input
                     type="text"
-                    value={churnWindowsTicket}
-                    onChange={(e) => setChurnWindowsTicket(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-violet-200 rounded-lg text-sm font-mono"
-                    placeholder="180,365,548,730"
+                    value={churnWindowsPostProgram}
+                    onChange={(e) => setChurnWindowsPostProgram(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-blue-200 rounded-lg text-sm font-mono"
+                    placeholder="90,180,365"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-indigo-800 mb-1">C 再診率（日）</label>
+                  <input
+                    type="text"
+                    value={churnWindowsRevisit}
+                    onChange={(e) => setChurnWindowsRevisit(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-indigo-200 rounded-lg text-sm font-mono"
+                    placeholder="90,180,365"
                   />
                 </div>
               </div>
               <p className="text-xs text-gray-500">
-                観察窓は成約日からの日数です（例: 180=6ヶ月）。観察期間が終わった人だけが分母に入ります。
+                A/B-1は本商品購入日から。B-2/B-3は最終回マーク（なければ想定期間）から。Cは最終回マークから。
+                観察期間が終わった人だけが分母に入ります。
               </p>
 
               <div className="pt-2 border-t border-teal-200">
