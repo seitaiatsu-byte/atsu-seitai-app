@@ -201,14 +201,14 @@ function App() {
 
       {currentTab === 'reports' && (
         <div className="max-w-7xl mx-auto p-4 max-sm:p-2 space-y-4 max-sm:space-y-3">
-          <PageHeader title="日報・月報" onBack={goHome} />
+          <PageHeader title="LTV・顧客分析" onBack={goHome} />
           <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-xl p-4 shadow border border-gray-100">
             <ClinicScopeToggle value={reportsClinic} onChange={setReportsClinic} />
           </div>
-          <ReportsAnalytics clinicScope={reportsClinic} />
           <LTVRanking clinicScope={reportsClinic} />
           <RegionalAnalysis clinicScope={reportsClinic} />
           <DetailedAnalytics clinicScope={reportsClinic} />
+          <ReportsAnalytics clinicScope={reportsClinic} />
         </div>
       )}
 
@@ -296,7 +296,7 @@ function App() {
             }`}
           >
             <BarChart3 size={24} />
-            <span className="text-xs font-bold mt-1">日報月報</span>
+            <span className="text-xs font-bold mt-1">LTV分析</span>
           </button>
           <button
             type="button"

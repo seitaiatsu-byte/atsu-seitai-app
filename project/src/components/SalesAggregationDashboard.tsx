@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, FileText, TrendingUp, Repeat, Megaphone, Clock3, Activity, Grid3X3, Map as MapIcon, DollarSign } from 'lucide-react';
+import { BarChart3, FileText, TrendingUp, Repeat, Megaphone, Clock3, Activity, Grid3X3, Map as MapIcon, DollarSign, Calendar } from 'lucide-react';
 import ModalCloseButton from './ModalCloseButton';
 import { supabase } from '../lib/supabase';
 import { clinicMatchesRecord } from '../lib/clinic';
@@ -42,6 +42,22 @@ type DailyBreakdownItem = {
   customerNumber: string;
   customerName: string;
   amount: number;
+};
+
+type MonthlySalesTrend = {
+  month: string;
+  visitTotal: number;
+  productTotal: number;
+  subscriptionTotal: number;
+  total: number;
+};
+
+type PeriodStats = {
+  visitTotal: number;
+  productTotal: number;
+  subscriptionTotal: number;
+  grandTotal: number;
+  dayCount: number;
 };
 
 const ANALYSIS_ITEMS: AnalysisItem[] = [
@@ -147,6 +163,27 @@ function formatDateCompact(ymd: string): string {
   return `${m}/${day}（${JP_WEEK[d.getDay()]}）`;
 }
 
+function formatYmdJapanese(ymd: string): string {
+  const d = new Date(`${ymd}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return ymd;
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+function formatTrendYen(n: number, compact: boolean) {
+  const v = Math.round(n);
+  if (compact && v >= 10000) {
+    const man = v / 10000;
+    return `¥${Number.isInteger(man) ? man : man.toFixed(1)}万`;
+  }
+  if (compact && v >= 1000) return `¥${Math.round(v / 1000)}k`;
+  return `¥${v.toLocaleString()}`;
+}
+
+function monthStartYmd(): string {
+  const now = new Date();
+  return toYmd(new Date(now.getFullYear(), now.getMonth(), 1));
+}
+
 function salesYearFromMonth(ym: string): string {
   const y = parseInt(normalizeYm(ym).split('-')[0] || '', 10);
   return Number.isFinite(y) ? `${y}年` : '';
@@ -239,6 +276,18 @@ export default function SalesAggregationDashboard() {
   const [adSpend, setAdSpend] = useState(0);
   const [adNewCustomers, setAdNewCustomers] = useState(0);
   const [adRevenue, setAdRevenue] = useState(0);
+  const [monthlyTrend, setMonthlyTrend] = useState<MonthlySalesTrend[]>([]);
+  const [monthlyTrendLoading, setMonthlyTrendLoading] = useState(false);
+  const [periodStart, setPeriodStart] = useState(monthStartYmd);
+  const [periodEnd, setPeriodEnd] = useState(() => toYmd(new Date()));
+  const [periodStats, setPeriodStats] = useState<PeriodStats>({
+    visitTotal: 0,
+    productTotal: 0,
+    subscriptionTotal: 0,
+    grandTotal: 0,
+    dayCount: 0,
+  });
+  const [periodLoading, setPeriodLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -590,6 +639,134 @@ export default function SalesAggregationDashboard() {
     return () => window.removeEventListener('records-updated', reload);
   }, []);
 
+  useEffect(() => {
+    const loadMonthlyTrend = async () => {
+      setMonthlyTrendLoading(true);
+      try {
+        const MAX_ROWS = 80000;
+        const [visRes, prodRes, subRes] = await Promise.all([
+          supabase.from('visit_records').select('visit_date,amount,clinic_name').limit(MAX_ROWS),
+          supabase.from('product_sales').select('sale_date,amount,clinic_name').limit(MAX_ROWS),
+          supabase.from('subscription_records').select('start_date,amount,clinic_name').limit(MAX_ROWS),
+        ]);
+        const visits = ((visRes.data as Record<string, unknown>[] | null) || []).filter((v) =>
+          clinicMatchesRecord(clinicFilter, v.clinic_name)
+        );
+        const products = ((prodRes.data as Record<string, unknown>[] | null) || []).filter((p) =>
+          clinicMatchesRecord(clinicFilter, p.clinic_name)
+        );
+        const subs = ((subRes.data as Record<string, unknown>[] | null) || []).filter((s) =>
+          clinicMatchesRecord(clinicFilter, s.clinic_name)
+        );
+
+        const monthlyMap: Record<string, { visitTotal: number; productTotal: number; subscriptionTotal: number }> = {};
+        const ensure = (month: string) => {
+          if (!monthlyMap[month]) monthlyMap[month] = { visitTotal: 0, productTotal: 0, subscriptionTotal: 0 };
+        };
+
+        for (const v of visits) {
+          const day = coerceRecordDayYmd(v.visit_date);
+          if (!day) continue;
+          const month = day.slice(0, 7);
+          ensure(month);
+          monthlyMap[month].visitTotal += coerceAmount(v.amount);
+        }
+        for (const p of products) {
+          const day = coerceRecordDayYmd(p.sale_date);
+          if (!day) continue;
+          const month = day.slice(0, 7);
+          ensure(month);
+          monthlyMap[month].productTotal += coerceAmount(p.amount);
+        }
+        for (const s of subs) {
+          const day = coerceRecordDayYmd(s.start_date);
+          if (!day) continue;
+          const month = day.slice(0, 7);
+          ensure(month);
+          monthlyMap[month].subscriptionTotal += coerceAmount(s.amount);
+        }
+
+        const monthlyArray: MonthlySalesTrend[] = Object.entries(monthlyMap)
+          .map(([month, totals]) => ({
+            month,
+            visitTotal: totals.visitTotal,
+            productTotal: totals.productTotal,
+            subscriptionTotal: totals.subscriptionTotal,
+            total: totals.visitTotal + totals.productTotal + totals.subscriptionTotal,
+          }))
+          .sort((a, b) => a.month.localeCompare(b.month));
+        setMonthlyTrend(monthlyArray);
+      } finally {
+        setMonthlyTrendLoading(false);
+      }
+    };
+    void loadMonthlyTrend();
+  }, [clinicFilter, reloadTick]);
+
+  useEffect(() => {
+    const loadPeriodStats = async () => {
+      const start = periodStart.trim();
+      const end = periodEnd.trim();
+      if (!start || !end || start > end) {
+        setPeriodStats({ visitTotal: 0, productTotal: 0, subscriptionTotal: 0, grandTotal: 0, dayCount: 0 });
+        return;
+      }
+      setPeriodLoading(true);
+      try {
+        const MAX_ROWS = 80000;
+        const [visRes, prodRes, subRes] = await Promise.all([
+          supabase.from('visit_records').select('visit_date,amount,clinic_name').limit(MAX_ROWS),
+          supabase.from('product_sales').select('sale_date,amount,clinic_name').limit(MAX_ROWS),
+          supabase.from('subscription_records').select('start_date,amount,clinic_name').limit(MAX_ROWS),
+        ]);
+        const visits = ((visRes.data as Record<string, unknown>[] | null) || []).filter((v) =>
+          clinicMatchesRecord(clinicFilter, v.clinic_name)
+        );
+        const products = ((prodRes.data as Record<string, unknown>[] | null) || []).filter((p) =>
+          clinicMatchesRecord(clinicFilter, p.clinic_name)
+        );
+        const subs = ((subRes.data as Record<string, unknown>[] | null) || []).filter((s) =>
+          clinicMatchesRecord(clinicFilter, s.clinic_name)
+        );
+
+        let visitTotal = 0;
+        let productTotal = 0;
+        let subscriptionTotal = 0;
+        const activeDays = new Set<string>();
+
+        for (const v of visits) {
+          const day = coerceRecordDayYmd(v.visit_date);
+          if (!day || day < start || day > end) continue;
+          visitTotal += coerceAmount(v.amount);
+          activeDays.add(day);
+        }
+        for (const p of products) {
+          const day = coerceRecordDayYmd(p.sale_date);
+          if (!day || day < start || day > end) continue;
+          productTotal += coerceAmount(p.amount);
+          activeDays.add(day);
+        }
+        for (const s of subs) {
+          const day = coerceRecordDayYmd(s.start_date);
+          if (!day || day < start || day > end) continue;
+          subscriptionTotal += coerceAmount(s.amount);
+          activeDays.add(day);
+        }
+
+        setPeriodStats({
+          visitTotal,
+          productTotal,
+          subscriptionTotal,
+          grandTotal: visitTotal + productTotal + subscriptionTotal,
+          dayCount: activeDays.size,
+        });
+      } finally {
+        setPeriodLoading(false);
+      }
+    };
+    void loadPeriodStats();
+  }, [periodStart, periodEnd, clinicFilter, reloadTick]);
+
   const totals = useMemo(() => {
     return rows.reduce(
       (acc, r) => {
@@ -629,6 +806,50 @@ export default function SalesAggregationDashboard() {
   const selectedBreakdownTotal = useMemo(
     () => selectedBreakdownItems.reduce((sum, item) => sum + item.amount, 0),
     [selectedBreakdownItems]
+  );
+
+  const renderMonthlyTrend = () => (
+    <div className="space-y-1 sm:space-y-1.5">
+      {monthlyTrend.map((item) => (
+        <div key={item.month} className="flex items-center gap-2 py-0.5">
+          <span className="text-[11px] sm:text-sm font-bold text-gray-700 w-[4.2rem] sm:w-[5.5rem] shrink-0 tabular-nums">
+            {item.month}
+          </span>
+          <div className="flex-1 min-w-0 h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden flex">
+            {item.visitTotal > 0 && (
+              <div
+                className="bg-blue-500 h-full"
+                style={{ width: `${item.total ? (item.visitTotal / item.total) * 100 : 0}%` }}
+                title={`施術 ¥${item.visitTotal.toLocaleString()}`}
+              />
+            )}
+            {item.productTotal > 0 && (
+              <div
+                className="bg-orange-500 h-full"
+                style={{ width: `${item.total ? (item.productTotal / item.total) * 100 : 0}%` }}
+                title={`物販 ¥${item.productTotal.toLocaleString()}`}
+              />
+            )}
+            {item.subscriptionTotal > 0 && (
+              <div
+                className="bg-purple-500 h-full"
+                style={{ width: `${item.total ? (item.subscriptionTotal / item.total) * 100 : 0}%` }}
+                title={`他 ¥${item.subscriptionTotal.toLocaleString()}`}
+              />
+            )}
+          </div>
+          <span className="text-[11px] sm:text-sm font-bold text-gray-900 shrink-0 tabular-nums text-right min-w-[3.5rem] sm:min-w-0">
+            <span className="sm:hidden">{formatTrendYen(item.total, true)}</span>
+            <span className="hidden sm:inline">¥{item.total.toLocaleString()}</span>
+          </span>
+        </div>
+      ))}
+      <p className="pt-1 text-[10px] text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5">
+        <span><span className="inline-block w-2 h-1.5 rounded-sm bg-blue-500 align-middle mr-0.5" />施術</span>
+        <span><span className="inline-block w-2 h-1.5 rounded-sm bg-orange-500 align-middle mr-0.5" />物販</span>
+        <span><span className="inline-block w-2 h-1.5 rounded-sm bg-purple-500 align-middle mr-0.5" />他</span>
+      </p>
+    </div>
   );
 
   const downloadCsv = () => {
@@ -903,6 +1124,82 @@ export default function SalesAggregationDashboard() {
                 </tr>
               </tfoot>
             </table>
+          </div>
+
+          <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4 space-y-3">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">
+              <TrendingUp size={20} />
+              月別売上推移（施術・物販・他）
+            </h3>
+            {monthlyTrendLoading ? (
+              <div className="text-center py-6 text-gray-500 text-sm">読み込み中...</div>
+            ) : monthlyTrend.length === 0 ? (
+              <div className="text-center py-6 text-gray-500 text-sm">データがありません</div>
+            ) : (
+              <div className="max-h-72 overflow-y-auto">{renderMonthlyTrend()}</div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 space-y-4">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Calendar size={20} />
+              期間分析
+            </h3>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm">
+              <label className="flex items-center gap-1.5 font-bold text-gray-700">
+                <span className="text-xs text-gray-500">開始</span>
+                <input
+                  type="date"
+                  value={periodStart}
+                  onChange={(e) => setPeriodStart(e.target.value)}
+                  className="px-2 py-1.5 border rounded-lg bg-white"
+                />
+              </label>
+              <span className="font-bold text-gray-500">～</span>
+              <label className="flex items-center gap-1.5 font-bold text-gray-700">
+                <span className="text-xs text-gray-500">終了</span>
+                <input
+                  type="date"
+                  value={periodEnd}
+                  onChange={(e) => setPeriodEnd(e.target.value)}
+                  className="px-2 py-1.5 border rounded-lg bg-white"
+                />
+              </label>
+              <span className="text-xs text-gray-600 w-full sm:w-auto">
+                {formatYmdJapanese(periodStart)} ～ {formatYmdJapanese(periodEnd)}
+              </span>
+            </div>
+            {periodStart > periodEnd ? (
+              <div className="text-sm text-red-700 font-bold">終了日は開始日以降にしてください。</div>
+            ) : periodLoading ? (
+              <div className="text-sm text-gray-500">集計中...</div>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
+                <div className="rounded-lg bg-white border border-blue-100 p-3 col-span-2 lg:col-span-1">
+                  <div className="text-xs text-gray-600 font-bold">期間合計</div>
+                  <div className="text-xl sm:text-2xl font-black text-blue-800">¥{yen(periodStats.grandTotal)}</div>
+                  <div className="text-[11px] text-gray-500 mt-1">売上日数 {periodStats.dayCount}日</div>
+                </div>
+                <div className="rounded-lg bg-white border border-blue-100 p-3">
+                  <div className="text-xs text-blue-700 font-bold">施術</div>
+                  <div className="text-lg font-black text-gray-900">¥{yen(periodStats.visitTotal)}</div>
+                </div>
+                <div className="rounded-lg bg-white border border-orange-100 p-3">
+                  <div className="text-xs text-orange-700 font-bold">物販</div>
+                  <div className="text-lg font-black text-gray-900">¥{yen(periodStats.productTotal)}</div>
+                </div>
+                <div className="rounded-lg bg-white border border-purple-100 p-3">
+                  <div className="text-xs text-purple-700 font-bold">他（サブスク等）</div>
+                  <div className="text-lg font-black text-gray-900">¥{yen(periodStats.subscriptionTotal)}</div>
+                </div>
+                <div className="rounded-lg bg-white border border-gray-200 p-3 col-span-2 lg:col-span-1">
+                  <div className="text-xs text-gray-600 font-bold">1日平均</div>
+                  <div className="text-lg font-black text-gray-900">
+                    ¥{yen(periodStats.dayCount > 0 ? periodStats.grandTotal / periodStats.dayCount : 0)}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (

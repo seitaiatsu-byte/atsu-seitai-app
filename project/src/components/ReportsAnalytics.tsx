@@ -1,25 +1,9 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Calendar, DollarSign, PieChart } from 'lucide-react';
+import { DollarSign, PieChart } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { clinicMatchesRecord } from '../lib/clinic';
 import { formatPaymentDetailLabel, mergeIdNameMaps } from '../lib/paymentDisplay';
 import type { ClinicScope } from './ClinicScopeToggle';
-
-interface DailySales {
-  date: string;
-  visitTotal: number;
-  productTotal: number;
-  subscriptionTotal: number;
-  total: number;
-}
-
-interface MonthlySales {
-  month: string;
-  visitTotal: number;
-  productTotal: number;
-  subscriptionTotal: number;
-  total: number;
-}
 
 function aggregateTopSlices(
   entries: { label: string; value: number }[],
@@ -108,9 +92,6 @@ interface ReportsAnalyticsProps {
 }
 
 export default function ReportsAnalytics({ clinicScope }: ReportsAnalyticsProps) {
-  const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
-  const [dailyData, setDailyData] = useState<DailySales[]>([]);
-  const [monthlyData, setMonthlyData] = useState<MonthlySales[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalStats, setTotalStats] = useState({
     visitTotal: 0,
@@ -134,7 +115,7 @@ export default function ReportsAnalytics({ clinicScope }: ReportsAnalyticsProps)
       window.removeEventListener('customers-updated', onCustomersUpdated);
       window.removeEventListener('records-updated', onRecordsUpdated);
     };
-  }, [viewMode, clinicScope]);
+  }, [clinicScope]);
 
   const filterByClinic = <T extends { clinic_name?: string | null }>(rows: T[] | null) =>
     (rows || []).filter((r) => clinicMatchesRecord(clinicScope, r.clinic_name));
@@ -182,157 +163,17 @@ export default function ReportsAnalytics({ clinicScope }: ReportsAnalyticsProps)
       aggregateTopSlices([...subBreakdownMap.entries()].map(([label, value]) => ({ label, value })), 5)
     );
 
-    if (viewMode === 'daily') {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const startDate = thirtyDaysAgo.toISOString().split('T')[0];
-
-      const v2 = visits.filter((v) => v.visit_date >= startDate);
-      const p2 = products.filter((p) => p.sale_date >= startDate);
-      const s2 = subscriptions.filter((s) => s.start_date >= startDate);
-
-      const dailyMap: Record<string, { visitTotal: number; productTotal: number; subscriptionTotal: number }> = {};
-
-      v2.forEach((v) => {
-        if (!dailyMap[v.visit_date]) dailyMap[v.visit_date] = { visitTotal: 0, productTotal: 0, subscriptionTotal: 0 };
-        dailyMap[v.visit_date].visitTotal += Number(v.amount || 0);
-      });
-      p2.forEach((p) => {
-        if (!dailyMap[p.sale_date]) dailyMap[p.sale_date] = { visitTotal: 0, productTotal: 0, subscriptionTotal: 0 };
-        dailyMap[p.sale_date].productTotal += Number(p.amount || 0);
-      });
-      s2.forEach((s) => {
-        if (!dailyMap[s.start_date]) dailyMap[s.start_date] = { visitTotal: 0, productTotal: 0, subscriptionTotal: 0 };
-        dailyMap[s.start_date].subscriptionTotal += Number(s.amount || 0);
-      });
-
-      const dailyArray: DailySales[] = Object.entries(dailyMap)
-        .map(([date, totals]) => ({
-          date,
-          visitTotal: totals.visitTotal,
-          productTotal: totals.productTotal,
-          subscriptionTotal: totals.subscriptionTotal,
-          total: totals.visitTotal + totals.productTotal + totals.subscriptionTotal,
-        }))
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-      setDailyData(dailyArray);
-      const visitSum = dailyArray.reduce((sum, d) => sum + d.visitTotal, 0);
-      const productSum = dailyArray.reduce((sum, d) => sum + d.productTotal, 0);
-      const subscriptionSum = dailyArray.reduce((sum, d) => sum + d.subscriptionTotal, 0);
-      setTotalStats({
-        visitTotal: visitSum,
-        productTotal: productSum,
-        subscriptionTotal: subscriptionSum,
-        grandTotal: visitSum + productSum + subscriptionSum,
-      });
-    } else {
-      const monthlyMap: Record<string, { visitTotal: number; productTotal: number; subscriptionTotal: number }> = {};
-
-      visits.forEach((v) => {
-        const month = v.visit_date.substring(0, 7);
-        if (!monthlyMap[month]) monthlyMap[month] = { visitTotal: 0, productTotal: 0, subscriptionTotal: 0 };
-        monthlyMap[month].visitTotal += Number(v.amount || 0);
-      });
-      products.forEach((p) => {
-        const month = p.sale_date.substring(0, 7);
-        if (!monthlyMap[month]) monthlyMap[month] = { visitTotal: 0, productTotal: 0, subscriptionTotal: 0 };
-        monthlyMap[month].productTotal += Number(p.amount || 0);
-      });
-      subscriptions.forEach((s) => {
-        const month = s.start_date.substring(0, 7);
-        if (!monthlyMap[month]) monthlyMap[month] = { visitTotal: 0, productTotal: 0, subscriptionTotal: 0 };
-        monthlyMap[month].subscriptionTotal += Number(s.amount || 0);
-      });
-
-      const monthlyArray: MonthlySales[] = Object.entries(monthlyMap)
-        .map(([month, totals]) => ({
-          month,
-          visitTotal: totals.visitTotal,
-          productTotal: totals.productTotal,
-          subscriptionTotal: totals.subscriptionTotal,
-          total: totals.visitTotal + totals.productTotal + totals.subscriptionTotal,
-        }))
-        .sort((a, b) => a.month.localeCompare(b.month));
-
-      setMonthlyData(monthlyArray);
-      const visitSum = monthlyArray.reduce((sum, m) => sum + m.visitTotal, 0);
-      const productSum = monthlyArray.reduce((sum, m) => sum + m.productTotal, 0);
-      const subscriptionSum = monthlyArray.reduce((sum, m) => sum + m.subscriptionTotal, 0);
-      setTotalStats({
-        visitTotal: visitSum,
-        productTotal: productSum,
-        subscriptionTotal: subscriptionSum,
-        grandTotal: visitSum + productSum + subscriptionSum,
-      });
-    }
+    const visitSum = visits.reduce((sum, v) => sum + Number(v.amount || 0), 0);
+    const productSum = products.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const subscriptionSum = subscriptions.reduce((sum, s) => sum + Number(s.amount || 0), 0);
+    setTotalStats({
+      visitTotal: visitSum,
+      productTotal: productSum,
+      subscriptionTotal: subscriptionSum,
+      grandTotal: visitSum + productSum + subscriptionSum,
+    });
 
     setLoading(false);
-  };
-
-  const formatTrendYen = (n: number, compact: boolean) => {
-    const v = Math.round(n);
-    if (compact && v >= 10000) {
-      const man = v / 10000;
-      return `¥${Number.isInteger(man) ? man : man.toFixed(1)}万`;
-    }
-    if (compact && v >= 1000) return `¥${Math.round(v / 1000)}k`;
-    return `¥${v.toLocaleString()}`;
-  };
-
-  const renderBarChart = () => {
-    const data = viewMode === 'daily' ? dailyData : monthlyData;
-    return (
-      <div className="space-y-1 sm:space-y-1.5">
-        {data.map((item) => {
-          const date = viewMode === 'daily' ? (item as DailySales).date : (item as MonthlySales).month;
-          const total = item.total;
-          const dateLabel =
-            viewMode === 'daily'
-              ? new Date(date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })
-              : date;
-          return (
-            <div key={date} className="flex items-center gap-2 py-0.5">
-              <span className="text-[11px] sm:text-sm font-bold text-gray-700 w-[4.2rem] sm:w-[5.5rem] shrink-0 tabular-nums">
-                {dateLabel}
-              </span>
-              <div className="flex-1 min-w-0 h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden flex">
-                {item.visitTotal > 0 && (
-                  <div
-                    className="bg-blue-500 h-full"
-                    style={{ width: `${total ? (item.visitTotal / total) * 100 : 0}%` }}
-                    title={`施術 ¥${item.visitTotal.toLocaleString()}`}
-                  />
-                )}
-                {item.productTotal > 0 && (
-                  <div
-                    className="bg-orange-500 h-full"
-                    style={{ width: `${total ? (item.productTotal / total) * 100 : 0}%` }}
-                    title={`物販 ¥${item.productTotal.toLocaleString()}`}
-                  />
-                )}
-                {item.subscriptionTotal > 0 && (
-                  <div
-                    className="bg-purple-500 h-full"
-                    style={{ width: `${total ? (item.subscriptionTotal / total) * 100 : 0}%` }}
-                    title={`他 ¥${item.subscriptionTotal.toLocaleString()}`}
-                  />
-                )}
-              </div>
-              <span className="text-[11px] sm:text-sm font-bold text-gray-900 shrink-0 tabular-nums text-right min-w-[3.5rem] sm:min-w-0">
-                <span className="sm:hidden">{formatTrendYen(total, true)}</span>
-                <span className="hidden sm:inline">¥{total.toLocaleString()}</span>
-              </span>
-            </div>
-          );
-        })}
-        <p className="pt-1 text-[10px] text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5">
-          <span><span className="inline-block w-2 h-1.5 rounded-sm bg-blue-500 align-middle mr-0.5" />施術</span>
-          <span><span className="inline-block w-2 h-1.5 rounded-sm bg-orange-500 align-middle mr-0.5" />物販</span>
-          <span><span className="inline-block w-2 h-1.5 rounded-sm bg-purple-500 align-middle mr-0.5" />他</span>
-        </p>
-      </div>
-    );
   };
 
   const ratioPieSlices = () => {
@@ -347,42 +188,31 @@ export default function ReportsAnalytics({ clinicScope }: ReportsAnalyticsProps)
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="text-blue-600" size={28} />
-          <h2 className="text-2xl font-bold text-gray-800">日報・月報</h2>
+      <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl shadow-xl p-6 max-sm:p-4 max-sm:rounded-xl">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+          <DollarSign size={28} />
+          <h3 className="text-base sm:text-xl font-bold">全期間の合計（院別スコープ適用）</h3>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setViewMode('daily')}
-            className={`px-4 py-2 rounded-lg font-bold ${
-              viewMode === 'daily' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            <Calendar size={18} className="inline mr-1" />
-            日報
-          </button>
-          <button
-            onClick={() => setViewMode('monthly')}
-            className={`px-4 py-2 rounded-lg font-bold ${
-              viewMode === 'monthly' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            <TrendingUp size={18} className="inline mr-1" />
-            月報
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-lg p-6 max-sm:p-3 max-sm:rounded-xl">
-        <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
-          <BarChart3 size={20} />
-          {viewMode === 'daily' ? '直近30日間の売上推移' : '月別売上推移'}
-        </h3>
         {loading ? (
-          <div className="text-center py-12 text-gray-500">読み込み中...</div>
+          <div className="text-center py-6 opacity-90">読み込み中...</div>
         ) : (
-          <div className="max-h-96 overflow-y-auto">{renderBarChart()}</div>
+          <>
+            <div className="text-3xl sm:text-5xl font-bold mb-3 sm:mb-4">¥{totalStats.grandTotal.toLocaleString()}</div>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="bg-white bg-opacity-20 rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm font-bold mb-1">施術</div>
+                <div className="text-lg sm:text-2xl font-bold">¥{totalStats.visitTotal.toLocaleString()}</div>
+              </div>
+              <div className="bg-white bg-opacity-20 rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm font-bold mb-1">物販</div>
+                <div className="text-lg sm:text-2xl font-bold">¥{totalStats.productTotal.toLocaleString()}</div>
+              </div>
+              <div className="bg-white bg-opacity-20 rounded-lg p-2 sm:p-3">
+                <div className="text-xs sm:text-sm font-bold mb-1">他</div>
+                <div className="text-lg sm:text-2xl font-bold">¥{totalStats.subscriptionTotal.toLocaleString()}</div>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -400,30 +230,6 @@ export default function ReportsAnalytics({ clinicScope }: ReportsAnalyticsProps)
             <MiniPieChart title="他（サブスク別）" slices={otherSlices} colors={['#a855f7', '#c084fc', '#e879f9', '#7e22ce', '#6b21a8', '#71717a']} />
           </div>
         )}
-      </div>
-
-      <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl shadow-xl p-6 max-sm:p-4 max-sm:rounded-xl">
-        <div className="flex items-center gap-2 mb-3 sm:mb-4">
-          <DollarSign size={28} />
-          <h3 className="text-base sm:text-xl font-bold">
-            {viewMode === 'daily' ? '直近30日間の合計（院別スコープ適用）' : '全期間の合計（院別スコープ適用）'}
-          </h3>
-        </div>
-        <div className="text-3xl sm:text-5xl font-bold mb-3 sm:mb-4">¥{totalStats.grandTotal.toLocaleString()}</div>
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <div className="bg-white bg-opacity-20 rounded-lg p-2 sm:p-3">
-            <div className="text-xs sm:text-sm font-bold mb-1">施術</div>
-            <div className="text-lg sm:text-2xl font-bold">¥{totalStats.visitTotal.toLocaleString()}</div>
-          </div>
-          <div className="bg-white bg-opacity-20 rounded-lg p-2 sm:p-3">
-            <div className="text-xs sm:text-sm font-bold mb-1">物販</div>
-            <div className="text-lg sm:text-2xl font-bold">¥{totalStats.productTotal.toLocaleString()}</div>
-          </div>
-          <div className="bg-white bg-opacity-20 rounded-lg p-2 sm:p-3">
-            <div className="text-xs sm:text-sm font-bold mb-1">他</div>
-            <div className="text-lg sm:text-2xl font-bold">¥{totalStats.subscriptionTotal.toLocaleString()}</div>
-          </div>
-        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-lg p-6 max-sm:p-3 max-sm:rounded-xl">
