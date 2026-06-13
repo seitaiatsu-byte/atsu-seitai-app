@@ -6,10 +6,61 @@ export const REAL_CUSTOMER_NUMBER_MAX = 9999;
 export const PLACEHOLDER_CUSTOMER_NUMBER = '10000';
 export const PLACEHOLDER_CUSTOMER_NAME = '新規仮';
 
+export const CUSTOMER_NUMBER_BANDS = {
+  kawanishi_be: {
+    min: 1,
+    max: 3999,
+    label: '川西 BE',
+    shortLabel: '川西BE',
+    clinicHint: '川西あつ整体院',
+  },
+  kawanishi_fe: {
+    min: 4000,
+    max: 4999,
+    label: '川西 FE',
+    shortLabel: '川西FE',
+    clinicHint: '川西あつ整体院',
+  },
+  takatsuki: {
+    min: 5000,
+    max: 9999,
+    label: '高槻',
+    shortLabel: '高槻',
+    clinicHint: '高槻あつ整体院',
+  },
+} as const;
+
+export type CustomerNumberBand = keyof typeof CUSTOMER_NUMBER_BANDS;
+
+export type BandUsageRow = {
+  band: CustomerNumberBand;
+  label: string;
+  shortLabel: string;
+  min: number;
+  max: number;
+  count: number;
+  maxUsed: number | null;
+  next: number | null;
+  full: boolean;
+};
+
 export function parseCustomerNumberValue(raw: string | null | undefined): number | null {
   if (raw == null || String(raw).trim() === '') return null;
   const num = parseInt(String(raw).trim().replace(/\D/g, ''), 10);
   return Number.isFinite(num) ? num : null;
+}
+
+export function customerNumberBand(num: number): CustomerNumberBand | null {
+  if (num >= CUSTOMER_NUMBER_BANDS.kawanishi_be.min && num <= CUSTOMER_NUMBER_BANDS.kawanishi_be.max) {
+    return 'kawanishi_be';
+  }
+  if (num >= CUSTOMER_NUMBER_BANDS.kawanishi_fe.min && num <= CUSTOMER_NUMBER_BANDS.kawanishi_fe.max) {
+    return 'kawanishi_fe';
+  }
+  if (num >= CUSTOMER_NUMBER_BANDS.takatsuki.min && num <= CUSTOMER_NUMBER_BANDS.takatsuki.max) {
+    return 'takatsuki';
+  }
+  return null;
 }
 
 export function isPlaceholderCustomerNumber(raw: string | null | undefined): boolean {
@@ -32,7 +83,47 @@ export function placeholderCustomerIds(
   return new Set(rows.filter((r) => isPlaceholderCustomerNumber(r.customer_number)).map((r) => r.id));
 }
 
-/** 新規登録の自動採番（1–9999 の最大+1。10000 以上は見ない） */
+function numbersInBand(numbers: string[], band: CustomerNumberBand): number[] {
+  const meta = CUSTOMER_NUMBER_BANDS[band];
+  return numbers
+    .map((s) => parseCustomerNumberValue(s))
+    .filter((n): n is number => n !== null && n >= meta.min && n <= meta.max);
+}
+
+export function summarizeCustomerNumberBands(numbers: string[]): BandUsageRow[] {
+  return (Object.keys(CUSTOMER_NUMBER_BANDS) as CustomerNumberBand[]).map((band) => {
+    const meta = CUSTOMER_NUMBER_BANDS[band];
+    const inBand = numbersInBand(numbers, band);
+    const maxUsed = inBand.length ? Math.max(...inBand) : null;
+    const nextCandidate = maxUsed === null ? meta.min : maxUsed + 1;
+    const full = nextCandidate > meta.max;
+    return {
+      band,
+      label: meta.label,
+      shortLabel: meta.shortLabel,
+      min: meta.min,
+      max: meta.max,
+      count: inBand.length,
+      maxUsed,
+      next: full ? null : nextCandidate,
+      full,
+    };
+  });
+}
+
+/** 帯ごとの自動採番（川西BE / 川西FE / 高槻） */
+export function resolveNextNumberInBand(numbers: string[], band: CustomerNumberBand): string {
+  const meta = CUSTOMER_NUMBER_BANDS[band];
+  const inBand = numbersInBand(numbers, band);
+  const maxUsed = inBand.length ? Math.max(...inBand) : meta.min - 1;
+  const next = maxUsed + 1;
+  if (next > meta.max) {
+    throw new Error(`${meta.label}（${meta.min}〜${meta.max}）に空き番号がありません`);
+  }
+  return String(next);
+}
+
+/** @deprecated 全院横断の最大+1。新規登録では帯別採番を使う */
 export function resolveNextRealCustomerNumber(numbers: string[]): string {
   const nums = numbers
     .map((s) => parseCustomerNumberValue(s))

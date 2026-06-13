@@ -9,7 +9,11 @@ import { fetchAllCustomerNumbers } from '../lib/fetchAllCustomers';
 import {
   PLACEHOLDER_CUSTOMER_NAME,
   PLACEHOLDER_CUSTOMER_NUMBER,
-  resolveNextRealCustomerNumber,
+  resolveNextNumberInBand,
+  summarizeCustomerNumberBands,
+  customerNumberBand,
+  type BandUsageRow,
+  type CustomerNumberBand,
 } from '../lib/customerNumber';
 import {
   applyPhoneToCustomerPayload,
@@ -102,6 +106,9 @@ export default function NewCustomerForm({
   const [chiefComplaints, setChiefComplaints] = useState<ChiefRow[]>([]);
   const [birthInput, setBirthInput] = useState('');
   const [submitErrors, setSubmitErrors] = useState<string[]>([]);
+  const [assignBand, setAssignBand] = useState<CustomerNumberBand>('kawanishi_be');
+  const [bandStats, setBandStats] = useState<BandUsageRow[]>([]);
+  const [bandStatsLoading, setBandStatsLoading] = useState(false);
 
   const isNewCustomerDirty = useMemo(() => {
     const hasField = Object.values(formData).some((v) => String(v ?? '').trim().length > 0);
@@ -130,6 +137,26 @@ export default function NewCustomerForm({
     window.addEventListener('masters-updated', reloadMasters);
     return () => window.removeEventListener('masters-updated', reloadMasters);
   }, []);
+
+  const loadBandStats = async () => {
+    setBandStatsLoading(true);
+    try {
+      const numbers = await fetchAllCustomerNumbers();
+      setBandStats(summarizeCustomerNumberBands(numbers));
+    } catch (e) {
+      console.error('顧客番号帯の集計エラー:', e);
+    } finally {
+      setBandStatsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (mode !== 'create') return;
+    void loadBandStats();
+    const onCustomersUpdated = () => void loadBandStats();
+    window.addEventListener('customers-updated', onCustomersUpdated);
+    return () => window.removeEventListener('customers-updated', onCustomersUpdated);
+  }, [mode]);
 
   useEffect(() => {
     if (mode !== 'create' || !initialMemo.trim()) return;
@@ -216,8 +243,23 @@ export default function NewCustomerForm({
 
   const resolveAutoCustomerNumber = async (): Promise<string> => {
     const numbers = await fetchAllCustomerNumbers();
-    return resolveNextRealCustomerNumber(numbers);
+    return resolveNextNumberInBand(numbers, assignBand);
   };
+
+  const applyNextNumberForBand = async (band: CustomerNumberBand = assignBand) => {
+    try {
+      const numbers = await fetchAllCustomerNumbers();
+      const next = resolveNextNumberInBand(numbers, band);
+      setAssignBand(band);
+      setFormData((prev) => ({ ...prev, customer_number: next }));
+      setBandStats(summarizeCustomerNumberBands(numbers));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '番号の取得に失敗しました';
+      setSubmitErrors([msg]);
+    }
+  };
+
+  const selectedBandStats = bandStats.find((b) => b.band === assignBand);
 
   const loadMasters = async () => {
     const sourcesFirst = await supabase
@@ -602,39 +644,112 @@ export default function NewCustomerForm({
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
-              <label className="block text-sm font-bold text-gray-700 mb-2">顧客番号</label>
+            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 space-y-3">
+              <label className="block text-sm font-bold text-gray-700">顧客番号</label>
+
+              {mode === 'create' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-gray-700">採番帯（BE / FE / 高槻）</span>
+                    <button
+                      type="button"
+                      onClick={() => void loadBandStats()}
+                      className="text-[11px] font-bold px-2 py-0.5 rounded border border-yellow-400 bg-white text-gray-700"
+                    >
+                      最新を更新
+                    </button>
+                  </div>
+                  {bandStatsLoading ? (
+                    <p className="text-xs text-gray-500">番号状況を読み込み中...</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {bandStats.map((row) => {
+                        const active = assignBand === row.band;
+                        const bandClass =
+                          row.band === 'kawanishi_be'
+                            ? 'border-orange-300 bg-orange-50/80'
+                            : row.band === 'kawanishi_fe'
+                              ? 'border-amber-400 bg-amber-50/80'
+                              : 'border-blue-300 bg-blue-50/80';
+                        return (
+                          <button
+                            key={row.band}
+                            type="button"
+                            onClick={() => setAssignBand(row.band)}
+                            className={`text-left rounded-lg border-2 p-2 transition-colors ${bandClass} ${
+                              active ? 'ring-2 ring-gray-800' : ''
+                            }`}
+                          >
+                            <div className="text-xs font-black text-gray-900">{row.label}</div>
+                            <div className="text-[10px] text-gray-600">
+                              {row.min}〜{row.max}
+                            </div>
+                            <div className="mt-1 text-[11px] text-gray-800">
+                              最終: <span className="font-bold tabular-nums">{row.maxUsed ?? '—'}</span>
+                            </div>
+                            <div className="text-[11px] text-gray-800">
+                              次候補:{' '}
+                              <span className="font-black tabular-nums text-blue-800">
+                                {row.full ? '満杯' : row.next}
+                              </span>
+                              <span className="text-gray-500 ml-1">（{row.count}件）</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void applyNextNumberForBand(assignBand)}
+                      disabled={selectedBandStats?.full}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white border-2 border-yellow-500 text-yellow-900 hover:bg-yellow-100 disabled:opacity-50"
+                    >
+                      選択中の帯の次番号を入れる
+                    </button>
+                    {!requireManualCustomerNumber && (
+                      <span className="text-[11px] text-gray-600 self-center">
+                        未入力で登録 → {selectedBandStats?.label ?? '選択帯'}の次番号を自動発行
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <input
                 type="text"
                 value={formData.customer_number}
                 onChange={(e) => {
                   const num = e.target.value.replace(/\D/g, '');
                   setFormData({ ...formData, customer_number: num });
+                  const parsed = parseInt(num, 10);
+                  if (Number.isFinite(parsed)) {
+                    const band = customerNumberBand(parsed);
+                    if (band) setAssignBand(band);
+                  }
                 }}
                 className="w-full px-4 py-2 border-2 border-orange-400 rounded-lg focus:border-orange-500 outline-none font-bold"
                 placeholder={
                   requireManualCustomerNumber
                     ? '手動で顧客番号を入力（必須）'
-                    : '未入力なら登録時に最大番号+1を自動発行'
+                    : '未入力なら選択中の帯で自動採番'
                 }
               />
               {requireManualCustomerNumber && (
-                <p className="mt-2 text-xs font-bold text-orange-800">
-                  仮予約からの来院では、番号は手動で決めてください（自動採番しません）。
+                <p className="text-xs font-bold text-orange-800">
+                  仮予約からの来院では、番号は手動で決めてください（自動採番しません）。上の帯別状況を参考にしてください。
                 </p>
               )}
-              <div className="mt-2 text-xs text-gray-600 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold text-orange-600">1～4999:</span>
-                  <span>
-                    自動的に <span className="font-bold text-orange-600">川西</span> に設定
-                  </span>
+              <div className="text-xs text-gray-600 space-y-1">
+                <div>
+                  <span className="font-bold text-orange-600">川西 BE（1〜3999）</span> … 本商品・BE会員
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold text-blue-700">5000～9999:</span>
-                  <span>
-                    自動的に <span className="font-bold text-blue-600">高槻院</span> に設定
-                  </span>
+                <div>
+                  <span className="font-bold text-amber-700">川西 FE（4000〜4999）</span> … FE・終了顧客帯
+                </div>
+                <div>
+                  <span className="font-bold text-blue-700">高槻（5000〜9999）</span> … 高槻院（番号ごちゃ混ぜ可）
                 </div>
                 <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-yellow-200">
                   <span className="font-bold text-slate-700">{PLACEHOLDER_CUSTOMER_NUMBER}:</span>
