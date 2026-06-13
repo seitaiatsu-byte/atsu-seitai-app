@@ -12,6 +12,7 @@ import {
   retryAfterMissingPhoneColumn,
 } from '../lib/customerPhoneFields';
 import { normalizePersonSearchText } from '../lib/personSearchText';
+import { searchCustomersSorted } from '../lib/customerSearchMatch';
 import PersonSearchInput from './PersonSearchInput';
 import {
   getAgeYearsFromCustomer,
@@ -355,20 +356,10 @@ export default function CustomerImport() {
     return Number.isFinite(n) ? n : Number.NaN;
   };
 
-  const rosterQuery = normalizeForSearch(rosterSearch);
-  const filteredCustomers = customers.filter((customer) => {
-    if (!rosterQuery) return true;
-    const asRow = customer as CustomerRowRecord;
-    const kana = getKanaForRoster(asRow);
-    const nameNorm = normalizeForSearch(customer.name);
-    const kanaNorm = normalizeForSearch(kana);
-    const numberNorm = normalizeForSearch(customer.customer_number);
-    return (
-      nameNorm.includes(rosterQuery) ||
-      kanaNorm.includes(rosterQuery) ||
-      numberNorm.includes(rosterQuery)
-    );
-  });
+  const rosterQuery = rosterSearch.trim();
+  const filteredCustomers = rosterQuery
+    ? searchCustomersSorted(customers, rosterQuery, { maxResults: 50000 })
+    : customers;
 
   const sortedCustomers = [...filteredCustomers].sort((a, b) => {
     const an = parseCustomerNo(a.customer_number);
@@ -1120,7 +1111,7 @@ export default function CustomerImport() {
           <PersonSearchInput
             value={rosterSearch}
             onChange={setRosterSearch}
-            placeholder="検索（かな・番号・名前）"
+            placeholder="検索（かな・電話・町名・名前）"
             className="w-full px-3 sm:px-4 py-2.5 rounded-lg border border-blue-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-300"
           />
         </div>

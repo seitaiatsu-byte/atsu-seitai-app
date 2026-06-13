@@ -4,7 +4,8 @@ import type { Database } from '../lib/database.types';
 import { fetchAllCustomersByCreatedDesc } from '../lib/fetchAllCustomers';
 import { ClinicNameFromCustomer } from './ClinicNameDisplay';
 import { isPlaceholderCustomerNumber } from '../lib/customerNumber';
-import { normalizePersonSearchText } from '../lib/personSearchText';
+import { getPhoneWithMemoFallback } from '../lib/customerDisplayFields';
+import { searchCustomersSorted } from '../lib/customerSearchMatch';
 import { focusWithJapaneseIme } from '../lib/useJapaneseTextInputs';
 import PersonSearchInput from './PersonSearchInput';
 
@@ -19,6 +20,12 @@ interface CustomerSearchPanelProps {
   onClearSelection: () => void;
   /** 増えるたびに検索欄へフォーカス（来院登録完了後の連続入力など） */
   focusSearchSignal?: number;
+  /** select=入力フォーム用 / lookup=ホーム等の照会のみ */
+  mode?: 'select' | 'lookup';
+  /** lookup 時に個人カルテへ */
+  onOpenChart?: (customer: CustomerRow) => void;
+  /** ホーム用のコンパクト1行リスト */
+  compact?: boolean;
 }
 
 function focusCustomerSearchInput(el: HTMLInputElement | null) {
@@ -71,6 +78,9 @@ export default function CustomerSearchPanel({
   selectedCustomer,
   onClearSelection,
   focusSearchSignal = 0,
+  mode = 'select',
+  onOpenChart,
+  compact = false,
 }: CustomerSearchPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<CustomerRow[]>([]);
@@ -100,57 +110,7 @@ export default function CustomerSearchPanel({
 
   const searchCustomers = useCallback((q: string) => {
     setIsSearching(true);
-    const nq = normalizePersonSearchText(q);
-    const nqHira = nq;
-    const stripped = nq.replace(/\s/g, '');
-    const digits = stripped.replace(/\D/g, '');
-    const isPureNumeric = stripped.length > 0 && /^\d+$/.test(stripped);
-
-    type Scored = { row: CustomerRow; tier: number };
-    const scored: Scored[] = [];
-
-    for (const c of allCustomers) {
-      const name = normalizePersonSearchText(c.name || '');
-      const kana = normalizePersonSearchText(c.name_kana || c.kana || '');
-      const nameHira = name;
-      const kanaHira = kana;
-      const numberRaw = normalizePersonSearchText(c.customer_number || '');
-      const numberDigits = numberRaw.replace(/\D/g, '');
-
-      let tier: number | null = null;
-
-      if (digits.length > 0) {
-        if (numberDigits === digits) tier = 0;
-        else if (numberDigits.startsWith(digits)) tier = 1;
-        else if (numberDigits.includes(digits)) tier = 2;
-      }
-
-      if (!isPureNumeric) {
-        if (tier === null && nq.length > 0) {
-          if (numberRaw === nq) tier = 0;
-          else if (numberRaw.startsWith(nq)) tier = 2;
-        }
-        if (name.includes(nq) || kana.includes(nq) || nameHira.includes(nqHira) || kanaHira.includes(nqHira)) {
-          tier = tier === null ? 10 : Math.min(tier, 10);
-        }
-      }
-
-      if (tier !== null) {
-        const placeholder = isPlaceholderCustomerNumber(c.customer_number);
-        scored.push({ row: c, tier: placeholder ? tier + 1000 : tier });
-      }
-    }
-
-    scored.sort((a, b) => {
-      if (a.tier !== b.tier) return a.tier - b.tier;
-      const an = normalizePersonSearchText(a.row.customer_number || '').replace(/\D/g, '') || '';
-      const bn = normalizePersonSearchText(b.row.customer_number || '').replace(/\D/g, '') || '';
-      if (an !== bn) return an.localeCompare(bn, undefined, { numeric: true });
-      return (a.row.name || '').localeCompare(b.row.name || '');
-    });
-
-    const maxResults = 200;
-    setSearchResults(scored.slice(0, maxResults).map((s) => s.row));
+    setSearchResults(searchCustomersSorted(allCustomers, q, { deprioritizePlaceholder: true }));
     setHighlightIndex(0);
     setIsSearching(false);
   }, [allCustomers]);
@@ -192,14 +152,48 @@ export default function CustomerSearchPanel({
   }, [highlightIndex, searchResults]);
 
   useEffect(() => {
+    if (mode === 'lookup') return;
     if (selectedCustomer) return;
     focusCustomerSearchInput(searchInputRef.current);
-  }, [selectedCustomer]);
+  }, [selectedCustomer, mode]);
 
   useEffect(() => {
+    if (mode === 'lookup') return;
     if (!focusSearchSignal || selectedCustomer) return;
     focusCustomerSearchInput(searchInputRef.current);
-  }, [focusSearchSignal, selectedCustomer]);
+  }, [focusSearchSignal, selectedCustomer, mode]);
+
+  const formatTown = (customer: CustomerRow) => {
+    const city = String(customer.city || '').trim();
+    const town = String(customer.town || '').trim();
+    if (city && town) return `${city}${town}`;
+    return city || town || '';
+  };
+
+  const renderResultMeta = (customer: CustomerRow) => {
+    const phone = getPhoneWithMemoFallback(customer) || '—';
+    const town = formatTown(customer) || '—';
+    if (compact) {
+      return (
+        <div className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-600 mt-0.5">
+          <span className="truncate">{customer.name_kana || customer.kana || '—'}</span>
+          <span className="shrink-0">{phone}</span>
+          <span className="shrink-0 max-w-[5rem] truncate">{town}</span>
+        </div>
+      );
+    }
+    return (
+      <>
+        <div className="text-sm text-gray-600">{customer.name_kana || customer.kana}</div>
+        <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span>顧客番号: {customer.customer_number}</span>
+          <span>電話: {phone}</span>
+          {town !== '—' && <span>住所: {town}</span>}
+          <ClinicNameFromCustomer customer={customer} />
+        </div>
+      </>
+    );
+  };
 
   if (selectedCustomer) {
     return (
@@ -221,37 +215,55 @@ export default function CustomerSearchPanel({
               )}
             </div>
             <div className="text-sm text-gray-600">{selectedCustomer.name_kana}</div>
-            <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-1">
-              <span>顧客番号: {selectedCustomer.customer_number} |</span>
+            <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span>顧客番号: {selectedCustomer.customer_number}</span>
+              <span>電話: {getPhoneWithMemoFallback(selectedCustomer) || '—'}</span>
+              {formatTown(selectedCustomer) && <span>住所: {formatTown(selectedCustomer)}</span>}
               <ClinicNameFromCustomer customer={selectedCustomer} />
             </div>
             {typeof selectedCustomer.points === 'number' && (
               <div className="text-sm font-bold text-blue-600 mt-2">保有ポイント: {selectedCustomer.points || 0} pt</div>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onClearSelection}
-            className={`px-4 py-2 rounded-lg font-bold border transition-colors bg-white ${
-              accent === 'blue'
-                ? 'text-blue-600 border-blue-300 hover:bg-blue-50'
-                : accent === 'orange'
-                  ? 'text-orange-600 border-orange-300 hover:bg-orange-50'
-                  : 'text-purple-600 border-purple-300 hover:bg-purple-50'
-            }`}
-          >
-            変更
-          </button>
+          <div className="flex flex-col gap-2 shrink-0">
+            {mode === 'lookup' && onOpenChart && (
+              <button
+                type="button"
+                onClick={() => onOpenChart(selectedCustomer)}
+                className="px-3 py-2 rounded-lg font-bold border transition-colors bg-blue-600 text-white border-blue-600 hover:bg-blue-700 text-sm"
+              >
+                個人カルテ
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClearSelection}
+              className={`px-4 py-2 rounded-lg font-bold border transition-colors bg-white ${
+                accent === 'blue'
+                  ? 'text-blue-600 border-blue-300 hover:bg-blue-50'
+                  : accent === 'orange'
+                    ? 'text-orange-600 border-orange-300 hover:bg-orange-50'
+                    : 'text-purple-600 border-purple-300 hover:bg-purple-50'
+              }`}
+            >
+              変更
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
+  const searchLabel =
+    mode === 'lookup' ? '顧客を探す（かな・電話・町名）' : '顧客を検索（氏名・ふりがな・電話・町名）';
+  const searchPlaceholder =
+    mode === 'lookup' ? 'かな・電話4桁以上・町名' : 'ふりがな・電話・町名で検索（例: たなか）';
+
   return (
-    <div className="mb-6">
-      <label className="block text-sm font-bold text-gray-700 mb-2">
-        <Search className="inline mr-2" size={16} />
-        顧客を検索（氏名・ふりがな・顧客番号）
+    <div className={compact ? 'mb-0' : 'mb-6'}>
+      <label className={`block font-bold text-gray-700 mb-1.5 ${compact ? 'text-xs' : 'text-sm'}`}>
+        <Search className="inline mr-1.5" size={compact ? 14 : 16} />
+        {searchLabel}
       </label>
       <div className="relative">
         <PersonSearchInput
@@ -259,8 +271,8 @@ export default function CustomerSearchPanel({
           value={searchQuery}
           onChange={setSearchQuery}
           onKeyDown={onSearchKeyDown}
-          placeholder="ふりがなで検索（例: たなか）"
-          className={`w-full px-4 py-3 border-2 rounded-lg outline-none ${border[accent]}`}
+          placeholder={searchPlaceholder}
+          className={`w-full border-2 rounded-lg outline-none ${compact ? 'px-3 py-2 text-sm' : 'px-4 py-3'} ${border[accent]}`}
           role="combobox"
           aria-expanded={searchResults.length > 0}
           aria-activedescendant={searchResults.length ? `cust-opt-${highlightIndex}` : undefined}
@@ -272,7 +284,9 @@ export default function CustomerSearchPanel({
         <div
           ref={listRef}
           role="listbox"
-          className={`mt-2 bg-white border-2 rounded-lg shadow-lg max-h-80 overflow-y-auto ${listBorder[accent]}`}
+          className={`mt-1.5 bg-white border-2 rounded-lg shadow-lg overflow-y-auto ${listBorder[accent]} ${
+            compact ? 'max-h-52' : 'max-h-80'
+          }`}
         >
           {searchResults.map((customer, idx) => (
             <button
@@ -284,21 +298,17 @@ export default function CustomerSearchPanel({
               aria-selected={idx === highlightIndex}
               onClick={() => selectCustomer(customer)}
               onMouseEnter={() => setHighlightIndex(idx)}
-              className={`w-full text-left px-4 py-3 border-b border-gray-100 last:border-0 transition-colors ${hoverBg[accent]} ${
-                idx === highlightIndex ? ringHighlight[accent] : ''
-              }`}
+              className={`w-full text-left border-b border-gray-100 last:border-0 transition-colors ${hoverBg[accent]} ${
+                compact ? 'px-2.5 py-1.5' : 'px-4 py-3'
+              } ${idx === highlightIndex ? ringHighlight[accent] : ''}`}
             >
-              <div className="font-bold text-gray-800 flex items-center gap-2 flex-wrap">
+              <div className={`font-bold text-gray-800 flex items-center gap-2 flex-wrap ${compact ? 'text-xs' : ''}`}>
                 {customer.name}
                 {isPlaceholderCustomerNumber(customer.customer_number) && (
                   <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-600">仮予約</span>
                 )}
               </div>
-              <div className="text-sm text-gray-600">{customer.name_kana}</div>
-              <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-1">
-                <span>顧客番号: {customer.customer_number} |</span>
-                <ClinicNameFromCustomer customer={customer} />
-              </div>
+              {renderResultMeta(customer)}
             </button>
           ))}
         </div>
