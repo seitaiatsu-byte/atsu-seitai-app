@@ -135,3 +135,36 @@ export function resolveNextRealCustomerNumber(numbers: string[]): string {
   }
   return String(next);
 }
+
+/** 高槻5500番台以上 → 川西BE(大→小) → 高槻5499以下 → FE(大→小) */
+export const TAKATSUKI_HIGH_SORT_MIN = 5500;
+
+export function customerNumberDisplaySortGroup(num: number | null): number {
+  if (num === null) return 90;
+  if (num >= 10000) return 100;
+  if (num >= TAKATSUKI_HIGH_SORT_MIN && num <= CUSTOMER_NUMBER_BANDS.takatsuki.max) return 0;
+  if (num >= CUSTOMER_NUMBER_BANDS.kawanishi_be.min && num <= CUSTOMER_NUMBER_BANDS.kawanishi_be.max) return 1;
+  if (num >= CUSTOMER_NUMBER_BANDS.takatsuki.min && num < TAKATSUKI_HIGH_SORT_MIN) return 2;
+  if (num >= CUSTOMER_NUMBER_BANDS.kawanishi_fe.min && num <= CUSTOMER_NUMBER_BANDS.kawanishi_fe.max) return 3;
+  return 50;
+}
+
+export function compareCustomerNumberForSearchDisplay(a: number | null, b: number | null): number {
+  const ga = customerNumberDisplaySortGroup(a);
+  const gb = customerNumberDisplaySortGroup(b);
+  if (ga !== gb) return ga - gb;
+  const na = a ?? -1;
+  const nb = b ?? -1;
+  return nb - na;
+}
+
+export function compareCustomersForSearchDisplay(
+  a: { customer_number?: string | null; name?: string | null },
+  b: { customer_number?: string | null; name?: string | null }
+): number {
+  const an = parseCustomerNumberValue(a.customer_number);
+  const bn = parseCustomerNumberValue(b.customer_number);
+  const byNum = compareCustomerNumberForSearchDisplay(an, bn);
+  if (byNum !== 0) return byNum;
+  return (a.name || '').localeCompare(b.name || '', 'ja');
+}

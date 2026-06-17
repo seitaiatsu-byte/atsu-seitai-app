@@ -1,4 +1,4 @@
-import { isPlaceholderCustomerNumber } from './customerNumber';
+import { isPlaceholderCustomerNumber, compareCustomersForSearchDisplay } from './customerNumber';
 import { readPhoneFromCustomerRow } from './customerPhoneFields';
 import { normalizePersonSearchText } from './personSearchText';
 
@@ -82,10 +82,7 @@ export function searchCustomersSorted<T extends CustomerSearchable>(
 
   scored.sort((a, b) => {
     if (a.tier !== b.tier) return a.tier - b.tier;
-    const an = normalizePersonSearchText(a.row.customer_number || '').replace(/\D/g, '') || '';
-    const bn = normalizePersonSearchText(b.row.customer_number || '').replace(/\D/g, '') || '';
-    if (an !== bn) return an.localeCompare(bn, undefined, { numeric: true });
-    return (a.row.name || '').localeCompare(b.row.name || '', 'ja');
+    return compareCustomersForSearchDisplay(a.row, b.row);
   });
 
   return scored.slice(0, max).map((s) => s.row);

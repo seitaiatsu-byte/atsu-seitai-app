@@ -6,6 +6,7 @@ import CustomerSearchPanel, { type CustomerRow } from './CustomerSearchPanel';
 import ClinicScopeToggle, { type ClinicScope } from './ClinicScopeToggle';
 import FlexibleTimeInput from './FlexibleTimeInput';
 import { normalizePersonSearchText } from '../lib/personSearchText';
+import { searchCustomersSorted } from '../lib/customerSearchMatch';
 import PersonSearchInput from './PersonSearchInput';
 import JapaneseTextInput from './JapaneseTextInput';
 import { guardNavigation, useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
@@ -553,28 +554,10 @@ export default function ReservationCalendar({
 
   const headerCustomerResults = useMemo(() => {
     if (calendarViewMode !== 'appointment') return [];
-    const q = normalizeSearchText(searchQuery);
-    if (!q) return [];
-    const digits = q.replace(/\D/g, '');
-    const scored: Array<{ row: CustomerRow; tier: number }> = [];
-
-    for (const c of allCustomers) {
-      const number = normalizeSearchText(c.customer_number);
-      const name = normalizeSearchText(c.name);
-      const kana = normalizeSearchText(c.name_kana || c.kana);
-      let tier: number | null = null;
-      if (digits && number.replace(/\D/g, '') === digits) tier = 0;
-      else if (digits && number.replace(/\D/g, '').startsWith(digits)) tier = 1;
-      else if (name.includes(q) || kana.includes(q)) tier = 2;
-      else if (number.includes(q)) tier = 3;
-      if (tier !== null) scored.push({ row: c, tier });
-    }
-
-    scored.sort((a, b) => {
-      if (a.tier !== b.tier) return a.tier - b.tier;
-      return String(a.row.customer_number || '').localeCompare(String(b.row.customer_number || ''), undefined, { numeric: true });
+    return searchCustomersSorted(allCustomers, searchQuery, {
+      maxResults: 10,
+      deprioritizePlaceholder: true,
     });
-    return scored.slice(0, 10).map((s) => s.row);
   }, [allCustomers, calendarViewMode, searchQuery]);
 
   useEffect(() => {
