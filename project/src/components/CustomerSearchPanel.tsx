@@ -178,7 +178,10 @@ export default function CustomerSearchPanel({
     const town = formatTown(customer) || '—';
     if (compact) {
       return (
-        <div className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-600 mt-0.5">
+        <div className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-600 mt-0.5 flex-wrap">
+          <span className="shrink-0 font-mono text-blue-700 tabular-nums">
+            顧客番号: {customer.customer_number ?? '—'}
+          </span>
           <span className="truncate">{customer.name_kana || customer.kana || '—'}</span>
           <span className="shrink-0">{phone}</span>
           <span className="shrink-0 max-w-[5rem] truncate">{town}</span>

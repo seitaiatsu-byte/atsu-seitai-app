@@ -1023,6 +1023,12 @@ export default function ReservationCalendar({
                     }`}
                   >
                     <div className="font-bold text-gray-800 truncate">{customer.name}</div>
+                    <div className="text-[10px] text-gray-600 truncate">
+                      {customer.name_kana || customer.kana || 'かな未登録'}
+                    </div>
+                    <div className="text-[10px] text-gray-500 font-mono tabular-nums">
+                      顧客番号: {customer.customer_number || '-'}
+                    </div>
                   </button>
                 ))}
               </div>
