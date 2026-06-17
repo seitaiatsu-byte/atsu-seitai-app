@@ -143,6 +143,9 @@ export default function CustomerSearchPanel({
       e.preventDefault();
       const row = searchResults[highlightIndex];
       if (row) selectCustomer(row);
+    } else if (e.key === 'Escape') {
+      setSearchResults([]);
+      setHighlightIndex(0);
     }
   };
 
@@ -255,9 +258,9 @@ export default function CustomerSearchPanel({
   }
 
   const searchLabel =
-    mode === 'lookup' ? '顧客を探す（かな・電話・町名）' : '顧客を検索（氏名・ふりがな・電話・町名）';
+    mode === 'lookup' ? '顧客を探す（氏名・かな・電話・町名）' : '顧客を検索（氏名・かな・電話・町名）';
   const searchPlaceholder =
-    mode === 'lookup' ? 'かな・電話4桁以上・町名' : 'ふりがな・電話・町名で検索（例: たなか）';
+    mode === 'lookup' ? '氏名・かな・電話4桁以上・町名' : '氏名・かな・電話・町名で検索';
 
   return (
     <div className={compact ? 'mb-0' : 'mb-6'}>

@@ -136,16 +136,14 @@ export function resolveNextRealCustomerNumber(numbers: string[]): string {
   return String(next);
 }
 
-/** 高槻5500番台以上 → 川西BE(大→小) → 高槻5499以下 → FE(大→小) */
-export const TAKATSUKI_HIGH_SORT_MIN = 5500;
-
+/** 検索リスト表示順: ①BE → ②高槻5000-6999 → ③FE → ④高槻7000+（各帯は番号降順） */
 export function customerNumberDisplaySortGroup(num: number | null): number {
   if (num === null) return 90;
   if (num >= 10000) return 100;
-  if (num >= TAKATSUKI_HIGH_SORT_MIN && num <= CUSTOMER_NUMBER_BANDS.takatsuki.max) return 0;
-  if (num >= CUSTOMER_NUMBER_BANDS.kawanishi_be.min && num <= CUSTOMER_NUMBER_BANDS.kawanishi_be.max) return 1;
-  if (num >= CUSTOMER_NUMBER_BANDS.takatsuki.min && num < TAKATSUKI_HIGH_SORT_MIN) return 2;
-  if (num >= CUSTOMER_NUMBER_BANDS.kawanishi_fe.min && num <= CUSTOMER_NUMBER_BANDS.kawanishi_fe.max) return 3;
+  if (num >= CUSTOMER_NUMBER_BANDS.kawanishi_be.min && num <= CUSTOMER_NUMBER_BANDS.kawanishi_be.max) return 0;
+  if (num >= 5000 && num <= 6999) return 1;
+  if (num >= CUSTOMER_NUMBER_BANDS.kawanishi_fe.min && num <= CUSTOMER_NUMBER_BANDS.kawanishi_fe.max) return 2;
+  if (num >= 7000 && num <= CUSTOMER_NUMBER_BANDS.takatsuki.max) return 3;
   return 50;
 }
 

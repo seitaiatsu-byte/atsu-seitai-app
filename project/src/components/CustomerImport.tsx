@@ -1111,7 +1111,7 @@ export default function CustomerImport() {
           <PersonSearchInput
             value={rosterSearch}
             onChange={setRosterSearch}
-            placeholder="検索（かな・電話・町名・名前）"
+            placeholder="氏名・かな・電話・番号"
             className="w-full px-3 sm:px-4 py-2.5 rounded-lg border border-blue-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-300"
           />
         </div>

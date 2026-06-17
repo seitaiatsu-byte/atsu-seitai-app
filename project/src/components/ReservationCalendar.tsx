@@ -555,7 +555,7 @@ export default function ReservationCalendar({
   const headerCustomerResults = useMemo(() => {
     if (calendarViewMode !== 'appointment') return [];
     return searchCustomersSorted(allCustomers, searchQuery, {
-      maxResults: 10,
+      maxResults: 30,
       deprioritizePlaceholder: true,
     });
   }, [allCustomers, calendarViewMode, searchQuery]);
@@ -684,21 +684,26 @@ export default function ReservationCalendar({
   };
 
   const handleHeaderSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showHeaderCustomerResults || headerCustomerResults.length === 0) return;
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown' && headerCustomerResults.length > 0) {
       e.preventDefault();
+      setShowHeaderCustomerResults(true);
       setHeaderCustomerHighlight((i) => Math.min(i + 1, headerCustomerResults.length - 1));
       return;
     }
-    if (e.key === 'ArrowUp') {
+    if (e.key === 'ArrowUp' && headerCustomerResults.length > 0) {
       e.preventDefault();
+      setShowHeaderCustomerResults(true);
       setHeaderCustomerHighlight((i) => Math.max(i - 1, 0));
       return;
     }
+    if (!showHeaderCustomerResults || headerCustomerResults.length === 0) return;
     if (e.key === 'Enter') {
       e.preventDefault();
       const customer = headerCustomerResults[headerCustomerHighlight];
       if (customer) handleSelectHeaderCustomer(customer);
+    } else if (e.key === 'Escape') {
+      setShowHeaderCustomerResults(false);
+      setHeaderCustomerHighlight(0);
     }
   };
 
@@ -918,7 +923,7 @@ export default function ReservationCalendar({
                   setShowHeaderCustomerResults(true);
                 }}
                 onKeyDown={handleHeaderSearchKeyDown}
-                placeholder="ふりがな・氏名・番号で絞り込み"
+                placeholder="氏名・かな・電話・番号で絞り込み"
                 className="w-full px-3 py-2 border rounded-lg text-sm"
               />
             ) : (
@@ -985,7 +990,7 @@ export default function ReservationCalendar({
                   setShowHeaderCustomerResults(true);
                 }}
                 onKeyDown={handleHeaderSearchKeyDown}
-                placeholder="かな・氏名・番号"
+                placeholder="氏名・かな・電話・番号"
                 className="w-full px-2 py-0.5 border rounded text-[11px] leading-tight h-6"
               />
             ) : (
