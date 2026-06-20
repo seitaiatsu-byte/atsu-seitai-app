@@ -9,7 +9,6 @@ import { blockEnterFormSubmit, swallowFormSubmit } from '../lib/formSubmitGuard'
 import {
   formatCustomerNumberForMessage,
   hasProductSaleOnDate,
-  splitAmountAcrossLines,
   validateExplicitAmount,
 } from '../lib/registrationValidation';
 import { useFormInputTouched, useUnsavedFormGuard } from '../lib/unsavedFormGuard';
@@ -53,7 +52,6 @@ export default function ProductSaleForm() {
   const [memo, setMemo] = useState('');
   const [clinicName, setClinicName] = useState<ClinicFullName>('高槻あつ整体院');
   const [staffId, setStaffId] = useState('');
-  const [amount, setAmount] = useState('');
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState('');
@@ -154,7 +152,6 @@ export default function ProductSaleForm() {
     setEditingId(null);
     setSelectedCustomer(null);
     setLines(emptyLines());
-    setAmount('');
     setMemo('');
     setStaffId('');
     setMediaFiles([]);
@@ -167,7 +164,6 @@ export default function ProductSaleForm() {
     clearProductInputTouched();
     setEditingId(null);
     setLines(emptyLines());
-    setAmount('');
     setMemo('');
     setStaffId('');
     setMediaFiles([]);
@@ -193,7 +189,6 @@ export default function ProductSaleForm() {
         paymentMethods[0]?.id ||
         ''
     );
-    setAmount(r.amount != null ? String(r.amount) : '0');
     setMemo(r.memo || '');
     setClinicName((r.clinic_name as ClinicFullName) || '高槻あつ整体院');
     setStaffId(staffList.find((s) => s.name === r.staff_name)?.id || '');
@@ -274,7 +269,7 @@ export default function ProductSaleForm() {
       return;
     }
 
-    const amountError = validateExplicitAmount(amount);
+    const amountError = validateExplicitAmount(String(totalAmount));
     if (amountError) {
       alert(amountError);
       return;
@@ -303,10 +298,8 @@ export default function ProductSaleForm() {
 
     setIsSubmitting(true);
     const staffNameResolved = staffId ? getStaffName(staffId) : '';
-    const amountValue = Number(amount.trim());
-    const lineAmounts = editingId ? [amountValue] : splitAmountAcrossLines(amountValue, activeLines.length);
 
-    const rows = activeLines.map((line, idx) => {
+    const rows = activeLines.map((line) => {
       const p = getProduct(line.productId)!;
       const q = parseInt(line.quantity, 10) || 1;
       return {
@@ -316,7 +309,7 @@ export default function ProductSaleForm() {
         product_name: p.name,
         quantity: q,
         payment_method: paymentMethodId,
-        amount: lineAmounts[idx] ?? amountValue,
+        amount: lineAmount(line),
         memo,
         clinic_name: clinicName,
         staff_name: staffNameResolved || null,
@@ -464,18 +457,11 @@ export default function ProductSaleForm() {
         </div>
 
         <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-200">
-          <label className="block text-sm font-bold text-gray-700 mb-2">金額</label>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-amber-300 rounded-lg font-bold text-2xl text-amber-900 text-right focus:border-orange-500 outline-none"
-            placeholder="0"
-          />
-          <p className="text-xs text-amber-800 mt-2">支払がない場合も「0」と入力してください</p>
-          {totalAmount > 0 && (
-            <p className="text-xs text-gray-600 mt-1">商品マスタ合計の参考: ¥{totalAmount.toLocaleString()}</p>
-          )}
+          <label className="block text-sm font-bold text-gray-700 mb-2">金額（自動合算）</label>
+          <div className="w-full px-4 py-3 border-2 border-amber-300 rounded-lg font-bold text-2xl text-amber-900 text-right bg-white">
+            ¥{totalAmount.toLocaleString()}
+          </div>
+          <p className="text-xs text-amber-800 mt-2">選択した商品の小計を自動で合算します</p>
         </div>
 
         <div>
