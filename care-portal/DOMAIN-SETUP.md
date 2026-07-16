@@ -2,18 +2,19 @@
 
 ## 決めたドメイン
 
-| 用途 | URL |
+| 優先 | URL |
 |------|-----|
-| **会員向け本番（推奨）** | `https://care.atsu-seitai.jp` |
+| **第一候補** | `https://a2karada.jp` |
+| **代替（a2karada が取れない場合）** | `https://a2body-care.jp` |
 | **暫定（いま動いている）** | `https://atsu-care-portal.vercel.app` |
 
 会員に渡すQR・URLは **顧客番号そのまま** の形です。
 
 ```
-https://care.atsu-seitai.jp/r/1234
+https://a2karada.jp/r/1234
 ```
 
-（`room-` は付けません。顧客番号 1234 → 部屋コード 1234）
+（顧客番号 1234 → 部屋コード 1234）
 
 ---
 
@@ -21,51 +22,57 @@ https://care.atsu-seitai.jp/r/1234
 
 - Vercel の無料URL（`atsu-care-portal.vercel.app`）で本番稼働中
 - `VITE_PUBLIC_SITE_URL` が未設定のため、QR・URLコピーは **今開いているドメイン** を使う
-- 独自ドメインは **まだDNS未接続**（コード側の推奨ドメインだけ決めた状態）
+- 独自ドメインは **まだDNS未接続**
 
 ---
 
 ## 独自ドメインを有効にする手順
 
-### 1. ドメインを用意する
+### 1. ドメインを取得・用意する
 
-`atsu-seitai.jp`（またはお持ちのドメイン）のDNS管理画面を開く。
+1. まず **`a2karada.jp`** が取得できるか確認
+2. 取れなければ **`a2body-care.jp`** を取得
 
-サブドメイン **`care`** を追加する（例: `care.atsu-seitai.jp`）。
+（お名前.com、ムームードメイン、Vercel Domains など）
 
 ### 2. Vercel にドメインを追加
 
 1. https://vercel.com → プロジェクト **atsu-care-portal**
 2. **Settings** → **Domains**
-3. `care.atsu-seitai.jp` を追加
-4. 画面に表示される **CNAME** または **Aレコード** を、ドメイン管理側に登録
+3. `a2karada.jp`（または `a2body-care.jp`）を追加
+4. 表示される **DNSレコード** を、ドメイン管理側に登録
+
+`www` も使う場合は `www.a2karada.jp` も追加可。
 
 ### 3. 環境変数を設定して再デプロイ
 
-Vercel → **Settings** → **Environment Variables** に追加:
+Vercel → **Settings** → **Environment Variables**:
 
 ```
-VITE_PUBLIC_SITE_URL = https://care.atsu-seitai.jp
+VITE_PUBLIC_SITE_URL = https://a2karada.jp
 ```
 
-（Production にチェック）
+（代替ドメインの場合は `https://a2body-care.jp`）
 
-その後、再デプロイ（main に push するか、Vercel で Redeploy）。
+Production にチェック → 再デプロイ。
 
 ### 4. 確認
 
-- `https://care.atsu-seitai.jp/admin/login` が開く
-- 管理画面で QR・URLコピー → `https://care.atsu-seitai.jp/r/1234` になっている
+- `https://a2karada.jp/admin/login` が開く
+- 管理画面で QR・URLコピー → `https://a2karada.jp/r/1234` になっている
 
 ---
 
-## 別のドメインにしたい場合
+## コード上の設定場所
 
-`VITE_PUBLIC_SITE_URL` と `src/lib/siteConfig.ts` の `RECOMMENDED_PUBLIC_SITE_URL` を、決めたURLに変更してください。
+| ファイル | 内容 |
+|----------|------|
+| `src/lib/siteConfig.ts` | `RECOMMENDED_PUBLIC_SITE_URL` / `ALTERNATE_PUBLIC_SITE_URL` |
+| `.env` / Vercel 環境変数 | `VITE_PUBLIC_SITE_URL`（実際にQRに使う値） |
 
 ---
 
 ## 注意
 
-- すでに印刷済みのQR（vercel.app）は、ドメイン変更後も **古いURLのまま** 動きます（Vercel側で両方有効にしておけばOK）
-- 新しく渡すQRから新ドメインが使われます
+- DNS反映前に `VITE_PUBLIC_SITE_URL` だけ先に入れると、QRが未開通のURLを指します。**DNSが通ってから** 設定してください
+- すでに印刷済みのQR（vercel.app）も、Vercelで旧ドメインを残せば引き続き動きます

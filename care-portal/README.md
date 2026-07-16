@@ -65,8 +65,8 @@ npx supabase functions deploy care-video-playback --project-ref YOUR_PROJECT_REF
 - **新しい Vercel プロジェクト** を作成
 - Root Directory: `care-portal`
 - Environment Variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
-- 本番ドメイン決定後: `VITE_PUBLIC_SITE_URL=https://care.atsu-seitai.jp`（手順は `DOMAIN-SETUP.md`）
-- 推奨ドメイン: `https://care.atsu-seitai.jp`（整体院アプリとは別サブドメイン）
+- 本番ドメイン決定後: `VITE_PUBLIC_SITE_URL=https://a2karada.jp`（手順は `DOMAIN-SETUP.md`）
+- 第一候補: `https://a2karada.jp`　代替: `https://a2body-care.jp`
 
 ## 運用フロー
 

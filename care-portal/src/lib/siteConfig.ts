@@ -18,5 +18,12 @@ export function formatMemberEntryExample(roomCode = '1234'): string {
   return buildMemberRoomUrl(roomCode);
 }
 
-/** 推奨本番ドメイン（DNS・Vercel設定後に VITE_PUBLIC_SITE_URL に設定） */
-export const RECOMMENDED_PUBLIC_SITE_URL = 'https://care.atsu-seitai.jp';
+/** 本番ドメイン（第一候補）。DNS・Vercel設定後に VITE_PUBLIC_SITE_URL に設定 */
+export const RECOMMENDED_PUBLIC_SITE_URL = 'https://a2karada.jp';
+
+/** 本番ドメイン（代替）。a2karada が取れない場合 */
+export const ALTERNATE_PUBLIC_SITE_URL = 'https://a2body-care.jp';
+
+export function isConfiguredPublicDomain(origin: string): boolean {
+  return origin === RECOMMENDED_PUBLIC_SITE_URL || origin === ALTERNATE_PUBLIC_SITE_URL;
+}

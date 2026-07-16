@@ -5,7 +5,7 @@ import {
   STAFF_RECEPTION_STEPS,
   STAFF_ROOM_CONVENTION,
 } from '../lib/memberGuide';
-import { formatMemberEntryExample, getPublicSiteOrigin, RECOMMENDED_PUBLIC_SITE_URL } from '../lib/siteConfig';
+import { formatMemberEntryExample, getPublicSiteOrigin, isConfiguredPublicDomain, RECOMMENDED_PUBLIC_SITE_URL, ALTERNATE_PUBLIC_SITE_URL } from '../lib/siteConfig';
 
 type Props = {
   onOpenAdminLogin: () => void;
@@ -17,7 +17,7 @@ type Props = {
 export default function HomePage({ onOpenAdminLogin, onOpenStaffManual, onOpenMemberManual }: Props) {
   const origin = getPublicSiteOrigin();
   const entryExample = formatMemberEntryExample('1234');
-  const usingRecommendedDomain = origin === RECOMMENDED_PUBLIC_SITE_URL;
+  const usingRecommendedDomain = isConfiguredPublicDomain(origin);
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -113,8 +113,12 @@ export default function HomePage({ onOpenAdminLogin, onOpenStaffManual, onOpenMe
               <span className="font-mono text-indigo-800 break-all"> {origin || '（未設定）'}</span>
             </p>
             <p>
-              <span className="font-bold text-slate-700">決めた本番ドメイン（推奨）：</span>
+              <span className="font-bold text-slate-700">決めた本番ドメイン（第一候補）：</span>
               <span className="font-mono text-teal-800 break-all"> {RECOMMENDED_PUBLIC_SITE_URL}</span>
+            </p>
+            <p>
+              <span className="font-bold text-slate-700">代替（取れない場合）：</span>
+              <span className="font-mono text-slate-600 break-all"> {ALTERNATE_PUBLIC_SITE_URL}</span>
             </p>
           </div>
           {usingRecommendedDomain ? (
@@ -123,7 +127,7 @@ export default function HomePage({ onOpenAdminLogin, onOpenStaffManual, onOpenMe
             <p className="text-sm text-slate-600 leading-relaxed">
               独自ドメインに切り替える手順は <code className="text-xs bg-slate-100 px-1 rounded">care-portal/DOMAIN-SETUP.md</code>{' '}
               を参照。DNS設定後、Vercel の環境変数 <code className="text-xs bg-slate-100 px-1 rounded">VITE_PUBLIC_SITE_URL</code> に{' '}
-              <code className="text-xs">{RECOMMENDED_PUBLIC_SITE_URL}</code> を入れて再デプロイすると、QR・コピーURLが新ドメインになります。
+              <code className="text-xs">{RECOMMENDED_PUBLIC_SITE_URL}</code>（または代替の <code className="text-xs">{ALTERNATE_PUBLIC_SITE_URL}</code>）を入れて再デプロイします。
             </p>
           )}
         </section>

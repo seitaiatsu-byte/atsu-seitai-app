@@ -1,7 +1,8 @@
 【セルフケア動画ポータル（care-portal）本番デプロイ】
 
 整体院アプリ（project/）とは別の Vercel プロジェクトを1つ作ります。
-会員が開くのは本番URL（例: https://care.atsu-seitai.jp/r/1234）です。
+会員が開くのは本番URL（例: https://a2karada.jp/r/1234）です。
+代替: https://a2body-care.jp
 暫定: https://atsu-care-portal.vercel.app
 localhost は開発用だけ。会員には渡しません。
 
