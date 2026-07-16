@@ -83,25 +83,58 @@ body {
   background: var(--member-camel);
 }
 
+/* 画像内の誤ったキャッチコピー行を隠す（上寄せクロップ） */
+.member-site-banner-crop {
+  overflow: hidden;
+  max-height: 10.75rem;
+  line-height: 0;
+}
+
+@media (min-width: 640px) {
+  .member-site-banner-crop {
+    max-height: 12.75rem;
+  }
+}
+
 .member-site-banner {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 15rem;
-  object-fit: contain;
-  object-position: center;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.member-site-tagline {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: 0.5rem 1rem 0.65rem;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: 0.03em;
+  color: #1f1f1f;
+  background: var(--member-camel);
 }
 
 @media (min-width: 640px) {
-  .member-site-banner {
-    max-height: 18rem;
+  .member-site-tagline {
+    font-size: 1.05rem;
+    padding: 0.55rem 1rem 0.7rem;
   }
 }
 
-.member-site-banner-fade {
+.member-tagline-on {
+  color: #c73a32;
+  font-weight: 800;
+}
+
+/* フェードはキャッチコピーの下だけ（文字にかからない） */
+.member-site-header-fade {
   position: absolute;
   inset: auto 0 0 0;
-  height: 2rem;
+  height: 1.25rem;
   background: linear-gradient(to bottom, rgba(216, 199, 152, 0), var(--member-camel-pale));
   pointer-events: none;
 }
@@ -258,7 +291,7 @@ body {
     display: none !important;
   }
 
-  .member-site-banner-fade {
+  .member-site-header-fade {
     display: none;
   }
 
