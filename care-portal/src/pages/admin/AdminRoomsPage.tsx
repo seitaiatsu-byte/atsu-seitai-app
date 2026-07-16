@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, DoorOpen, LogOut, Plus, Search } from 'lucide-react';
+import { Copy, DoorOpen, LogOut, Plus, QrCode, Search, X } from 'lucide-react';
+import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
 import {
   adminCreateRoom,
   adminGenerateRoomCode,
@@ -27,6 +28,7 @@ export default function AdminRoomsPage({ onOpenRoom, onLogout }: Props) {
   const [customerNumber, setCustomerNumber] = useState('');
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState('');
+  const [qrRoom, setQrRoom] = useState<CareRoomRow | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -213,6 +215,14 @@ export default function AdminRoomsPage({ onOpenRoom, onLogout }: Props) {
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       type="button"
+                      onClick={() => setQrRoom(r)}
+                      className="text-xs flex items-center gap-1 px-2 py-1 rounded border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 font-bold"
+                    >
+                      <QrCode size={12} />
+                      QR
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => void copyText(r.id, url)}
                       className="text-xs flex items-center gap-1 px-2 py-1 rounded border hover:bg-slate-50"
                     >
@@ -226,6 +236,33 @@ export default function AdminRoomsPage({ onOpenRoom, onLogout }: Props) {
           </ul>
         )}
       </main>
+
+      {qrRoom && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4"
+          onClick={() => setQrRoom(null)}
+        >
+          <div
+            className="w-full max-w-lg bg-white rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 flex items-center justify-between border-b bg-white px-4 py-3 rounded-t-2xl">
+              <p className="font-bold text-slate-800">{qrRoom.member_name} さんのQR</p>
+              <button
+                type="button"
+                onClick={() => setQrRoom(null)}
+                className="p-2 rounded-lg hover:bg-slate-100"
+                aria-label="閉じる"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-4">
+              <MemberRoomQrCard memberName={qrRoom.member_name} roomCode={qrRoom.room_code} compact />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

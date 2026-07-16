@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, KeyRound, Printer, Trash2, Upload, Video } from 'lucide-react';
+import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
 import {
   adminDeleteVideo,
   adminListRoomVideos,
@@ -11,7 +12,6 @@ import {
   type CareRoomRow,
   type CareRoomVideoRow,
 } from '../../lib/careApi';
-import { roomUrl } from '../../lib/session';
 
 type Props = {
   roomId: string;
@@ -131,13 +131,10 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
       </header>
 
       <main className="max-w-3xl mx-auto p-4 space-y-4">
-        <section className="bg-white rounded-2xl border p-4">
-          <h2 className="font-bold text-slate-800 mb-2">会員に渡す情報</h2>
-          <p className="text-sm break-all">
-            <span className="text-slate-500">URL: </span>
-            <span className="font-mono">{roomUrl(room.room_code)}</span>
-          </p>
-          <p className="text-xs text-slate-500 mt-2">
+        <section className="bg-white rounded-2xl border p-4 space-y-4">
+          <h2 className="font-bold text-slate-800">会員に渡す情報</h2>
+          <MemberRoomQrCard memberName={room.member_name} roomCode={room.room_code} />
+          <p className="text-xs text-slate-500">
             入室パス最終更新: {new Date(room.password_updated_at).toLocaleString('ja-JP')}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">

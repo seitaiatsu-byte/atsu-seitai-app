@@ -1,4 +1,5 @@
 import { Printer } from 'lucide-react';
+import MemberRoomQrCard from '../components/admin/MemberRoomQrCard';
 import MemberStepGuide from '../components/member/MemberStepGuide';
 import { buildMemberRoomUrl, CLINIC_HELP_LINE, MEMBER_GUIDE_STEPS } from '../lib/memberGuide';
 
@@ -38,10 +39,18 @@ export default function MemberGuidePage({ memberName, roomCode, roomUrl }: Props
           <div className="space-y-4 text-lg leading-relaxed">
             <div>
               <p className="font-bold text-teal-800">① あなた専用のリンク</p>
-              <p className="mt-2 break-all font-mono text-base sm:text-lg bg-white border border-slate-200 rounded-lg p-3">
-                {displayUrl}
-              </p>
-              <p className="text-base text-slate-600 mt-2">スマホでは青い文字をタップ。パソコンではクリック。</p>
+              {roomCode ? (
+                <div className="mt-3">
+                  <MemberRoomQrCard memberName={displayName.replace(/ さん$/, '')} roomCode={roomCode} compact />
+                </div>
+              ) : (
+                <>
+                  <p className="mt-2 break-all font-mono text-base sm:text-lg bg-white border border-slate-200 rounded-lg p-3">
+                    {displayUrl}
+                  </p>
+                  <p className="text-base text-slate-600 mt-2">スマホでは青い文字をタップ。パソコンではクリック。</p>
+                </>
+              )}
             </div>
             <div>
               <p className="font-bold text-teal-800">② 入室パス</p>
