@@ -1,6 +1,13 @@
 /** 小部屋の数（マスター枠） */
 export const SUB_ROOM_COUNT = 15;
 
+/** 会員画面で番号バッジを表示する小部屋（①〜⑫） */
+export const NUMBERED_SUB_ROOM_COUNT = 12;
+
+export function showsSubRoomNumber(slotNumber: number): boolean {
+  return slotNumber >= 1 && slotNumber <= NUMBERED_SUB_ROOM_COUNT;
+}
+
 export const DEFAULT_SUB_ROOM_TITLES: Record<number, string> = {
   1: '痛みを遠ざけられて、疲れにくくなる歩き方（カル速歩行/第1段階）',
   2: '自分で今の痛みを緩和していくための絶対覚えたいプロ整体の技（基本編）',

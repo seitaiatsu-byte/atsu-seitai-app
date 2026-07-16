@@ -157,7 +157,7 @@ export default function AdminSubRoomsMasterPage({ onBack }: Props) {
                 挨拶動画（A / B）
               </h2>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Aは部屋トップ、Bは小部屋一覧の直前に表示されます（全院共通）。
+                Aは部屋トップ、Bは⑫の次・⑬⑭⑮の直前に表示されます（全院共通）。
               </p>
               <ul className="space-y-3">
                 {GREETING_SLOTS.map((slot) => {

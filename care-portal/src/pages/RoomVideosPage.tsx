@@ -13,7 +13,7 @@ import {
   type CareVideoItem,
 } from '../lib/careApi';
 import type { GreetingVideoItem } from '../lib/greetingVideos';
-import { formatVideoCount, type SubRoomItem } from '../lib/subRooms';
+import { formatVideoCount, showsSubRoomNumber, type SubRoomItem } from '../lib/subRooms';
 import { clearSession, loadSession, saveSession } from '../lib/session';
 
 type Props = {
@@ -62,6 +62,38 @@ function GreetingVideoCard({
           <p className="text-sm member-text-accent font-bold mt-1">
             {greeting.has_video ? '▶ タップして再生' : '準備中です'}
           </p>
+        </div>
+      </button>
+    </li>
+  );
+}
+
+function SubRoomCard({ subRoom, onSelect }: { subRoom: SubRoomItem; onSelect: (slot: number) => void }) {
+  const showNumber = showsSubRoomNumber(subRoom.slot_number);
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onSelect(subRoom.slot_number)}
+        className="sub-room-card member-card w-full text-left px-4 py-4 flex items-center gap-3 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[4.5rem] transition-colors"
+      >
+        {showNumber ? (
+          <span className="sub-room-num shrink-0">{subRoom.slot_number}</span>
+        ) : (
+          <span className="shrink-0 w-7" aria-hidden />
+        )}
+        <div className="sub-room-play shrink-0">
+          <PlayCircle size={28} className="text-member-teal" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-base sm:text-lg text-member-text leading-snug line-clamp-3">
+            {subRoom.title}
+          </p>
+          <p className="text-sm member-text-accent font-bold mt-1">▶ タップして動画一覧へ</p>
+        </div>
+        <div className="sub-room-count shrink-0">
+          <span className="sub-room-count-num">{formatVideoCount(subRoom.video_count)}</span>
         </div>
       </button>
     </li>
@@ -177,6 +209,8 @@ export default function RoomVideosPage({ onLogout }: Props) {
   const selectedSubRoom = selectedSlot !== null ? subRooms.find((s) => s.slot_number === selectedSlot) : null;
   const greetingA = greetingVideos.find((g) => g.slot_code === 'A');
   const greetingB = greetingVideos.find((g) => g.slot_code === 'B');
+  const numberedSubRooms = subRooms.filter((sr) => showsSubRoomNumber(sr.slot_number));
+  const extraSubRooms = subRooms.filter((sr) => !showsSubRoomNumber(sr.slot_number));
 
   if (!session) return null;
 
@@ -257,37 +291,27 @@ export default function RoomVideosPage({ onLogout }: Props) {
               </ul>
             )}
 
+            {numberedSubRooms.length > 0 && (
+              <ul className="space-y-3">
+                {numberedSubRooms.map((sr) => (
+                  <SubRoomCard key={sr.slot_number} subRoom={sr} onSelect={setSelectedSlot} />
+                ))}
+              </ul>
+            )}
+
             {greetingB && (
               <ul className="space-y-3">
                 <GreetingVideoCard greeting={greetingB} onPlay={(v) => void handlePlay(v)} />
               </ul>
             )}
 
-            <ul className="space-y-3">
-              {subRooms.map((sr) => (
-                <li key={sr.slot_number}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSlot(sr.slot_number)}
-                    className="sub-room-card member-card w-full text-left px-4 py-4 flex items-center gap-3 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[4.5rem] transition-colors"
-                  >
-                    <span className="sub-room-num shrink-0">{sr.slot_number}</span>
-                    <div className="sub-room-play shrink-0">
-                      <PlayCircle size={28} className="text-member-teal" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-base sm:text-lg text-member-text leading-snug line-clamp-3">
-                        {sr.title}
-                      </p>
-                      <p className="text-sm member-text-accent font-bold mt-1">▶ タップして動画一覧へ</p>
-                    </div>
-                    <div className="sub-room-count shrink-0">
-                      <span className="sub-room-count-num">{formatVideoCount(sr.video_count)}</span>
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {extraSubRooms.length > 0 && (
+              <ul className="space-y-3">
+                {extraSubRooms.map((sr) => (
+                  <SubRoomCard key={sr.slot_number} subRoom={sr} onSelect={setSelectedSlot} />
+                ))}
+              </ul>
+            )}
           </>
         ) : videos.length === 0 ? (
           <div className="text-center py-10 px-4 member-card">
