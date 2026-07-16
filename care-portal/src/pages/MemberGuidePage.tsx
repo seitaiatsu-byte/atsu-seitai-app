@@ -6,7 +6,7 @@ import MemberHelpFooter from '../components/member/MemberHelpFooter';
 import MemberPageShell from '../components/member/MemberPageShell';
 import MemberStepGuide from '../components/member/MemberStepGuide';
 import MemberStepIllustrations, { MemberJourneyMap } from '../components/member/MemberStepIllustrations';
-import { buildMemberRoomUrl, MEMBER_GUIDE_STEPS } from '../lib/memberGuide';
+import { buildMemberRoomUrl, MEMBER_GUIDE_STEPS, MEMBER_HANDOUT_ITEMS } from '../lib/memberGuide';
 
 type Props = {
   memberName?: string;
@@ -53,11 +53,11 @@ export default function MemberGuidePage({ memberName, roomCode, roomUrl }: Props
               )}
             </div>
             <div>
-              <p className="font-bold member-text-emerald">② 入室パス（数字など、当院からお渡し）</p>
+              <p className="font-bold member-text-emerald">{MEMBER_HANDOUT_ITEMS[1]}</p>
               <p className="mt-2 text-2xl font-bold tracking-widest border-b-2 border-member-gold-soft inline-block min-w-[8rem] pb-1">
                 ＿＿＿＿＿＿
               </p>
-              <p className="text-base member-text-muted mt-2">※口頭・LINE・紙などでお渡しします。ここに書き写しても構いません。</p>
+              <p className="text-base member-text-muted mt-2">※LINE・来院時などでお渡しします。ここに書き写しても構いません。</p>
             </div>
           </div>
         </section>

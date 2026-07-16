@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { Link2, LogIn, PlayCircle, QrCode, Smartphone } from 'lucide-react';
+import { MEMBER_GUIDE_STEPS } from '../../lib/memberGuide';
 
 function ArrowDown() {
   return (
@@ -26,7 +27,7 @@ export function MemberJourneyMap() {
       <div className="manual-journey-grid">
         <div className="manual-journey-box">
           <p className="manual-journey-num">A</p>
-          <p className="font-bold text-sm text-member-text">当院からお渡し</p>
+          <p className="font-bold text-sm text-member-text">お渡し</p>
           <div className="flex justify-center gap-3 mt-2 text-member-teal">
             <QrCode size={28} />
             <Link2 size={28} />
@@ -63,14 +64,15 @@ export function MemberJourneyMap() {
 }
 
 export default function MemberStepIllustrations() {
+  const [step1, step2, step3] = MEMBER_GUIDE_STEPS;
+
   return (
     <section className="space-y-2">
       <h2 className="text-lg font-bold text-member-gold-deep mb-3 px-1">操作の手順（図解つき）</h2>
 
-      {/* ステップ1 */}
       <div className="manual-step-figure member-card p-4 sm:p-5">
         <p className="manual-step-badge">ステップ 1</p>
-        <h3 className="font-bold text-member-text text-base sm:text-lg mt-2">お渡しのリンクを開く</h3>
+        <h3 className="font-bold text-member-text text-base sm:text-lg mt-2">{step1.title}</h3>
         <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-6">
           <div className="text-center">
             <div className="manual-illust-qr w-24 h-24 mx-auto rounded-lg border-2 border-member-gold flex items-center justify-center bg-white">
@@ -85,21 +87,18 @@ export default function MemberStepIllustrations() {
             </p>
           </PhoneFrame>
         </div>
-        <p className="text-sm member-text-muted mt-4 leading-relaxed">
-          院内でお渡ししたインターネットのアドレス（URL）やQRコードを、スマホまたはパソコンで開いてください。
-        </p>
+        <p className="text-sm member-text-muted mt-4 leading-relaxed">{step1.body}</p>
       </div>
 
       <ArrowDown />
 
-      {/* ステップ2 */}
       <div className="manual-step-figure member-card p-4 sm:p-5">
         <p className="manual-step-badge">ステップ 2</p>
-        <h3 className="font-bold text-member-text text-base sm:text-lg mt-2">入室パスを入れる</h3>
+        <h3 className="font-bold text-member-text text-base sm:text-lg mt-2">{step2.title}</h3>
         <div className="mt-4 flex justify-center">
           <PhoneFrame label="この画面が出ます">
             <div className="p-3 space-y-3">
-              <p className="text-xs font-bold text-member-text">入室パス</p>
+              <p className="text-xs font-bold text-member-text">入室パスワード</p>
               <div className="manual-illust-input border-2 border-member-gold rounded-lg py-2 text-center font-bold tracking-widest">
                 0 9 1 9
               </div>
@@ -109,17 +108,14 @@ export default function MemberStepIllustrations() {
             </div>
           </PhoneFrame>
         </div>
-        <p className="text-sm member-text-muted mt-4 leading-relaxed">
-          画面の枠に、お渡しした「入室パスワード」（数字など）を入力し、「動画を見る」ボタンを押してください。
-        </p>
+        <p className="text-sm member-text-muted mt-4 leading-relaxed">{step2.body}</p>
       </div>
 
       <ArrowDown />
 
-      {/* ステップ3 */}
       <div className="manual-step-figure member-card p-4 sm:p-5">
         <p className="manual-step-badge">ステップ 3</p>
-        <h3 className="font-bold text-member-text text-base sm:text-lg mt-2">動画をタップして再生</h3>
+        <h3 className="font-bold text-member-text text-base sm:text-lg mt-2">{step3.title}</h3>
         <div className="mt-4 flex justify-center">
           <PhoneFrame label="動画の名前をタップ">
             <div className="p-2 space-y-2">
@@ -135,9 +131,7 @@ export default function MemberStepIllustrations() {
             </div>
           </PhoneFrame>
         </div>
-        <p className="text-sm member-text-muted mt-4 leading-relaxed">
-          一覧に出ている動画の名前をタップ（クリック）すると、上に動画が出て再生されます。▶のマークがついています。
-        </p>
+        <p className="text-sm member-text-muted mt-4 leading-relaxed">{step3.body}</p>
       </div>
     </section>
   );

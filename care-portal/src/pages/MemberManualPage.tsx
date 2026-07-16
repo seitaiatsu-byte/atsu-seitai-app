@@ -29,7 +29,7 @@ export default function MemberManualPage() {
         <section className="member-panel p-4 sm:p-5 text-center">
           <h1 className="text-xl sm:text-2xl font-bold text-member-gold-deep">セルフケア動画の見方</h1>
           <p className="text-base member-text-muted mt-2 leading-relaxed">
-            あつ整体院からお渡しした<strong>専用リンク</strong>または<strong>QRコード</strong>からご利用ください。
+            お渡しした<strong>専用リンク</strong>または<strong>QRコード</strong>からご利用ください。
           </p>
         </section>
 

@@ -30,7 +30,7 @@ export default function HomePage({ onOpenAdmin, onOpenManual }: Props) {
             このページからは動画は見られません。
           </p>
           <p className="text-base text-amber-900 leading-relaxed">
-            当院からお渡しした<strong>専用リンク</strong>または<strong>QRコード</strong>を、スマホで開いてください。
+            お渡しした<strong>専用リンク</strong>または<strong>QRコード</strong>を、スマホで開いてください。
           </p>
           <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
             {MEMBER_ENTRY_EXPLAIN.points.slice(0, 2).map((p) => (

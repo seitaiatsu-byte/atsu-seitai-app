@@ -5,7 +5,7 @@ import MemberHelpFooter from '../components/member/MemberHelpFooter';
 import MemberPageShell from '../components/member/MemberPageShell';
 import MemberStepGuide from '../components/member/MemberStepGuide';
 import { loginRoom } from '../lib/careApi';
-import { MEMBER_GUIDE_STEPS } from '../lib/memberGuide';
+import { MEMBER_GUIDE_STEPS, MEMBER_LOGIN_ERROR_FALLBACK, MEMBER_PASSWORD_HINT } from '../lib/memberGuide';
 import { saveSession } from '../lib/session';
 
 type Props = {
@@ -35,7 +35,7 @@ export default function RoomLoginPage({ roomCode, onLoggedIn, onOpenManual }: Pr
           ? err.message.includes('正しく')
             ? err.message
             : '入室パスが正しくないか、入力し忘れがあります。もう一度お試しください。'
-          : '入室に失敗しました。院内にお問い合わせください。'
+          : MEMBER_LOGIN_ERROR_FALLBACK
       );
     } finally {
       setLoading(false);
@@ -60,9 +60,9 @@ export default function RoomLoginPage({ roomCode, onLoggedIn, onOpenManual }: Pr
           )}
 
           <label className="block text-lg font-bold text-member-text mb-2" htmlFor="room-password">
-            入室パス
+            入室パスワード
           </label>
-          <p className="text-base member-text-muted mb-3">院内でお渡しした数字（または文字）をそのまま入れてください</p>
+          <p className="text-base member-text-muted mb-3">{MEMBER_PASSWORD_HINT}</p>
           <input
             id="room-password"
             type="text"

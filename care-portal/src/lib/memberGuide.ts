@@ -8,7 +8,7 @@ export const MEMBER_GUIDE_STEPS: MemberGuideStep[] = [
   {
     number: 1,
     title: 'お渡しのリンクを開く',
-    body: '院内でお渡ししたインターネットのアドレス（URL）やQRコードを、スマホまたはパソコンで開いてください。青くなっている文字をタップ（クリック）すると開きます。',
+    body: 'お渡ししたインターネットのアドレス（URL）やQRコードを、スマホまたはパソコンで開いてください。青くなっている文字をタップ（クリック）すると開きます。',
   },
   {
     number: 2,
@@ -36,6 +36,10 @@ export const MEMBER_HELP_TITLE = 'Ｑ. わからないときは';
 
 export const MEMBER_HELP_BODY = 'LINEや、直接来院時にお尋ねください。';
 
+export const MEMBER_LOGIN_ERROR_FALLBACK = '入室に失敗しました。LINEや、直接来院時にお尋ねください。';
+
+export const MEMBER_PASSWORD_HINT = 'お渡しした「入室パスワード」（数字など）をそのまま入れてください';
+
 /** @deprecated 互換用。新文言は MEMBER_HELP_BODY を使用 */
 export const CLINIC_HELP_LINE = MEMBER_HELP_BODY;
 
@@ -55,13 +59,13 @@ export type ManualFlowStep = {
 
 export const MEMBER_SITE_PURPOSE = {
   title: 'このサイトは何のため？',
-  body: 'あつ整体院の会員さんが、ご自宅などで「あなた専用のセルフケア動画」を安全に見るためのサイトです。院内で撮影・アップロードした動画を、会員一人ひとりだけが見られます。',
+  body: 'あつ整体院の会員さんが、ご自宅などで「あなた専用のセルフケア動画」を安全に見るためのサイトです。お一人ひとりだけが見られる動画をお届けします。',
 };
 
 export const MEMBER_ENTRY_EXPLAIN = {
   title: '会員さんはどこから入る？（とても大切）',
   points: [
-    'トップページ（サイトの表紙）から入る必要はありません。普段、会員さんが開くのは当院からお渡しした「あなた専用のリンク」またはQRコードだけです。',
+    'トップページ（サイトの表紙）から入る必要はありません。普段、会員さんが開くのはお渡しした「あなた専用のリンク」またはQRコードだけです。',
     'リンクの形の例：https://atsu-care-portal.vercel.app/r/room-xxxx（room-xxxx はお一人おひとり違います）',
     'QRコードを読み取ると、自動的にその専用ページが開きます。',
     'トップページに来てしまった場合は、お渡しのリンクやQRをもう一度開いてください。',
@@ -70,15 +74,15 @@ export const MEMBER_ENTRY_EXPLAIN = {
 
 export const MEMBER_FULL_FLOW: ManualFlowStep[] = [
   {
-    who: 'スタッフ（当院）',
-    when: '来院時・動画を渡すとき',
-    where: '管理画面（パソコン・院内）',
+    who: 'スタッフ',
+    when: '動画を渡すとき',
+    where: '管理画面',
     what: '会員ルームを作り、動画をアップロードし、専用URL・QR・入室パスワードを準備する',
   },
   {
     who: 'スタッフ → 会員さん',
-    when: 'その場で、またはLINEなど',
-    where: '院内・お手持ちのスマホ',
+    when: 'LINE・来院時など',
+    where: 'お手持ちのスマホ',
     what: '①専用URLまたはQR ②入室パスワード の2つをお渡しする',
   },
   {
@@ -91,7 +95,7 @@ export const MEMBER_FULL_FLOW: ManualFlowStep[] = [
 
 export const STAFF_SITE_PURPOSE = {
   title: 'スタッフが使うのはどこ？',
-  body: '会員向けのトップページではなく、別の「スタッフ管理画面」です。院内のパソコンやタブレットからログインして使います。',
+  body: '会員向けのトップページではなく、別の「スタッフ管理画面」です。パソコンやタブレットからログインして使います。',
 };
 
 export const STAFF_ENTRY_URL = '/admin/login';
@@ -113,7 +117,7 @@ export const STAFF_FULL_FLOW: ManualFlowStep[] = [
     who: 'スタッフ',
     when: '会員にお渡しするとき',
     where: 'ルーム詳細の「QR」「URLコピー」',
-    what: 'QR画像をLINE送信・印刷、またはURLをコピー。入室パスワードは別途口頭・LINE・紙で伝える',
+    what: 'QR画像をLINE送信・印刷、またはURLをコピー。入室パスワードは別途LINE・口頭・紙で伝える',
   },
   {
     who: '会員さん（参考）',
