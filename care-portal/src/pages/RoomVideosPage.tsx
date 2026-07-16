@@ -28,39 +28,51 @@ export default function RoomVideosPage({ onLogout }: Props) {
   const [playbackUrl, setPlaybackUrl] = useState('');
   const [playbackLoading, setPlaybackLoading] = useState(false);
 
+  const sessionToken = session?.sessionToken;
+
   const refresh = useCallback(async () => {
-    if (!session) return;
+    const token = sessionToken ?? loadSession()?.sessionToken;
+    if (!token) return;
     setLoading(true);
     setError('');
     try {
-      const valid = await validateSession(session.sessionToken);
+      const valid = await validateSession(token);
       saveSession(valid);
-      setSession(valid);
-      const list = await listMemberVideos(valid.sessionToken);
+      setSession((prev) =>
+        prev?.sessionToken === valid.sessionToken &&
+        prev.memberName === valid.memberName &&
+        prev.expiresAt === valid.expiresAt
+          ? prev
+          : valid
+      );
+      const list = await listMemberVideos(token);
       setVideos(list);
     } catch (err) {
       clearSession();
+      setSession(null);
       setError(err instanceof Error ? err.message : '読み込みに失敗しました');
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [sessionToken]);
 
   useEffect(() => {
-    if (!session) {
+    if (!sessionToken) {
       window.location.href = '/';
       return;
     }
     void refresh();
-  }, [session, refresh]);
+  }, [sessionToken, refresh]);
 
   const handlePlay = async (video: CareVideoItem) => {
-    if (!session) return;
+    const token = sessionToken ?? loadSession()?.sessionToken;
+    if (!token) return;
     setActiveVideo(video);
     setPlaybackUrl('');
     setPlaybackLoading(true);
+    setError('');
     try {
-      const url = await fetchPlaybackUrl(session.sessionToken, video.id);
+      const url = await fetchPlaybackUrl(token, video.id);
       setPlaybackUrl(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : '再生準備に失敗しました');
@@ -71,9 +83,9 @@ export default function RoomVideosPage({ onLogout }: Props) {
   };
 
   const handleLogout = async () => {
-    if (session) {
+    if (sessionToken) {
       try {
-        await logoutRoom(session.sessionToken);
+        await logoutRoom(sessionToken);
       } catch {
         /* ignore */
       }
