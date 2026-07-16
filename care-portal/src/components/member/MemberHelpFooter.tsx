@@ -7,16 +7,12 @@ type Props = {
 
 export default function MemberHelpFooter({ large }: Props) {
   return (
-    <div
-      className={`rounded-xl border border-amber-200 bg-amber-50 text-amber-950 ${
-        large ? 'px-4 py-4 text-base' : 'px-3 py-3 text-sm sm:text-base'
-      }`}
-    >
-      <p className="font-bold flex items-center gap-2">
+    <div className={`member-help-box ${large ? 'text-base' : 'text-sm sm:text-base'}`}>
+      <p className="font-bold flex items-center gap-2 member-text-emerald">
         <Phone size={large ? 22 : 18} className="shrink-0" />
         わからないときは
       </p>
-      <p className="mt-1 leading-relaxed">{CLINIC_HELP_LINE}</p>
+      <p className="mt-1 leading-relaxed member-text-muted">{CLINIC_HELP_LINE}</p>
     </div>
   );
 }

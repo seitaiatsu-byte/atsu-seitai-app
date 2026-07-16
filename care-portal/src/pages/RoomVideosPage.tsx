@@ -99,44 +99,32 @@ export default function RoomVideosPage({ onLogout }: Props) {
 
   return (
     <MemberPageShell>
-      <MemberBrandHeader
-        sticky
-        eyebrow="ステップ3：動画を選んで再生"
-        title={`${session.memberName} さんの動画`}
-      >
+      <MemberBrandHeader sticky eyebrow="ステップ3：動画を選んで再生" title={`${session.memberName} さんの動画`}>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => void refresh()}
-            className="px-4 py-2.5 rounded-xl bg-[#2a7f7a] hover:bg-[#1f6b66] text-white font-bold text-base border border-[#2a7f7a]/30"
-          >
+          <button type="button" onClick={() => void refresh()} className="member-btn-primary px-4 py-2.5 text-base">
             新しい動画を確認
           </button>
-          <button
-            type="button"
-            onClick={() => void handleLogout()}
-            className="px-4 py-2.5 rounded-xl bg-white/80 hover:bg-white text-[#1f4f4b] font-bold text-base border border-[#d9c9a8]/50"
-          >
+          <button type="button" onClick={() => void handleLogout()} className="member-btn-secondary px-4 py-2.5 text-base">
             終了する
           </button>
         </div>
       </MemberBrandHeader>
 
       {activeVideo && (
-        <div className="bg-black">
+        <div className="bg-member-emerald-deep">
           {playbackLoading ? (
             <div className="aspect-video flex items-center justify-center text-white text-lg">動画を準備しています…</div>
           ) : playbackUrl ? (
             <VideoPlayer src={playbackUrl} title={activeVideo.title} />
           ) : null}
-          <div className="px-4 py-3 bg-slate-900 text-white flex items-center gap-2">
+          <div className="px-4 py-3 bg-member-emerald-deep text-white flex items-center gap-2 border-t border-white/10">
             <button
               type="button"
               onClick={() => {
                 setActiveVideo(null);
                 setPlaybackUrl('');
               }}
-              className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-base font-bold shrink-0"
+              className="member-btn-secondary px-3 py-2 text-base shrink-0 !text-member-emerald-deep"
             >
               ← 一覧へ
             </button>
@@ -149,26 +137,22 @@ export default function RoomVideosPage({ onLogout }: Props) {
         {!activeVideo && <MemberStepGuide currentStep={3} steps={WATCH_STEP} compact />}
 
         {error && (
-          <div className="rounded-xl bg-red-50 border-2 border-red-300 text-red-900 text-base px-4 py-4 leading-relaxed">
+          <div className="rounded-xl bg-red-50 border-2 border-red-200 text-red-900 text-base px-4 py-4 leading-relaxed">
             {error}
           </div>
         )}
 
         {loading ? (
-          <p className="text-center text-slate-600 text-lg py-12">動画を読み込んでいます…</p>
+          <p className="text-center member-text-muted text-lg py-12">動画を読み込んでいます…</p>
         ) : videos.length === 0 ? (
-          <div className="text-center py-10 px-4 rounded-2xl bg-white border-2 border-slate-200">
-            <p className="font-bold text-xl text-slate-800">まだ動画がありません</p>
-            <p className="text-base text-slate-600 mt-3 leading-relaxed">
+          <div className="text-center py-10 px-4 member-card">
+            <p className="font-bold text-xl text-member-text">まだ動画がありません</p>
+            <p className="text-base member-text-muted mt-3 leading-relaxed">
               新しい動画がアップロードされるまでお待ちください。
               <br />
               あとで同じリンクから、もう一度開いてください。
             </p>
-            <button
-              type="button"
-              onClick={() => void refresh()}
-              className="mt-5 px-6 py-3 rounded-xl bg-[#2a7f7a] text-white font-bold text-lg"
-            >
+            <button type="button" onClick={() => void refresh()} className="member-btn-primary mt-5 px-6 py-3 text-lg">
               もう一度確認する
             </button>
           </div>
@@ -179,17 +163,17 @@ export default function RoomVideosPage({ onLogout }: Props) {
                 <button
                   type="button"
                   onClick={() => void handlePlay(v)}
-                  className="w-full text-left bg-white/95 rounded-2xl border-2 border-slate-200/80 shadow-sm px-4 py-4 flex items-center gap-4 hover:border-[#2a7f7a]/40 active:bg-[#e8f3f1] min-h-[5rem]"
+                  className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-emerald/35 active:bg-member-emerald-light/40 min-h-[5rem] transition-colors"
                 >
-                  <div className="shrink-0 w-12 h-12 rounded-full bg-[#e8f3f1] flex items-center justify-center border border-[#2a7f7a]/15">
-                    <PlayCircle className="text-[#2a7f7a]" size={32} />
+                  <div className="member-icon-badge w-12 h-12">
+                    <PlayCircle size={32} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-lg sm:text-xl text-slate-900 leading-snug">
+                    <p className="font-bold text-lg sm:text-xl text-member-text leading-snug">
                       {v.title || 'セルフケア動画'}
                     </p>
-                    <p className="text-base text-slate-600 mt-1">{formatDate(v.uploaded_at)}</p>
-                    <p className="text-sm text-[#2a7f7a] font-bold mt-1">▶ タップして再生</p>
+                    <p className="text-base member-text-muted mt-1">{formatDate(v.uploaded_at)}</p>
+                    <p className="text-sm member-text-emerald font-bold mt-1">▶ タップして再生</p>
                   </div>
                 </button>
               </li>

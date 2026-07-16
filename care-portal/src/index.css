@@ -7,86 +7,202 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* ── 会員向けブランド装飾（管理画面以外） ── */
+/* ── 会員向けテーマ：アイボリー × エメラルド（青寄り） ── */
 .member-page {
-  background: linear-gradient(180deg, #faf8f4 0%, #f4f7f6 45%, #eef4f3 100%);
+  --member-ivory: #f7f2e8;
+  --member-ivory-deep: #efe6d6;
+  --member-gold: #bfa77a;
+  --member-emerald: #1a7d76;
+  --member-emerald-deep: #145f5a;
+  --member-emerald-light: #e3eeec;
+  --member-text: #2a3836;
+  --member-text-muted: #5c6e6b;
+
+  color: var(--member-text);
+  background: linear-gradient(165deg, #faf6ee 0%, #f3eee4 38%, #e8f0ee 100%);
 }
 
 .member-page-bg {
   background:
-    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(201, 168, 108, 0.09), transparent 60%),
-    radial-gradient(ellipse 60% 45% at 0% 100%, rgba(42, 127, 122, 0.08), transparent 55%);
+    radial-gradient(ellipse 80% 55% at 92% 4%, rgba(191, 167, 122, 0.14), transparent 58%),
+    radial-gradient(ellipse 70% 50% at 4% 96%, rgba(26, 125, 118, 0.1), transparent 55%),
+    linear-gradient(180deg, rgba(253, 250, 245, 0.5), rgba(227, 238, 236, 0.35));
+}
+
+.member-watermark {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.055;
+  mix-blend-mode: lighten;
+  pointer-events: none;
+  user-select: none;
+}
+
+.member-watermark-1 {
+  width: 11rem;
+  height: 11rem;
+  top: 8%;
+  right: -2rem;
+  transform: rotate(12deg);
+}
+
+.member-watermark-2 {
+  width: 8rem;
+  height: 8rem;
+  top: 42%;
+  left: -2.5rem;
+  transform: rotate(-18deg);
+}
+
+.member-watermark-3 {
+  width: 9rem;
+  height: 9rem;
+  bottom: 18%;
+  right: 6%;
+  transform: rotate(8deg);
+}
+
+.member-watermark-4 {
+  width: 6.5rem;
+  height: 6.5rem;
+  bottom: 6%;
+  left: 10%;
+  transform: rotate(-10deg);
 }
 
 .member-brand-header {
-  border-bottom: 1px solid rgba(201, 168, 108, 0.22);
-  box-shadow: 0 10px 30px rgba(31, 107, 102, 0.06);
-}
-
-.member-brand-header-bg {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 252, 247, 0.98) 0%,
-    rgba(237, 246, 244, 0.96) 48%,
-    rgba(250, 245, 236, 0.94) 100%
-  );
-}
-
-.member-brand-header-lines::before,
-.member-brand-header-lines::after {
-  content: '';
-  position: absolute;
-  width: 7rem;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(201, 168, 108, 0.55), transparent);
-  opacity: 0.7;
-}
-
-.member-brand-header-lines::before {
-  top: 1.25rem;
-  left: 8%;
-}
-
-.member-brand-header-lines::after {
-  bottom: 1.25rem;
-  right: 8%;
+  border-bottom: 1px solid rgba(191, 167, 122, 0.28);
+  background: rgba(253, 250, 245, 0.82);
+  backdrop-filter: blur(10px);
 }
 
 .member-brand-eyebrow {
-  color: #2a7f7a;
+  color: var(--member-emerald-muted, #3a8a84);
+  letter-spacing: 0.04em;
 }
 
 .member-brand-title {
-  color: #1f4f4b;
+  color: var(--member-emerald-deep);
 }
 
 .member-brand-subtitle {
-  color: #4a6663;
+  color: var(--member-text-muted);
 }
 
-.member-brand-logo-halo {
-  background: radial-gradient(circle, rgba(201, 168, 108, 0.28) 0%, rgba(201, 168, 108, 0.06) 55%, transparent 72%);
-  filter: blur(2px);
-  transform: scale(1.12);
+/* ロゴ：黒背景を消してそのまま置く */
+.member-brand-logo-img,
+.member-watermark {
+  mix-blend-mode: lighten;
 }
 
-.member-brand-logo-ring {
-  border: 1px solid rgba(201, 168, 108, 0.45);
-  box-shadow:
-    0 0 0 6px rgba(255, 252, 247, 0.75),
-    0 0 0 7px rgba(201, 168, 108, 0.12),
-    inset 0 0 12px rgba(42, 127, 122, 0.08);
+.member-card {
+  @apply rounded-2xl border shadow-sm backdrop-blur-sm;
+  background: rgba(253, 250, 245, 0.92);
+  border-color: rgba(191, 167, 122, 0.32);
 }
 
-.member-brand-logo-plate {
-  position: absolute;
-  inset: 10%;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(250, 245, 236, 0.9));
-  box-shadow: 0 8px 24px rgba(31, 107, 102, 0.1);
+.member-card-soft {
+  @apply rounded-xl border shadow-sm;
+  background: rgba(253, 250, 245, 0.88);
+  border-color: rgba(191, 167, 122, 0.22);
 }
 
-.member-brand-logo-img {
-  box-shadow: 0 4px 14px rgba(31, 107, 102, 0.14);
+.member-panel {
+  @apply rounded-2xl border-2 shadow-sm backdrop-blur-sm;
+  background: rgba(253, 250, 245, 0.95);
+  border-color: rgba(26, 125, 118, 0.18);
+}
+
+.member-icon-badge {
+  @apply rounded-full flex items-center justify-center shrink-0 border;
+  background: var(--member-emerald-light);
+  color: var(--member-emerald);
+  border-color: rgba(26, 125, 118, 0.16);
+}
+
+.member-btn-primary {
+  @apply font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50;
+  background: var(--member-emerald);
+  color: #fff;
+}
+
+.member-btn-primary:hover:not(:disabled) {
+  background: var(--member-emerald-deep);
+}
+
+.member-btn-secondary {
+  @apply font-bold rounded-xl border transition-colors;
+  background: rgba(253, 250, 245, 0.9);
+  color: var(--member-emerald-deep);
+  border-color: rgba(191, 167, 122, 0.45);
+}
+
+.member-btn-secondary:hover {
+  background: #fff;
+}
+
+.member-input {
+  @apply w-full rounded-xl border-2 outline-none font-bold text-center;
+  border-color: rgba(191, 167, 122, 0.45);
+  background: #fff;
+  color: var(--member-text);
+}
+
+.member-input:focus {
+  border-color: var(--member-emerald);
+}
+
+.member-step-panel {
+  @apply rounded-2xl border-2 p-3 sm:p-4;
+  background: rgba(227, 238, 236, 0.55);
+  border-color: rgba(26, 125, 118, 0.2);
+}
+
+.member-step-item {
+  @apply flex gap-3 rounded-xl p-3 border;
+  background: rgba(253, 250, 245, 0.82);
+  border-color: rgba(191, 167, 122, 0.2);
+}
+
+.member-step-item-active {
+  background: #fff;
+  border-color: rgba(26, 125, 118, 0.42);
+  box-shadow: 0 4px 16px rgba(26, 125, 118, 0.08);
+}
+
+.member-step-num {
+  @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-bold;
+  background: rgba(191, 167, 122, 0.28);
+  color: var(--member-emerald-deep);
+}
+
+.member-step-num-active {
+  background: var(--member-emerald);
+  color: #fff;
+}
+
+.member-help-box {
+  @apply rounded-xl border px-4 py-4;
+  background: rgba(253, 250, 245, 0.9);
+  border-color: rgba(191, 167, 122, 0.38);
+  color: var(--member-text);
+}
+
+.member-text-muted {
+  color: var(--member-text-muted);
+}
+
+.member-text-emerald {
+  color: var(--member-emerald);
+}
+
+.member-link-subtle {
+  @apply underline transition-colors;
+  color: rgba(92, 110, 107, 0.75);
+}
+
+.member-link-subtle:hover {
+  color: var(--member-emerald-deep);
 }
 
 @media print {
@@ -100,16 +216,22 @@ body {
 
   .member-page,
   .member-page-bg,
-  .member-brand-header-bg,
-  .member-brand-header-lines,
-  .member-brand-logo-halo {
+  .member-watermarks {
     background: white !important;
-    box-shadow: none !important;
+  }
+
+  .member-watermarks {
+    display: none !important;
   }
 
   .member-brand-header {
-    border-bottom: 2px solid #2a7f7a;
-    box-shadow: none;
+    background: white !important;
+    border-bottom: 2px solid var(--member-emerald);
+    backdrop-filter: none;
+  }
+
+  .member-brand-logo-img {
+    mix-blend-mode: normal;
   }
 
   @page {
