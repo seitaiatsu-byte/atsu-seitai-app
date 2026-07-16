@@ -1,19 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, PlayCircle } from 'lucide-react';
+import { PlayCircle } from 'lucide-react';
 import VideoPlayer from '../components/VideoPlayer';
 import MemberBrandHeader from '../components/member/MemberBrandHeader';
-import MemberHelpFooter from '../components/member/MemberHelpFooter';
 import MemberPageShell from '../components/member/MemberPageShell';
-import MemberStepGuide from '../components/member/MemberStepGuide';
 import {
   fetchPlaybackUrl,
+  listMemberGreetingVideos,
   listMemberSubRooms,
   listMemberVideos,
   logoutRoom,
   validateSession,
   type CareVideoItem,
 } from '../lib/careApi';
-import { MEMBER_GUIDE_STEPS } from '../lib/memberGuide';
+import type { GreetingVideoItem } from '../lib/greetingVideos';
 import { formatVideoCount, type SubRoomItem } from '../lib/subRooms';
 import { clearSession, loadSession, saveSession } from '../lib/session';
 
@@ -21,7 +20,11 @@ type Props = {
   onLogout: () => void;
 };
 
-const WATCH_STEP = MEMBER_GUIDE_STEPS.filter((s) => s.number === 3);
+type ActivePlayback = {
+  id: string;
+  title: string;
+  kind: 'room' | 'greeting';
+};
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -29,12 +32,13 @@ function formatDate(iso: string) {
 
 export default function RoomVideosPage({ onLogout }: Props) {
   const [session, setSession] = useState(loadSession);
+  const [greetingVideos, setGreetingVideos] = useState<GreetingVideoItem[]>([]);
   const [subRooms, setSubRooms] = useState<SubRoomItem[]>([]);
   const [videos, setVideos] = useState<CareVideoItem[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeVideo, setActiveVideo] = useState<CareVideoItem | null>(null);
+  const [activeVideo, setActiveVideo] = useState<ActivePlayback | null>(null);
   const [playbackUrl, setPlaybackUrl] = useState('');
   const [playbackLoading, setPlaybackLoading] = useState(false);
 
@@ -55,7 +59,12 @@ export default function RoomVideosPage({ onLogout }: Props) {
           ? prev
           : valid
       );
-      setSubRooms(await listMemberSubRooms(token));
+      const [greetings, rooms] = await Promise.all([
+        listMemberGreetingVideos(token),
+        listMemberSubRooms(token),
+      ]);
+      setGreetingVideos(greetings);
+      setSubRooms(rooms);
     } catch (err) {
       clearSession();
       setSession(null);
@@ -96,7 +105,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
     }
   }, [selectedSlot, loadVideosForSlot]);
 
-  const handlePlay = async (video: CareVideoItem) => {
+  const handlePlay = async (video: ActivePlayback) => {
     const token = sessionToken ?? loadSession()?.sessionToken;
     if (!token) return;
     setActiveVideo(video);
@@ -104,7 +113,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
     setPlaybackLoading(true);
     setError('');
     try {
-      const url = await fetchPlaybackUrl(token, video.id);
+      const url = await fetchPlaybackUrl(token, video.id, video.kind);
       setPlaybackUrl(url);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
@@ -192,8 +201,6 @@ export default function RoomVideosPage({ onLogout }: Props) {
       )}
 
       <main className="flex-1 p-4 max-w-2xl mx-auto w-full space-y-4">
-        {!activeVideo && selectedSlot === null && <MemberStepGuide currentStep={3} steps={WATCH_STEP} compact />}
-
         {error && (
           <div className="rounded-xl bg-red-50 border-2 border-red-200 text-red-900 text-base px-4 py-4 leading-relaxed">
             {error}
@@ -203,31 +210,69 @@ export default function RoomVideosPage({ onLogout }: Props) {
         {loading ? (
           <p className="text-center member-text-muted text-lg py-12">読み込んでいます…</p>
         ) : selectedSlot === null ? (
-          <ul className="space-y-3">
-            {subRooms.map((sr) => (
-              <li key={sr.slot_number}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedSlot(sr.slot_number)}
-                  className="sub-room-card member-card w-full text-left px-4 py-4 flex items-center gap-3 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[4.5rem] transition-colors"
-                >
-                  <span className="sub-room-num shrink-0">{sr.slot_number}</span>
-                  <div className="sub-room-play shrink-0">
-                    <PlayCircle size={28} className="text-member-teal" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-base sm:text-lg text-member-text leading-snug line-clamp-3">
-                      {sr.title}
-                    </p>
-                    <p className="text-sm member-text-accent font-bold mt-1">▶ タップして動画一覧へ</p>
-                  </div>
-                  <div className="sub-room-count shrink-0">
-                    <span className="sub-room-count-num">{formatVideoCount(sr.video_count)}</span>
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <>
+            {greetingVideos.length > 0 && (
+              <ul className="space-y-3">
+                {greetingVideos.map((g) => (
+                  <li key={g.slot_code}>
+                    <button
+                      type="button"
+                      disabled={!g.has_video}
+                      onClick={() =>
+                        g.has_video &&
+                        void handlePlay({ id: g.id, title: g.title, kind: 'greeting' })
+                      }
+                      className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="shrink-0 w-10 h-10 rounded-full bg-member-gold/20 text-member-gold-deep font-bold flex items-center justify-center text-lg">
+                        {g.slot_code}
+                      </span>
+                      <div className="member-icon-badge w-12 h-12 shrink-0">
+                        <PlayCircle size={32} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-lg sm:text-xl text-member-text leading-snug">
+                          {g.title}
+                        </p>
+                        {g.has_video && g.uploaded_at && (
+                          <p className="text-base member-text-muted mt-1">{formatDate(g.uploaded_at)}</p>
+                        )}
+                        <p className="text-sm member-text-accent font-bold mt-1">
+                          {g.has_video ? '▶ タップして再生' : '準備中です'}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <ul className="space-y-3">
+              {subRooms.map((sr) => (
+                <li key={sr.slot_number}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSlot(sr.slot_number)}
+                    className="sub-room-card member-card w-full text-left px-4 py-4 flex items-center gap-3 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[4.5rem] transition-colors"
+                  >
+                    <span className="sub-room-num shrink-0">{sr.slot_number}</span>
+                    <div className="sub-room-play shrink-0">
+                      <PlayCircle size={28} className="text-member-teal" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-base sm:text-lg text-member-text leading-snug line-clamp-3">
+                        {sr.title}
+                      </p>
+                      <p className="text-sm member-text-accent font-bold mt-1">▶ タップして動画一覧へ</p>
+                    </div>
+                    <div className="sub-room-count shrink-0">
+                      <span className="sub-room-count-num">{formatVideoCount(sr.video_count)}</span>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
         ) : videos.length === 0 ? (
           <div className="text-center py-10 px-4 member-card">
             <p className="font-bold text-xl text-member-text">この小部屋にはまだ動画がありません</p>
@@ -251,7 +296,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
               <li key={v.id}>
                 <button
                   type="button"
-                  onClick={() => void handlePlay(v)}
+                  onClick={() => void handlePlay({ id: v.id, title: v.title || 'セルフケア動画', kind: 'room' })}
                   className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors"
                 >
                   <div className="member-icon-badge w-12 h-12">
@@ -269,8 +314,6 @@ export default function RoomVideosPage({ onLogout }: Props) {
             ))}
           </ul>
         )}
-
-        <MemberHelpFooter large />
       </main>
     </MemberPageShell>
   );

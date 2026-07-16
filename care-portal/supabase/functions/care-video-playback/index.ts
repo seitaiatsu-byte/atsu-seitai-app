@@ -17,9 +17,14 @@ Deno.serve(async (req) => {
       return json({ error: 'server misconfigured' }, 500);
     }
 
-    const body = (await req.json()) as { session_token?: string; video_id?: string };
+    const body = (await req.json()) as {
+      session_token?: string;
+      video_id?: string;
+      video_kind?: 'room' | 'greeting';
+    };
     const sessionToken = body.session_token?.trim();
     const videoId = body.video_id?.trim();
+    const videoKind = body.video_kind === 'greeting' ? 'greeting' : 'room';
     if (!sessionToken || !videoId) {
       return json({ error: 'session_token and video_id are required' }, 400);
     }
@@ -39,22 +44,38 @@ Deno.serve(async (req) => {
       return json({ error: 'session expired' }, 401);
     }
 
-    const { data: video, error: vidErr } = await admin
-      .from('care_room_videos')
-      .select('id, room_id, storage_path, is_published')
-      .eq('id', videoId)
-      .maybeSingle();
+    let storagePath: string | null = null;
 
-    if (vidErr || !video || !video.is_published) {
-      return json({ error: 'video not found' }, 404);
-    }
-    if (video.room_id !== sess.room_id) {
-      return json({ error: 'forbidden' }, 403);
+    if (videoKind === 'greeting') {
+      const { data: greeting, error: greetErr } = await admin
+        .from('care_greeting_videos')
+        .select('id, storage_path, is_published')
+        .eq('id', videoId)
+        .maybeSingle();
+
+      if (greetErr || !greeting || !greeting.is_published || !greeting.storage_path) {
+        return json({ error: 'video not found' }, 404);
+      }
+      storagePath = greeting.storage_path;
+    } else {
+      const { data: video, error: vidErr } = await admin
+        .from('care_room_videos')
+        .select('id, room_id, storage_path, is_published')
+        .eq('id', videoId)
+        .maybeSingle();
+
+      if (vidErr || !video || !video.is_published) {
+        return json({ error: 'video not found' }, 404);
+      }
+      if (video.room_id !== sess.room_id) {
+        return json({ error: 'forbidden' }, 403);
+      }
+      storagePath = video.storage_path;
     }
 
     const { data: signed, error: signErr } = await admin.storage
       .from('care-videos')
-      .createSignedUrl(video.storage_path, 3600);
+      .createSignedUrl(storagePath, 3600);
 
     if (signErr || !signed?.signedUrl) {
       return json({ error: signErr?.message || 'signed url failed' }, 500);

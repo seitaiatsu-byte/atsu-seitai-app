@@ -1,4 +1,6 @@
 import { functionsBaseUrl, supabase } from './supabase';
+import type { GreetingSlot, GreetingVideoItem, GreetingVideoRow } from './greetingVideos';
+import { DEFAULT_GREETING_TITLES } from './greetingVideos';
 import type { SubRoomItem } from './subRooms';
 import type { CareSession } from './session';
 
@@ -96,11 +98,23 @@ export async function listMemberVideos(sessionToken: string, subRoomSlot?: numbe
   }));
 }
 
+export async function listMemberGreetingVideos(sessionToken: string): Promise<GreetingVideoItem[]> {
+  const { data, error } = await supabase.rpc('care_room_list_greeting_videos', {
+    p_session_token: sessionToken,
+  });
+  if (error) throw new Error(parseRpcError(error.message));
+  return (data || []) as GreetingVideoItem[];
+}
+
 export async function logoutRoom(sessionToken: string) {
   await supabase.rpc('care_room_logout', { p_session_token: sessionToken });
 }
 
-export async function fetchPlaybackUrl(sessionToken: string, videoId: string): Promise<string> {
+export async function fetchPlaybackUrl(
+  sessionToken: string,
+  videoId: string,
+  videoKind: 'room' | 'greeting' = 'room'
+): Promise<string> {
   const base = functionsBaseUrl();
   const res = await fetch(`${base}/care-video-playback`, {
     method: 'POST',
@@ -108,7 +122,7 @@ export async function fetchPlaybackUrl(sessionToken: string, videoId: string): P
       'Content-Type': 'application/json',
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
     },
-    body: JSON.stringify({ session_token: sessionToken, video_id: videoId }),
+    body: JSON.stringify({ session_token: sessionToken, video_id: videoId, video_kind: videoKind }),
   });
   const json = (await res.json()) as { signed_url?: string; error?: string };
   if (!res.ok || !json.signed_url) {
@@ -195,6 +209,81 @@ export async function adminUpdateSubRoomTitle(slotNumber: number, title: string)
     p_title: title,
   });
   if (error) throw new Error(parseRpcError(error.message));
+}
+
+export async function adminListGreetingVideos(): Promise<GreetingVideoRow[]> {
+  const { data, error } = await supabase
+    .from('care_greeting_videos')
+    .select('slot_code, id, title, storage_path, file_size, is_published, uploaded_at, updated_at')
+    .order('slot_code');
+  if (error) throw new Error(error.message);
+  return (data || []) as GreetingVideoRow[];
+}
+
+export async function adminUpdateGreetingTitle(slot: GreetingSlot, title: string) {
+  const { error } = await supabase
+    .from('care_greeting_videos')
+    .update({ title: title.trim(), updated_at: new Date().toISOString() })
+    .eq('slot_code', slot);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminUploadGreetingVideo(slot: GreetingSlot, file: File, title: string) {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
+  const videoId = crypto.randomUUID();
+  const storagePath = `greeting/${slot}/${videoId}.${ext}`;
+
+  const existing = await adminListGreetingVideos();
+  const row = existing.find((g) => g.slot_code === slot);
+  const oldPath = row?.storage_path;
+
+  const { error: upErr } = await supabase.storage.from('care-videos').upload(storagePath, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: file.type || 'video/mp4',
+  });
+  if (upErr) throw new Error(upErr.message);
+
+  const { error: dbErr } = await supabase
+    .from('care_greeting_videos')
+    .update({
+      id: videoId,
+      title: title.trim() || DEFAULT_GREETING_TITLES[slot],
+      storage_path: storagePath,
+      file_size: file.size,
+      is_published: true,
+      uploaded_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('slot_code', slot);
+
+  if (dbErr) {
+    await supabase.storage.from('care-videos').remove([storagePath]);
+    throw new Error(dbErr.message);
+  }
+
+  if (oldPath && oldPath !== storagePath) {
+    await supabase.storage.from('care-videos').remove([oldPath]);
+  }
+}
+
+export async function adminDeleteGreetingVideo(slot: GreetingSlot) {
+  const rows = await adminListGreetingVideos();
+  const row = rows.find((g) => g.slot_code === slot);
+  if (!row?.storage_path) return;
+
+  const { error } = await supabase
+    .from('care_greeting_videos')
+    .update({
+      storage_path: null,
+      file_size: null,
+      is_published: false,
+      uploaded_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('slot_code', slot);
+  if (error) throw new Error(error.message);
+  await supabase.storage.from('care-videos').remove([row.storage_path]);
 }
 
 export async function adminUpdateVideoSubRoom(videoId: string, subRoomSlot: number) {
