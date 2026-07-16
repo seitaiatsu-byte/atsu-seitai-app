@@ -5,9 +5,10 @@ import { supabase } from '../../lib/supabase';
 
 type Props = {
   onLoggedIn: () => void;
+  onOpenManual?: () => void;
 };
 
-export default function AdminLoginPage({ onLoggedIn }: Props) {
+export default function AdminLoginPage({ onLoggedIn, onOpenManual }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -76,6 +77,16 @@ export default function AdminLoginPage({ onLoggedIn }: Props) {
         <p className="text-xs text-slate-500 mt-4">
           初回は Supabase Auth でユーザーを作成し、<code>care_staff</code> に user_id を登録してください。
         </p>
+
+        {onOpenManual && (
+          <button
+            type="button"
+            onClick={onOpenManual}
+            className="mt-4 w-full text-sm text-indigo-600 hover:text-indigo-800 font-bold underline"
+          >
+            スタッフ向け操作マニュアルを読む
+          </button>
+        )}
       </form>
     </div>
   );

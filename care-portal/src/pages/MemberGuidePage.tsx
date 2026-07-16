@@ -1,6 +1,7 @@
 import { Printer } from 'lucide-react';
 import MemberRoomQrCard from '../components/admin/MemberRoomQrCard';
 import MemberBrandHeader from '../components/member/MemberBrandHeader';
+import MemberHandoutSection from '../components/member/MemberHandoutSection';
 import MemberHelpFooter from '../components/member/MemberHelpFooter';
 import MemberPageShell from '../components/member/MemberPageShell';
 import MemberStepGuide from '../components/member/MemberStepGuide';
@@ -34,10 +35,9 @@ export default function MemberGuidePage({ memberName, roomCode, roomUrl }: Props
         </h2>
 
         <section className="mb-8 member-card p-5 sm:p-6">
-          <h2 className="text-xl font-bold text-member-gold-deep mb-4">お渡しするもの（2つ）</h2>
           <div className="space-y-4 text-lg leading-relaxed">
             <div>
-              <p className="font-bold member-text-emerald">① あなた専用のリンク</p>
+              <p className="font-bold member-text-emerald">① あなた専用のページアドレス（またはQRコード）</p>
               {roomCode ? (
                 <div className="mt-3">
                   <MemberRoomQrCard memberName={displayName.replace(/ さん$/, '')} roomCode={roomCode} compact />
@@ -45,16 +45,18 @@ export default function MemberGuidePage({ memberName, roomCode, roomUrl }: Props
               ) : (
                 <>
                   <p className="mt-2 break-all font-mono text-base sm:text-lg member-card-soft p-3">{displayUrl}</p>
-                  <p className="text-base member-text-muted mt-2">スマホでは青い文字をタップ。パソコンではクリック。</p>
+                  <p className="text-base member-text-muted mt-2">
+                    スマホでは青くなっている文字をタップ。パソコンではクリック。
+                  </p>
                 </>
               )}
             </div>
             <div>
-              <p className="font-bold member-text-emerald">② 入室パス</p>
+              <p className="font-bold member-text-emerald">② 入室パス（数字など、当院からお渡し）</p>
               <p className="mt-2 text-2xl font-bold tracking-widest border-b-2 border-member-gold-soft inline-block min-w-[8rem] pb-1">
                 ＿＿＿＿＿＿
               </p>
-              <p className="text-base member-text-muted mt-2">※院内で口頭または紙でお渡しします。ここに書き写しても構いません。</p>
+              <p className="text-base member-text-muted mt-2">※口頭・LINE・紙などでお渡しします。ここに書き写しても構いません。</p>
             </div>
           </div>
         </section>
@@ -63,6 +65,10 @@ export default function MemberGuidePage({ memberName, roomCode, roomUrl }: Props
           <h2 className="text-xl font-bold text-member-gold-deep mb-4">操作の手順（3ステップ）</h2>
           <MemberStepGuide steps={MEMBER_GUIDE_STEPS} />
         </section>
+
+        <div className="mb-8">
+          <MemberHandoutSection />
+        </div>
 
         <MemberHelpFooter large />
 

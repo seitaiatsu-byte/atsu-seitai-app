@@ -11,11 +11,12 @@ import { saveSession } from '../lib/session';
 type Props = {
   roomCode: string;
   onLoggedIn: () => void;
+  onOpenManual?: () => void;
 };
 
 const LOGIN_STEPS = MEMBER_GUIDE_STEPS.filter((s) => s.number <= 2);
 
-export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
+export default function RoomLoginPage({ roomCode, onLoggedIn, onOpenManual }: Props) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -85,6 +86,11 @@ export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
         </form>
 
         <MemberHelpFooter large />
+        {onOpenManual && (
+          <button type="button" onClick={onOpenManual} className="member-link-subtle text-sm w-full text-center">
+            くわしい使い方マニュアルを読む
+          </button>
+        )}
       </main>
     </MemberPageShell>
   );
