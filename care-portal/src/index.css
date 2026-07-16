@@ -7,6 +7,88 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* ── 会員向けブランド装飾（管理画面以外） ── */
+.member-page {
+  background: linear-gradient(180deg, #faf8f4 0%, #f4f7f6 45%, #eef4f3 100%);
+}
+
+.member-page-bg {
+  background:
+    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(201, 168, 108, 0.09), transparent 60%),
+    radial-gradient(ellipse 60% 45% at 0% 100%, rgba(42, 127, 122, 0.08), transparent 55%);
+}
+
+.member-brand-header {
+  border-bottom: 1px solid rgba(201, 168, 108, 0.22);
+  box-shadow: 0 10px 30px rgba(31, 107, 102, 0.06);
+}
+
+.member-brand-header-bg {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 252, 247, 0.98) 0%,
+    rgba(237, 246, 244, 0.96) 48%,
+    rgba(250, 245, 236, 0.94) 100%
+  );
+}
+
+.member-brand-header-lines::before,
+.member-brand-header-lines::after {
+  content: '';
+  position: absolute;
+  width: 7rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 168, 108, 0.55), transparent);
+  opacity: 0.7;
+}
+
+.member-brand-header-lines::before {
+  top: 1.25rem;
+  left: 8%;
+}
+
+.member-brand-header-lines::after {
+  bottom: 1.25rem;
+  right: 8%;
+}
+
+.member-brand-eyebrow {
+  color: #2a7f7a;
+}
+
+.member-brand-title {
+  color: #1f4f4b;
+}
+
+.member-brand-subtitle {
+  color: #4a6663;
+}
+
+.member-brand-logo-halo {
+  background: radial-gradient(circle, rgba(201, 168, 108, 0.28) 0%, rgba(201, 168, 108, 0.06) 55%, transparent 72%);
+  filter: blur(2px);
+  transform: scale(1.12);
+}
+
+.member-brand-logo-ring {
+  border: 1px solid rgba(201, 168, 108, 0.45);
+  box-shadow:
+    0 0 0 6px rgba(255, 252, 247, 0.75),
+    0 0 0 7px rgba(201, 168, 108, 0.12),
+    inset 0 0 12px rgba(42, 127, 122, 0.08);
+}
+
+.member-brand-logo-plate {
+  position: absolute;
+  inset: 10%;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(250, 245, 236, 0.9));
+  box-shadow: 0 8px 24px rgba(31, 107, 102, 0.1);
+}
+
+.member-brand-logo-img {
+  box-shadow: 0 4px 14px rgba(31, 107, 102, 0.14);
+}
+
 @media print {
   .no-print {
     display: none !important;
@@ -14,6 +96,20 @@ body {
 
   .member-guide-print {
     background: white !important;
+  }
+
+  .member-page,
+  .member-page-bg,
+  .member-brand-header-bg,
+  .member-brand-header-lines,
+  .member-brand-logo-halo {
+    background: white !important;
+    box-shadow: none !important;
+  }
+
+  .member-brand-header {
+    border-bottom: 2px solid #2a7f7a;
+    box-shadow: none;
   }
 
   @page {

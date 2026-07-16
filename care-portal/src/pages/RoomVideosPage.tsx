@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, PlayCircle } from 'lucide-react';
+import { PlayCircle } from 'lucide-react';
 import VideoPlayer from '../components/VideoPlayer';
+import MemberBrandHeader from '../components/member/MemberBrandHeader';
 import MemberHelpFooter from '../components/member/MemberHelpFooter';
+import MemberPageShell from '../components/member/MemberPageShell';
 import MemberStepGuide from '../components/member/MemberStepGuide';
 import { fetchPlaybackUrl, listMemberVideos, logoutRoom, validateSession, type CareVideoItem } from '../lib/careApi';
 import { MEMBER_GUIDE_STEPS } from '../lib/memberGuide';
@@ -96,27 +98,29 @@ export default function RoomVideosPage({ onLogout }: Props) {
   if (!session) return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <header className="sticky top-0 z-20 bg-teal-700 text-white px-4 py-4 shadow">
-        <p className="text-sm text-teal-100">ステップ3：動画を選んで再生</p>
-        <h1 className="font-bold text-xl sm:text-2xl mt-0.5">{session.memberName} さんの動画</h1>
-        <div className="flex flex-wrap gap-2 mt-3">
+    <MemberPageShell>
+      <MemberBrandHeader
+        sticky
+        eyebrow="ステップ3：動画を選んで再生"
+        title={`${session.memberName} さんの動画`}
+      >
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => void refresh()}
-            className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-base border border-teal-400"
+            className="px-4 py-2.5 rounded-xl bg-[#2a7f7a] hover:bg-[#1f6b66] text-white font-bold text-base border border-[#2a7f7a]/30"
           >
             新しい動画を確認
           </button>
           <button
             type="button"
             onClick={() => void handleLogout()}
-            className="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-base border border-white/30"
+            className="px-4 py-2.5 rounded-xl bg-white/80 hover:bg-white text-[#1f4f4b] font-bold text-base border border-[#d9c9a8]/50"
           >
             終了する
           </button>
         </div>
-      </header>
+      </MemberBrandHeader>
 
       {activeVideo && (
         <div className="bg-black">
@@ -163,7 +167,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
             <button
               type="button"
               onClick={() => void refresh()}
-              className="mt-5 px-6 py-3 rounded-xl bg-teal-600 text-white font-bold text-lg"
+              className="mt-5 px-6 py-3 rounded-xl bg-[#2a7f7a] text-white font-bold text-lg"
             >
               もう一度確認する
             </button>
@@ -175,17 +179,17 @@ export default function RoomVideosPage({ onLogout }: Props) {
                 <button
                   type="button"
                   onClick={() => void handlePlay(v)}
-                  className="w-full text-left bg-white rounded-2xl border-2 border-slate-200 shadow-sm px-4 py-4 flex items-center gap-4 hover:border-teal-400 active:bg-teal-50 min-h-[5rem]"
+                  className="w-full text-left bg-white/95 rounded-2xl border-2 border-slate-200/80 shadow-sm px-4 py-4 flex items-center gap-4 hover:border-[#2a7f7a]/40 active:bg-[#e8f3f1] min-h-[5rem]"
                 >
-                  <div className="shrink-0 w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center">
-                    <PlayCircle className="text-teal-700" size={32} />
+                  <div className="shrink-0 w-12 h-12 rounded-full bg-[#e8f3f1] flex items-center justify-center border border-[#2a7f7a]/15">
+                    <PlayCircle className="text-[#2a7f7a]" size={32} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-lg sm:text-xl text-slate-900 leading-snug">
                       {v.title || 'セルフケア動画'}
                     </p>
                     <p className="text-base text-slate-600 mt-1">{formatDate(v.uploaded_at)}</p>
-                    <p className="text-sm text-teal-700 font-bold mt-1">▶ タップして再生</p>
+                    <p className="text-sm text-[#2a7f7a] font-bold mt-1">▶ タップして再生</p>
                   </div>
                 </button>
               </li>
@@ -195,6 +199,6 @@ export default function RoomVideosPage({ onLogout }: Props) {
 
         <MemberHelpFooter large />
       </main>
-    </div>
+    </MemberPageShell>
   );
 }

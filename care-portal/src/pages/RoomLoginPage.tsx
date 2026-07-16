@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { LogIn } from 'lucide-react';
+import MemberBrandHeader from '../components/member/MemberBrandHeader';
 import MemberHelpFooter from '../components/member/MemberHelpFooter';
+import MemberPageShell from '../components/member/MemberPageShell';
 import MemberStepGuide from '../components/member/MemberStepGuide';
 import { loginRoom } from '../lib/careApi';
 import { MEMBER_GUIDE_STEPS } from '../lib/memberGuide';
@@ -40,19 +42,19 @@ export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-teal-50 to-slate-50">
-      <header className="bg-teal-700 text-white px-4 py-5">
-        <p className="text-sm sm:text-base text-teal-100">あつ整体院・会員専用ルーム</p>
-        <h1 className="font-bold text-xl sm:text-2xl mt-1">ステップ2：入室パスを入力</h1>
-        <p className="text-teal-100 text-base mt-2">リンクは開けています。あと1つ入力すれば動画が見られます</p>
-      </header>
+    <MemberPageShell>
+      <MemberBrandHeader
+        eyebrow="あつ整体院・会員専用ルーム"
+        title="ステップ2：入室パスを入力"
+        subtitle="リンクは開けています。あと1つ入力すれば動画が見られます"
+      />
 
       <main className="flex-1 p-4 sm:p-5 max-w-lg mx-auto w-full space-y-4">
         <MemberStepGuide currentStep={2} steps={LOGIN_STEPS} compact />
 
         <form
           onSubmit={(e) => void handleSubmit(e)}
-          className="w-full bg-white rounded-2xl shadow-lg border-2 border-teal-200 p-5 sm:p-6"
+          className="w-full bg-white/95 rounded-2xl shadow-lg border-2 border-[#2a7f7a]/20 p-5 sm:p-6 backdrop-blur-sm"
         >
           {error && (
             <div className="mb-4 rounded-xl bg-red-50 border-2 border-red-300 text-red-900 text-base px-4 py-3 leading-relaxed">
@@ -71,7 +73,7 @@ export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
             autoComplete="off"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-4 rounded-xl border-2 border-slate-300 focus:border-teal-500 outline-none text-2xl tracking-wide text-center font-bold"
+            className="w-full px-4 py-4 rounded-xl border-2 border-slate-300 focus:border-[#2a7f7a] outline-none text-2xl tracking-wide text-center font-bold"
             placeholder="例：0919"
             required
           />
@@ -79,7 +81,7 @@ export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
           <button
             type="submit"
             disabled={loading || !password}
-            className="mt-6 w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-xl py-4 rounded-xl shadow-md"
+            className="mt-6 w-full flex items-center justify-center gap-2 bg-[#2a7f7a] hover:bg-[#1f6b66] disabled:opacity-50 text-white font-bold text-xl py-4 rounded-xl shadow-md"
           >
             <LogIn size={22} />
             {loading ? '確認中…' : '動画を見る'}
@@ -88,6 +90,6 @@ export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
 
         <MemberHelpFooter large />
       </main>
-    </div>
+    </MemberPageShell>
   );
 }

@@ -1,5 +1,7 @@
 import { Video } from 'lucide-react';
+import MemberBrandHeader from '../components/member/MemberBrandHeader';
 import MemberHelpFooter from '../components/member/MemberHelpFooter';
+import MemberPageShell from '../components/member/MemberPageShell';
 import MemberStepGuide from '../components/member/MemberStepGuide';
 import { MEMBER_GUIDE_STEPS } from '../lib/memberGuide';
 
@@ -9,16 +11,17 @@ type Props = {
 
 export default function HomePage({ onOpenAdmin }: Props) {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <header className="bg-teal-700 text-white px-4 py-6 shadow-md">
-        <h1 className="text-2xl sm:text-3xl font-bold">あつ整体院</h1>
-        <p className="text-teal-100 text-lg mt-2">会員専用セルフケア動画</p>
-      </header>
+    <MemberPageShell>
+      <MemberBrandHeader
+        variant="hero"
+        title="あつ整体院"
+        subtitle="会員専用セルフケア動画"
+      />
 
       <main className="flex-1 p-4 sm:p-6 max-w-lg mx-auto w-full space-y-5">
-        <div className="rounded-2xl bg-white border border-teal-100 shadow-sm p-5 sm:p-6">
+        <div className="rounded-2xl bg-white/90 border border-[#d9c9a8]/40 shadow-sm p-5 sm:p-6 backdrop-blur-sm">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-14 h-14 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 shrink-0">
+            <div className="w-14 h-14 rounded-full bg-[#e8f3f1] flex items-center justify-center text-[#2a7f7a] shrink-0 border border-[#2a7f7a]/15">
               <Video size={28} />
             </div>
             <div>
@@ -32,7 +35,7 @@ export default function HomePage({ onOpenAdmin }: Props) {
 
         <MemberStepGuide steps={MEMBER_GUIDE_STEPS} />
 
-        <div className="rounded-xl bg-white border border-slate-200 p-4 text-base text-slate-700 leading-relaxed">
+        <div className="rounded-xl bg-white/90 border border-slate-200/80 p-4 text-base text-slate-700 leading-relaxed shadow-sm">
           <p className="font-bold text-slate-800 mb-2">お渡しするもの（2つ）</p>
           <ul className="list-disc list-inside space-y-1">
             <li>① あなた専用のリンク（インターネットの住所）</li>
@@ -55,6 +58,6 @@ export default function HomePage({ onOpenAdmin }: Props) {
           スタッフ用管理
         </button>
       </footer>
-    </div>
+    </MemberPageShell>
   );
 }

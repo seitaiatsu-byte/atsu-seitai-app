@@ -1,5 +1,6 @@
 import { Printer } from 'lucide-react';
 import MemberRoomQrCard from '../components/admin/MemberRoomQrCard';
+import MemberBrandHeader from '../components/member/MemberBrandHeader';
 import MemberStepGuide from '../components/member/MemberStepGuide';
 import { buildMemberRoomUrl, CLINIC_HELP_LINE, MEMBER_GUIDE_STEPS } from '../lib/memberGuide';
 
@@ -28,11 +29,13 @@ export default function MemberGuidePage({ memberName, roomCode, roomUrl }: Props
       </div>
 
       <article className="max-w-3xl mx-auto p-6 sm:p-10 print:p-8">
-        <header className="border-b-4 border-teal-600 pb-6 mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-teal-800">あつ整体院</h1>
-          <p className="text-xl sm:text-2xl font-bold mt-2">セルフケア動画の見方</p>
-          <p className="text-lg mt-4 text-slate-700">対象：<span className="font-bold text-xl">{displayName}</span></p>
-        </header>
+        <div className="mb-8 pb-6 border-b-2 border-[#2a7f7a]/20">
+          <MemberBrandHeader
+            variant="print"
+            title="あつ整体院"
+            subtitle={`セルフケア動画の見方　対象：${displayName}`}
+          />
+        </div>
 
         <section className="mb-8 rounded-2xl border-2 border-slate-300 p-5 sm:p-6 bg-slate-50">
           <h2 className="text-xl font-bold mb-4">お渡しするもの（2つ）</h2>
