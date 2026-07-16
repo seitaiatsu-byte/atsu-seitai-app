@@ -7,41 +7,44 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* ── 会員向けテーマ：アイボリー × エメラルド（青寄り） ── */
+/* ── 会員向けテーマ：淡いキャメル × ゴールド（ティールはアクセントのみ） ── */
 .member-page {
-  --member-ivory: #f7f2e8;
-  --member-ivory-deep: #efe6d6;
-  --member-gold: #bfa77a;
-  --member-emerald: #1a7d76;
-  --member-emerald-deep: #145f5a;
-  --member-emerald-light: #e3eeec;
-  --member-text: #2a3836;
-  --member-text-muted: #5c6e6b;
+  --member-camel: #d8c798;
+  --member-camel-light: #e8dcc0;
+  --member-camel-pale: #f0e6ce;
+  --member-camel-card: #faf4e8;
+  --member-gold: #a88f61;
+  --member-gold-deep: #6b5a3e;
+  --member-gold-soft: #c4ae82;
+  --member-teal: #2f8c95;
+  --member-teal-deep: #267880;
+  --member-teal-pale: #e2ecea;
+  --member-text: #3d3830;
+  --member-text-muted: #6b6358;
 
   color: var(--member-text);
-  background: linear-gradient(165deg, #faf6ee 0%, #f3eee4 38%, #e8f0ee 100%);
+  background: linear-gradient(165deg, #f5edd8 0%, #ede3c8 42%, #e0d4b4 100%);
 }
 
 .member-page-bg {
   background:
-    radial-gradient(ellipse 80% 55% at 92% 4%, rgba(191, 167, 122, 0.14), transparent 58%),
-    radial-gradient(ellipse 70% 50% at 4% 96%, rgba(26, 125, 118, 0.1), transparent 55%),
-    linear-gradient(180deg, rgba(253, 250, 245, 0.5), rgba(227, 238, 236, 0.35));
+    radial-gradient(ellipse 75% 55% at 95% 8%, rgba(196, 174, 130, 0.22), transparent 58%),
+    radial-gradient(ellipse 65% 50% at 5% 92%, rgba(168, 143, 97, 0.14), transparent 55%);
 }
 
 .member-watermark {
   position: absolute;
   border-radius: 50%;
-  opacity: 0.055;
-  mix-blend-mode: lighten;
+  opacity: 0.045;
   pointer-events: none;
   user-select: none;
+  filter: sepia(0.35) saturate(0.5);
 }
 
 .member-watermark-1 {
   width: 11rem;
   height: 11rem;
-  top: 8%;
+  top: 10%;
   right: -2rem;
   transform: rotate(12deg);
 }
@@ -49,7 +52,7 @@ body {
 .member-watermark-2 {
   width: 8rem;
   height: 8rem;
-  top: 42%;
+  top: 44%;
   left: -2.5rem;
   transform: rotate(-18deg);
 }
@@ -57,7 +60,7 @@ body {
 .member-watermark-3 {
   width: 9rem;
   height: 9rem;
-  bottom: 18%;
+  bottom: 16%;
   right: 6%;
   transform: rotate(8deg);
 }
@@ -65,7 +68,7 @@ body {
 .member-watermark-4 {
   width: 6.5rem;
   height: 6.5rem;
-  bottom: 6%;
+  bottom: 5%;
   left: 10%;
   transform: rotate(-10deg);
 }
@@ -77,108 +80,91 @@ body {
 .member-site-banner-wrap {
   position: relative;
   overflow: hidden;
-  background: #0c0c0c;
+  background: var(--member-camel);
 }
 
 .member-site-banner {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 10.5rem;
-  object-fit: cover;
-  object-position: center top;
+  max-height: 15rem;
+  object-fit: contain;
+  object-position: center;
 }
 
 @media (min-width: 640px) {
   .member-site-banner {
-    max-height: 12.5rem;
+    max-height: 18rem;
   }
 }
 
 .member-site-banner-fade {
   position: absolute;
   inset: auto 0 0 0;
-  height: 2.75rem;
-  background: linear-gradient(
-    to bottom,
-    rgba(12, 12, 12, 0) 0%,
-    rgba(247, 242, 232, 0.55) 55%,
-    var(--member-ivory) 100%
-  );
+  height: 2rem;
+  background: linear-gradient(to bottom, rgba(216, 199, 152, 0), var(--member-camel-pale));
   pointer-events: none;
 }
 
 .member-site-subheader {
-  background: rgba(253, 250, 245, 0.94);
-  border-bottom: 1px solid rgba(191, 167, 122, 0.28);
+  background: rgba(250, 244, 232, 0.94);
+  border-bottom: 1px solid rgba(168, 143, 97, 0.28);
   backdrop-filter: blur(8px);
 }
 
-.member-brand-header {
-  border-bottom: 1px solid rgba(191, 167, 122, 0.28);
-  background: rgba(253, 250, 245, 0.82);
-  backdrop-filter: blur(10px);
-}
-
-.member-brand-eyebrow {
-  color: var(--member-emerald-muted, #3a8a84);
-  letter-spacing: 0.04em;
-}
-
 .member-brand-title {
-  color: var(--member-emerald-deep);
+  color: var(--member-gold-deep);
 }
 
 .member-brand-subtitle {
   color: var(--member-text-muted);
 }
 
-/* ロゴ：黒背景を消してそのまま置く */
-.member-brand-logo-img,
-.member-watermark {
-  mix-blend-mode: lighten;
+.member-brand-logo-img {
+  mix-blend-mode: multiply;
+  opacity: 0.92;
 }
 
 .member-card {
   @apply rounded-2xl border shadow-sm backdrop-blur-sm;
-  background: rgba(253, 250, 245, 0.92);
-  border-color: rgba(191, 167, 122, 0.32);
+  background: rgba(250, 244, 232, 0.94);
+  border-color: rgba(168, 143, 97, 0.28);
 }
 
 .member-card-soft {
   @apply rounded-xl border shadow-sm;
-  background: rgba(253, 250, 245, 0.88);
-  border-color: rgba(191, 167, 122, 0.22);
+  background: rgba(250, 244, 232, 0.9);
+  border-color: rgba(196, 174, 130, 0.35);
 }
 
 .member-panel {
   @apply rounded-2xl border-2 shadow-sm backdrop-blur-sm;
-  background: rgba(253, 250, 245, 0.95);
-  border-color: rgba(26, 125, 118, 0.18);
+  background: rgba(252, 248, 240, 0.96);
+  border-color: rgba(168, 143, 97, 0.32);
 }
 
 .member-icon-badge {
   @apply rounded-full flex items-center justify-center shrink-0 border;
-  background: var(--member-emerald-light);
-  color: var(--member-emerald);
-  border-color: rgba(26, 125, 118, 0.16);
+  background: rgba(232, 220, 192, 0.75);
+  color: var(--member-gold-deep);
+  border-color: rgba(168, 143, 97, 0.25);
 }
 
 .member-btn-primary {
   @apply font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50;
-  background: var(--member-emerald);
+  background: var(--member-teal);
   color: #fff;
 }
 
 .member-btn-primary:hover:not(:disabled) {
-  background: var(--member-emerald-deep);
+  background: var(--member-teal-deep);
 }
 
 .member-btn-secondary {
   @apply font-bold rounded-xl border transition-colors;
-  background: rgba(253, 250, 245, 0.9);
-  color: var(--member-emerald-deep);
-  border-color: rgba(191, 167, 122, 0.45);
+  background: rgba(250, 244, 232, 0.95);
+  color: var(--member-gold-deep);
+  border-color: rgba(168, 143, 97, 0.42);
 }
 
 .member-btn-secondary:hover {
@@ -187,48 +173,48 @@ body {
 
 .member-input {
   @apply w-full rounded-xl border-2 outline-none font-bold text-center;
-  border-color: rgba(191, 167, 122, 0.45);
+  border-color: rgba(168, 143, 97, 0.4);
   background: #fff;
   color: var(--member-text);
 }
 
 .member-input:focus {
-  border-color: var(--member-emerald);
+  border-color: var(--member-teal);
 }
 
 .member-step-panel {
   @apply rounded-2xl border-2 p-3 sm:p-4;
-  background: rgba(227, 238, 236, 0.55);
-  border-color: rgba(26, 125, 118, 0.2);
+  background: rgba(240, 230, 206, 0.65);
+  border-color: rgba(168, 143, 97, 0.28);
 }
 
 .member-step-item {
   @apply flex gap-3 rounded-xl p-3 border;
-  background: rgba(253, 250, 245, 0.82);
-  border-color: rgba(191, 167, 122, 0.2);
+  background: rgba(250, 244, 232, 0.88);
+  border-color: rgba(196, 174, 130, 0.3);
 }
 
 .member-step-item-active {
   background: #fff;
-  border-color: rgba(26, 125, 118, 0.42);
-  box-shadow: 0 4px 16px rgba(26, 125, 118, 0.08);
+  border-color: rgba(168, 143, 97, 0.48);
+  box-shadow: 0 4px 16px rgba(107, 90, 62, 0.08);
 }
 
 .member-step-num {
   @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-bold;
-  background: rgba(191, 167, 122, 0.28);
-  color: var(--member-emerald-deep);
+  background: rgba(196, 174, 130, 0.38);
+  color: var(--member-gold-deep);
 }
 
 .member-step-num-active {
-  background: var(--member-emerald);
+  background: var(--member-gold);
   color: #fff;
 }
 
 .member-help-box {
   @apply rounded-xl border px-4 py-4;
-  background: rgba(253, 250, 245, 0.9);
-  border-color: rgba(191, 167, 122, 0.38);
+  background: rgba(250, 244, 232, 0.92);
+  border-color: rgba(168, 143, 97, 0.35);
   color: var(--member-text);
 }
 
@@ -237,16 +223,20 @@ body {
 }
 
 .member-text-emerald {
-  color: var(--member-emerald);
+  color: var(--member-gold-deep);
+}
+
+.member-text-accent {
+  color: var(--member-teal);
 }
 
 .member-link-subtle {
   @apply underline transition-colors;
-  color: rgba(92, 110, 107, 0.75);
+  color: rgba(107, 99, 88, 0.8);
 }
 
 .member-link-subtle:hover {
-  color: var(--member-emerald-deep);
+  color: var(--member-gold-deep);
 }
 
 @media print {
@@ -270,12 +260,6 @@ body {
 
   .member-site-banner-fade {
     display: none;
-  }
-
-  .member-brand-header {
-    background: white !important;
-    border-bottom: 2px solid var(--member-emerald);
-    backdrop-filter: none;
   }
 
   .member-brand-logo-img {

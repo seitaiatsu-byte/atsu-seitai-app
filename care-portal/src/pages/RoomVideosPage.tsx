@@ -111,20 +111,20 @@ export default function RoomVideosPage({ onLogout }: Props) {
       </MemberBrandHeader>
 
       {activeVideo && (
-        <div className="bg-member-emerald-deep">
+        <div className="bg-member-gold-deep">
           {playbackLoading ? (
             <div className="aspect-video flex items-center justify-center text-white text-lg">動画を準備しています…</div>
           ) : playbackUrl ? (
             <VideoPlayer src={playbackUrl} title={activeVideo.title} />
           ) : null}
-          <div className="px-4 py-3 bg-member-emerald-deep text-white flex items-center gap-2 border-t border-white/10">
+          <div className="px-4 py-3 bg-member-gold-deep text-white flex items-center gap-2 border-t border-white/10">
             <button
               type="button"
               onClick={() => {
                 setActiveVideo(null);
                 setPlaybackUrl('');
               }}
-              className="member-btn-secondary px-3 py-2 text-base shrink-0 !text-member-emerald-deep"
+              className="member-btn-secondary px-3 py-2 text-base shrink-0 !text-member-gold-deep"
             >
               ← 一覧へ
             </button>
@@ -163,7 +163,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
                 <button
                   type="button"
                   onClick={() => void handlePlay(v)}
-                  className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-emerald/35 active:bg-member-emerald-light/40 min-h-[5rem] transition-colors"
+                  className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors"
                 >
                   <div className="member-icon-badge w-12 h-12">
                     <PlayCircle size={32} />
@@ -173,7 +173,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
                       {v.title || 'セルフケア動画'}
                     </p>
                     <p className="text-base member-text-muted mt-1">{formatDate(v.uploaded_at)}</p>
-                    <p className="text-sm member-text-emerald font-bold mt-1">▶ タップして再生</p>
+                    <p className="text-sm member-text-accent font-bold mt-1">▶ タップして再生</p>
                   </div>
                 </button>
               </li>
