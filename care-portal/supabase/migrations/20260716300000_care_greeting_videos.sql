@@ -24,7 +24,7 @@ CREATE POLICY care_greeting_videos_staff_all ON care_greeting_videos
 
 INSERT INTO care_greeting_videos (slot_code, title) VALUES
   ('A', '挨拶動画A'),
-  ('B', '挨拶動画B')
+  ('B', '会員以外への動画')
 ON CONFLICT (slot_code) DO NOTHING;
 
 -- ---------------------------------------------------------------------------

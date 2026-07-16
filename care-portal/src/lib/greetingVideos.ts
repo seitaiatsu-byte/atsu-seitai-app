@@ -3,7 +3,7 @@ export type GreetingSlot = (typeof GREETING_SLOTS)[number];
 
 export const DEFAULT_GREETING_TITLES: Record<GreetingSlot, string> = {
   A: '挨拶動画A',
-  B: '挨拶動画B',
+  B: '会員以外への動画',
 };
 
 export type GreetingVideoItem = {

@@ -30,6 +30,44 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+function GreetingVideoCard({
+  greeting,
+  onPlay,
+}: {
+  greeting: GreetingVideoItem;
+  onPlay: (video: ActivePlayback) => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        disabled={!greeting.has_video}
+        onClick={() =>
+          greeting.has_video &&
+          onPlay({ id: greeting.id, title: greeting.title, kind: 'greeting' })
+        }
+        className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <span className="shrink-0 w-10 h-10 rounded-full bg-member-gold/20 text-member-gold-deep font-bold flex items-center justify-center text-lg">
+          {greeting.slot_code}
+        </span>
+        <div className="member-icon-badge w-12 h-12 shrink-0">
+          <PlayCircle size={32} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-lg sm:text-xl text-member-text leading-snug">{greeting.title}</p>
+          {greeting.has_video && greeting.uploaded_at && (
+            <p className="text-base member-text-muted mt-1">{formatDate(greeting.uploaded_at)}</p>
+          )}
+          <p className="text-sm member-text-accent font-bold mt-1">
+            {greeting.has_video ? '▶ タップして再生' : '準備中です'}
+          </p>
+        </div>
+      </button>
+    </li>
+  );
+}
+
 export default function RoomVideosPage({ onLogout }: Props) {
   const [session, setSession] = useState(loadSession);
   const [greetingVideos, setGreetingVideos] = useState<GreetingVideoItem[]>([]);
@@ -137,6 +175,8 @@ export default function RoomVideosPage({ onLogout }: Props) {
   };
 
   const selectedSubRoom = selectedSlot !== null ? subRooms.find((s) => s.slot_number === selectedSlot) : null;
+  const greetingA = greetingVideos.find((g) => g.slot_code === 'A');
+  const greetingB = greetingVideos.find((g) => g.slot_code === 'B');
 
   if (!session) return null;
 
@@ -211,39 +251,15 @@ export default function RoomVideosPage({ onLogout }: Props) {
           <p className="text-center member-text-muted text-lg py-12">読み込んでいます…</p>
         ) : selectedSlot === null ? (
           <>
-            {greetingVideos.length > 0 && (
+            {greetingA && (
               <ul className="space-y-3">
-                {greetingVideos.map((g) => (
-                  <li key={g.slot_code}>
-                    <button
-                      type="button"
-                      disabled={!g.has_video}
-                      onClick={() =>
-                        g.has_video &&
-                        void handlePlay({ id: g.id, title: g.title, kind: 'greeting' })
-                      }
-                      className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <span className="shrink-0 w-10 h-10 rounded-full bg-member-gold/20 text-member-gold-deep font-bold flex items-center justify-center text-lg">
-                        {g.slot_code}
-                      </span>
-                      <div className="member-icon-badge w-12 h-12 shrink-0">
-                        <PlayCircle size={32} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-lg sm:text-xl text-member-text leading-snug">
-                          {g.title}
-                        </p>
-                        {g.has_video && g.uploaded_at && (
-                          <p className="text-base member-text-muted mt-1">{formatDate(g.uploaded_at)}</p>
-                        )}
-                        <p className="text-sm member-text-accent font-bold mt-1">
-                          {g.has_video ? '▶ タップして再生' : '準備中です'}
-                        </p>
-                      </div>
-                    </button>
-                  </li>
-                ))}
+                <GreetingVideoCard greeting={greetingA} onPlay={(v) => void handlePlay(v)} />
+              </ul>
+            )}
+
+            {greetingB && (
+              <ul className="space-y-3">
+                <GreetingVideoCard greeting={greetingB} onPlay={(v) => void handlePlay(v)} />
               </ul>
             )}
 
