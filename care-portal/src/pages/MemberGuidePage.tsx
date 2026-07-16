@@ -18,6 +18,8 @@ export default function MemberGuidePage({ memberName, roomCode, roomUrl }: Props
 
   return (
     <MemberPageShell className="member-guide-print" noWatermark>
+      <MemberBrandHeader />
+
       <div className="no-print sticky top-0 z-30 border-b border-member-gold/30 bg-member-ivory-card/95 backdrop-blur px-4 py-3 flex items-center justify-between gap-3">
         <p className="text-sm font-bold text-member-emerald-deep">会員用・印刷プレビュー（この帯は印刷されません）</p>
         <button type="button" onClick={() => window.print()} className="member-btn-primary flex items-center gap-2 px-4 py-2 text-sm shrink-0">
@@ -27,13 +29,9 @@ export default function MemberGuidePage({ memberName, roomCode, roomUrl }: Props
       </div>
 
       <article className="max-w-3xl mx-auto p-6 sm:p-10 print:p-8">
-        <div className="mb-8 pb-6 border-b border-member-gold/35">
-          <MemberBrandHeader
-            variant="print"
-            title="あつ整体院"
-            subtitle={`セルフケア動画の見方　対象：${displayName}`}
-          />
-        </div>
+        <h2 className="text-xl sm:text-2xl font-bold text-member-emerald-deep mb-6">
+          セルフケア動画の見方　対象：{displayName}
+        </h2>
 
         <section className="mb-8 member-card p-5 sm:p-6">
           <h2 className="text-xl font-bold text-member-emerald-deep mb-4">お渡しするもの（2つ）</h2>

@@ -44,7 +44,6 @@ export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
   return (
     <MemberPageShell>
       <MemberBrandHeader
-        eyebrow="あつ整体院・会員専用ルーム"
         title="ステップ2：入室パスを入力"
         subtitle="リンクは開けています。あと1つ入力すれば動画が見られます"
       />

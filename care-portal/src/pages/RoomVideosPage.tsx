@@ -99,7 +99,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
 
   return (
     <MemberPageShell>
-      <MemberBrandHeader sticky eyebrow="ステップ3：動画を選んで再生" title={`${session.memberName} さんの動画`}>
+      <MemberBrandHeader sticky title={`${session.memberName} さんの動画`} subtitle="ステップ3：動画を選んで再生">
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => void refresh()} className="member-btn-primary px-4 py-2.5 text-base">
             新しい動画を確認

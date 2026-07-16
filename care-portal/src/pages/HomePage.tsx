@@ -12,7 +12,7 @@ type Props = {
 export default function HomePage({ onOpenAdmin }: Props) {
   return (
     <MemberPageShell>
-      <MemberBrandHeader variant="hero" title="あつ整体院" subtitle="会員専用セルフケア動画" />
+      <MemberBrandHeader />
 
       <main className="flex-1 p-4 sm:p-6 max-w-lg mx-auto w-full space-y-5">
         <div className="member-card p-5 sm:p-6">
