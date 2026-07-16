@@ -1,11 +1,23 @@
 /** 小部屋の数（マスター枠） */
-export const SUB_ROOM_COUNT = 15;
+export const SUB_ROOM_COUNT = 20;
 
 /** 会員画面で番号バッジを表示する小部屋（①〜⑫） */
 export const NUMBERED_SUB_ROOM_COUNT = 12;
 
+/** ダイエット用小部屋（⑫の次・Cの後に表示、番号なし） */
+export const DIET_SUB_ROOM_START = 16;
+export const DIET_SUB_ROOM_COUNT = 5;
+
 export function showsSubRoomNumber(slotNumber: number): boolean {
   return slotNumber >= 1 && slotNumber <= NUMBERED_SUB_ROOM_COUNT;
+}
+
+export function isDietSubRoom(slotNumber: number): boolean {
+  return slotNumber >= DIET_SUB_ROOM_START && slotNumber < DIET_SUB_ROOM_START + DIET_SUB_ROOM_COUNT;
+}
+
+export function isLegacyExtraSubRoom(slotNumber: number): boolean {
+  return slotNumber > NUMBERED_SUB_ROOM_COUNT && !isDietSubRoom(slotNumber);
 }
 
 export const DEFAULT_SUB_ROOM_TITLES: Record<number, string> = {
@@ -24,6 +36,11 @@ export const DEFAULT_SUB_ROOM_TITLES: Record<number, string> = {
   13: '小部屋13',
   14: '小部屋14',
   15: '小部屋15',
+  16: 'ダイエットの基本',
+  17: '食事のポイント',
+  18: '運動とダイエット',
+  19: '習慣づくり',
+  20: '体組成の見直し',
 };
 
 export type SubRoomItem = {

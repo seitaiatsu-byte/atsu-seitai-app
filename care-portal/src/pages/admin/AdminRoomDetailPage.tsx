@@ -211,7 +211,7 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
             rows={2}
             className="w-full px-3 py-2 rounded-lg border mb-2 resize-none"
           />
-          <label className="block text-xs font-bold text-slate-600 mb-1">入れる小部屋（1〜15）</label>
+          <label className="block text-xs font-bold text-slate-600 mb-1">入れる小部屋（1〜20）</label>
           <select
             value={uploadSlot}
             onChange={(e) => setUploadSlot(Number(e.target.value))}

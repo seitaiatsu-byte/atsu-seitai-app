@@ -133,7 +133,7 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
           className="w-full flex items-center justify-center gap-2 bg-white border border-indigo-200 text-indigo-800 font-bold px-4 py-3 rounded-xl hover:bg-indigo-50"
         >
           <LayoutGrid size={18} />
-          マスター設定（挨拶動画・小部屋名）
+          マスター設定（挨拶動画・小部屋20枠）
         </button>
 
         {error && <div className="rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm p-3">{error}</div>}

@@ -8,8 +8,19 @@ import {
   adminUpdateSubRoomTitle,
   adminUploadGreetingVideo,
 } from '../../lib/careApi';
-import { DEFAULT_GREETING_TITLES, GREETING_SLOTS, type GreetingSlot, type GreetingVideoRow } from '../../lib/greetingVideos';
-import { DEFAULT_SUB_ROOM_TITLES, SUB_ROOM_COUNT } from '../../lib/subRooms';
+import { DEFAULT_GREETING_TITLES, type GreetingSlot, type GreetingVideoRow } from '../../lib/greetingVideos';
+import {
+  DEFAULT_SUB_ROOM_TITLES,
+  DIET_SUB_ROOM_COUNT,
+  DIET_SUB_ROOM_START,
+  SUB_ROOM_COUNT,
+} from '../../lib/subRooms';
+
+const GREETING_SLOT_HINTS: Record<GreetingSlot, string> = {
+  A: '部屋トップに表示',
+  C: '⑫の直後に表示',
+  B: 'ダイエット枠の後・⑬⑭⑮の直前に表示',
+};
 
 type Props = {
   onBack: () => void;
@@ -23,9 +34,21 @@ function formatSize(bytes: number | null) {
 
 export default function AdminSubRoomsMasterPage({ onBack }: Props) {
   const [titles, setTitles] = useState<Record<number, string>>({});
-  const [greetings, setGreetings] = useState<Record<GreetingSlot, GreetingVideoRow | null>>({ A: null, B: null });
-  const [greetingTitles, setGreetingTitles] = useState<Record<GreetingSlot, string>>({ A: '', B: '' });
-  const [greetingFiles, setGreetingFiles] = useState<Record<GreetingSlot, File | null>>({ A: null, B: null });
+  const [greetings, setGreetings] = useState<Record<GreetingSlot, GreetingVideoRow | null>>({
+    A: null,
+    B: null,
+    C: null,
+  });
+  const [greetingTitles, setGreetingTitles] = useState<Record<GreetingSlot, string>>({
+    A: DEFAULT_GREETING_TITLES.A,
+    B: DEFAULT_GREETING_TITLES.B,
+    C: DEFAULT_GREETING_TITLES.C,
+  });
+  const [greetingFiles, setGreetingFiles] = useState<Record<GreetingSlot, File | null>>({
+    A: null,
+    B: null,
+    C: null,
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<number | null>(null);
   const [greetingSaving, setGreetingSaving] = useState<GreetingSlot | null>(null);
@@ -44,8 +67,12 @@ export default function AdminSubRoomsMasterPage({ onBack }: Props) {
       }
       setTitles(map);
 
-      const greetMap: Record<GreetingSlot, GreetingVideoRow | null> = { A: null, B: null };
-      const greetTitles: Record<GreetingSlot, string> = { A: DEFAULT_GREETING_TITLES.A, B: DEFAULT_GREETING_TITLES.B };
+      const greetMap: Record<GreetingSlot, GreetingVideoRow | null> = { A: null, B: null, C: null };
+      const greetTitles: Record<GreetingSlot, string> = {
+        A: DEFAULT_GREETING_TITLES.A,
+        B: DEFAULT_GREETING_TITLES.B,
+        C: DEFAULT_GREETING_TITLES.C,
+      };
       for (const row of greetingRows) {
         greetMap[row.slot_code] = row;
         greetTitles[row.slot_code] = row.title;
@@ -142,7 +169,7 @@ export default function AdminSubRoomsMasterPage({ onBack }: Props) {
         </button>
         <h1 className="font-bold text-lg">マスター設定</h1>
         <p className="text-xs text-indigo-200 mt-1">
-          挨拶動画（A/B）と小部屋名（15枠）は全会員ルームに共通で反映されます
+          挨拶動画（A/C/B）と小部屋名（20枠）は全会員ルームに共通で反映されます
         </p>
       </header>
 
@@ -154,13 +181,13 @@ export default function AdminSubRoomsMasterPage({ onBack }: Props) {
             <section className="space-y-3">
               <h2 className="font-bold text-slate-800 flex items-center gap-2">
                 <Video size={18} className="text-indigo-600" />
-                挨拶動画（A / B）
+                挨拶動画（A / C / B）
               </h2>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Aは部屋トップ、Bは⑫の次・⑬⑭⑮の直前に表示されます（全院共通）。
+                A→⑫→C→ダイエット5枠→B→⑬⑭⑮ の順で会員画面に表示されます。
               </p>
               <ul className="space-y-3">
-                {GREETING_SLOTS.map((slot) => {
+                {(['A', 'C', 'B'] as GreetingSlot[]).map((slot) => {
                   const row = greetings[slot];
                   return (
                     <li key={slot} className="bg-white rounded-xl border p-4">
@@ -169,6 +196,7 @@ export default function AdminSubRoomsMasterPage({ onBack }: Props) {
                           {slot}
                         </span>
                         <div className="flex-1 min-w-0 space-y-3">
+                          <p className="text-xs text-indigo-700 font-bold">{GREETING_SLOT_HINTS[slot]}</p>
                           <div>
                             <label className="text-xs font-bold text-slate-500">表示タイトル</label>
                             <input
@@ -242,39 +270,51 @@ export default function AdminSubRoomsMasterPage({ onBack }: Props) {
             </section>
 
             <section className="space-y-3">
-              <h2 className="font-bold text-slate-800">小部屋マスター（15枠）</h2>
+              <h2 className="font-bold text-slate-800">小部屋マスター（20枠）</h2>
               <p className="text-xs text-slate-500 leading-relaxed">
-                13・14・15番も含め、すべての枠名を自由に変更できます。
+                ①〜⑫は番号付き、16〜20はダイエット枠（番号なし）、13〜15は下部枠（番号なし）です。
               </p>
-              <ul className="space-y-3">
-                {Array.from({ length: SUB_ROOM_COUNT }, (_, i) => i + 1).map((slot) => (
-                  <li key={slot} className="bg-white rounded-xl border p-4">
-                    <div className="flex items-start gap-3">
-                      <span className="shrink-0 w-8 h-8 rounded-full bg-indigo-100 text-indigo-800 font-bold flex items-center justify-center text-sm">
-                        {slot}
-                      </span>
-                      <div className="flex-1 min-w-0 space-y-2">
-                        <label className="text-xs font-bold text-slate-500">小部屋の名前</label>
-                        <input
-                          value={titles[slot] || ''}
-                          onChange={(e) => setTitles((prev) => ({ ...prev, [slot]: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-lg border text-sm"
-                          placeholder={`小部屋${slot}`}
-                        />
-                        <button
-                          type="button"
-                          disabled={saving === slot}
-                          onClick={() => void handleSave(slot)}
-                          className="inline-flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-                        >
-                          <Save size={14} />
-                          {saving === slot ? '保存中…' : 'この枠を保存'}
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              {[
+                { label: 'カラダ改善プログラム（①〜⑫）', slots: Array.from({ length: 12 }, (_, i) => i + 1) },
+                {
+                  label: 'ダイエット枠（5つ・番号なし）',
+                  slots: Array.from({ length: DIET_SUB_ROOM_COUNT }, (_, i) => DIET_SUB_ROOM_START + i),
+                },
+                { label: '下部枠（⑬〜⑮・番号なし）', slots: [13, 14, 15] },
+              ].map((group) => (
+                <div key={group.label} className="space-y-3">
+                  <h3 className="text-sm font-bold text-slate-700">{group.label}</h3>
+                  <ul className="space-y-3">
+                    {group.slots.map((slot) => (
+                      <li key={slot} className="bg-white rounded-xl border p-4">
+                        <div className="flex items-start gap-3">
+                          <span className="shrink-0 w-8 h-8 rounded-full bg-indigo-100 text-indigo-800 font-bold flex items-center justify-center text-sm">
+                            {slot}
+                          </span>
+                          <div className="flex-1 min-w-0 space-y-2">
+                            <label className="text-xs font-bold text-slate-500">小部屋の名前</label>
+                            <input
+                              value={titles[slot] || ''}
+                              onChange={(e) => setTitles((prev) => ({ ...prev, [slot]: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg border text-sm"
+                              placeholder={`小部屋${slot}`}
+                            />
+                            <button
+                              type="button"
+                              disabled={saving === slot}
+                              onClick={() => void handleSave(slot)}
+                              className="inline-flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
+                            >
+                              <Save size={14} />
+                              {saving === slot ? '保存中…' : 'この枠を保存'}
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </section>
           </>
         )}

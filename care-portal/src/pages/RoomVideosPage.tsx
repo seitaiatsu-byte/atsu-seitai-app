@@ -13,7 +13,7 @@ import {
   type CareVideoItem,
 } from '../lib/careApi';
 import type { GreetingVideoItem } from '../lib/greetingVideos';
-import { formatVideoCount, showsSubRoomNumber, type SubRoomItem } from '../lib/subRooms';
+import { formatVideoCount, isDietSubRoom, isLegacyExtraSubRoom, showsSubRoomNumber, type SubRoomItem } from '../lib/subRooms';
 import { clearSession, loadSession, saveSession } from '../lib/session';
 
 type Props = {
@@ -209,8 +209,10 @@ export default function RoomVideosPage({ onLogout }: Props) {
   const selectedSubRoom = selectedSlot !== null ? subRooms.find((s) => s.slot_number === selectedSlot) : null;
   const greetingA = greetingVideos.find((g) => g.slot_code === 'A');
   const greetingB = greetingVideos.find((g) => g.slot_code === 'B');
+  const greetingC = greetingVideos.find((g) => g.slot_code === 'C');
   const numberedSubRooms = subRooms.filter((sr) => showsSubRoomNumber(sr.slot_number));
-  const extraSubRooms = subRooms.filter((sr) => !showsSubRoomNumber(sr.slot_number));
+  const dietSubRooms = subRooms.filter((sr) => isDietSubRoom(sr.slot_number));
+  const extraSubRooms = subRooms.filter((sr) => isLegacyExtraSubRoom(sr.slot_number));
 
   if (!session) return null;
 
@@ -294,6 +296,20 @@ export default function RoomVideosPage({ onLogout }: Props) {
             {numberedSubRooms.length > 0 && (
               <ul className="space-y-3">
                 {numberedSubRooms.map((sr) => (
+                  <SubRoomCard key={sr.slot_number} subRoom={sr} onSelect={setSelectedSlot} />
+                ))}
+              </ul>
+            )}
+
+            {greetingC && (
+              <ul className="space-y-3">
+                <GreetingVideoCard greeting={greetingC} onPlay={(v) => void handlePlay(v)} />
+              </ul>
+            )}
+
+            {dietSubRooms.length > 0 && (
+              <ul className="space-y-3">
+                {dietSubRooms.map((sr) => (
                   <SubRoomCard key={sr.slot_number} subRoom={sr} onSelect={setSelectedSlot} />
                 ))}
               </ul>
