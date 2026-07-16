@@ -6,7 +6,8 @@ import MemberPageShell from '../components/member/MemberPageShell';
 import MemberPrintHeader from '../components/member/MemberPrintHeader';
 import MemberStepGuide from '../components/member/MemberStepGuide';
 import MemberStepIllustrations, { MemberJourneyMap } from '../components/member/MemberStepIllustrations';
-import { buildMemberRoomUrl, MEMBER_GUIDE_STEPS, MEMBER_HANDOUT_ITEMS, MEMBER_MANUAL_PURPOSE } from '../lib/memberGuide';
+import { buildMemberRoomUrl } from '../lib/siteConfig';
+import { MEMBER_GUIDE_STEPS, MEMBER_HANDOUT_ITEMS, MEMBER_MANUAL_PURPOSE } from '../lib/memberGuide';
 
 type Props = {
   memberName?: string;

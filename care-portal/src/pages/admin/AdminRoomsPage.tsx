@@ -161,13 +161,13 @@ export default function AdminRoomsPage({ onOpenRoom, onLogout }: Props) {
             <input
               value={customerNumber}
               onChange={(e) => handleCustomerNumberChange(e.target.value)}
-              placeholder="顧客番号（例：7a53）"
+              placeholder="顧客番号（例：1234）"
               className="w-full px-3 py-2 rounded-lg border"
             />
             <input
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value)}
-              placeholder="部屋コード（例: room-7a53）"
+              placeholder="部屋コード（顧客番号と同じ、例: 1234）"
               className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
             />
             <p className="text-xs text-indigo-700 font-bold">{STAFF_ROOM_CONVENTION.rules[0].example}</p>

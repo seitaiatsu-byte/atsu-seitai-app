@@ -1,7 +1,8 @@
 【セルフケア動画ポータル（care-portal）本番デプロイ】
 
 整体院アプリ（project/）とは別の Vercel プロジェクトを1つ作ります。
-会員が開くのは本番URL（例: https://atsu-care-xxxx.vercel.app/r/room-7a55）です。
+会員が開くのは本番URL（例: https://care.atsu-seitai.jp/r/1234）です。
+暫定: https://atsu-care-portal.vercel.app
 localhost は開発用だけ。会員には渡しません。
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -51,8 +52,10 @@ localhost は開発用だけ。会員には渡しません。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 本番URL + /admin/login     … スタッフ管理
-本番URL + /r/room-7a55     … 会員入室（テスト用ルーム）
+本番URL + /r/1234          … 会員入室（顧客番号＝部屋コード）
 本番URL + /admin/rooms     … ログイン後のルーム一覧
+
+ドメイン設定: care-portal/DOMAIN-SETUP.md 参照
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 手順3：main に push すると自動再デプロイ

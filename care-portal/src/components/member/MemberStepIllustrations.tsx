@@ -83,7 +83,7 @@ export default function MemberStepIllustrations() {
           <p className="text-member-gold font-bold text-xl">または</p>
           <PhoneFrame label="青い文字をタップ">
             <p className="text-xs text-blue-600 underline break-all px-2 py-4">
-              https://atsu-care-portal…/r/room-xxxx
+              …/r/1234
             </p>
           </PhoneFrame>
         </div>

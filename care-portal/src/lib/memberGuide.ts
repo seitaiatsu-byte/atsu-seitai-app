@@ -43,13 +43,6 @@ export const MEMBER_PASSWORD_HINT = 'お渡しした「入室パスワード」�
 /** @deprecated 互換用。新文言は MEMBER_HELP_BODY を使用 */
 export const CLINIC_HELP_LINE = MEMBER_HELP_BODY;
 
-export function buildMemberRoomUrl(roomCode: string): string {
-  if (typeof window !== 'undefined') {
-    return `${window.location.origin}/r/${encodeURIComponent(roomCode)}`;
-  }
-  return `/r/${roomCode}`;
-}
-
 export type ManualFlowStep = {
   who: string;
   when: string;
@@ -66,7 +59,7 @@ export const MEMBER_ENTRY_EXPLAIN = {
   title: '会員さんはどこから入る？（とても大切）',
   points: [
     'トップページ（サイトの表紙）から入る必要はありません。普段、会員さんが開くのはお渡しした「あなた専用のリンク」またはQRコードだけです。',
-    'リンクの形の例：https://atsu-care-portal.vercel.app/r/room-xxxx（room-xxxx はお一人おひとり違います）',
+    'リンクの形の例：/r/1234（1234 は顧客番号。お一人おひとり違います）',
     'QRコードを読み取ると、自動的にその専用ページが開きます。',
     'トップページに来てしまった場合は、お渡しのリンクやQRをもう一度開いてください。',
   ],
@@ -181,8 +174,8 @@ export const STAFF_RECEPTION_STEPS: ReceptionGuideStep[] = [
     body: '「新規」を押して、次のルールで入力します。作成後、自動的にルーム詳細画面に進みます。',
     detail: [
       '会員氏名 … カルテのお名前',
-      '顧客番号 … 院内の顧客番号（例：7a53）',
-      '部屋コード … room-＋顧客番号（例：顧客番号7a53 → room-7a53）',
+      '顧客番号 … 院内の顧客番号（例：1234）',
+      '部屋コード … 顧客番号と同じ（例：1234 → URL …/r/1234）',
       '入室パス … 生年月日の月日4桁（例：3月19日 → 0319）',
     ],
   },
@@ -202,7 +195,7 @@ export const STAFF_RECEPTION_STEPS: ReceptionGuideStep[] = [
     title: '会員さんへの渡し方（おさらい）',
     body: '会員さんには①専用URLまたはQR、②入室パスワードの2つをお渡しします。会員は /r/部屋コード を開き、パスワードを入れて動画を見ます。',
     detail: [
-      '入口の例：https://atsu-care-portal.vercel.app/r/room-7a53',
+      '入口の例：/r/1234（顧客番号がそのまま部屋コード）',
       '会員向けのくわしい見方は /manual または /guide をA4印刷して渡す（スマホURLは送らない）',
       '困ったときは「LINEや、直接来院時にお尋ねください」と伝えてください',
     ],
@@ -214,8 +207,8 @@ export const STAFF_ROOM_CONVENTION = {
   rules: [
     {
       label: '部屋コード（URLに使う）',
-      rule: 'room-＋顧客番号',
-      example: '顧客番号 7a53 → 部屋コード room-7a53 → URL …/r/room-7a53',
+      rule: '顧客番号と同じ',
+      example: '顧客番号 1234 → 部屋コード 1234 → URL …/r/1234',
     },
     {
       label: '入室パスワード',
@@ -223,17 +216,17 @@ export const STAFF_ROOM_CONVENTION = {
       example: '3月19日生まれ → 0319　／　12月5日生まれ → 1205',
     },
   ],
-  note: '顧客番号を入力すると部屋コードが自動で入ります。会員さんには「リンク（またはQR）」と「パスワード」を別々にお渡ししてください。',
+  note: '顧客番号を入力すると部屋コードに同じ番号が自動で入ります。会員さんには「リンク（またはQR）」と「パスワード」を別々にお渡ししてください。',
 };
 
-/** 顧客番号から部屋コードを生成（room-7a53 形式） */
+/** 顧客番号から部屋コードを生成（番号そのまま。room- などの接頭辞は付けない） */
 export function buildRoomCodeFromCustomerNumber(customerNumber: string): string {
   const sanitized = customerNumber
     .trim()
     .toLowerCase()
+    .replace(/^room-/, '')
     .replace(/[^a-z0-9-]/g, '');
-  if (!sanitized) return '';
-  return sanitized.startsWith('room-') ? sanitized : `room-${sanitized}`;
+  return sanitized;
 }
 
 /** 生年月日（月日）から入室パス候補を生成 */

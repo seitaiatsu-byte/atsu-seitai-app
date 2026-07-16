@@ -1,3 +1,5 @@
+import { buildMemberRoomUrl } from './siteConfig';
+
 const SESSION_KEY = 'care_portal_session';
 
 export type CareSession = {
@@ -32,6 +34,5 @@ export function clearSession() {
 }
 
 export function roomUrl(roomCode: string): string {
-  const base = window.location.origin;
-  return `${base}/r/${encodeURIComponent(roomCode)}`;
+  return buildMemberRoomUrl(roomCode);
 }

@@ -5,6 +5,7 @@ import {
   STAFF_RECEPTION_STEPS,
   STAFF_ROOM_CONVENTION,
 } from '../lib/memberGuide';
+import { formatMemberEntryExample, getPublicSiteOrigin, RECOMMENDED_PUBLIC_SITE_URL } from '../lib/siteConfig';
 
 type Props = {
   onOpenAdminLogin: () => void;
@@ -14,7 +15,9 @@ type Props = {
 
 /** 受付スタッフ向けのはじめてガイド（会員の入り口ではない） */
 export default function HomePage({ onOpenAdminLogin, onOpenStaffManual, onOpenMemberManual }: Props) {
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const origin = getPublicSiteOrigin();
+  const entryExample = formatMemberEntryExample('1234');
+  const usingRecommendedDomain = origin === RECOMMENDED_PUBLIC_SITE_URL;
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -30,7 +33,7 @@ export default function HomePage({ onOpenAdminLogin, onOpenStaffManual, onOpenMe
         <section className="bg-amber-50 rounded-2xl border border-amber-200 p-4 sm:p-5">
           <p className="text-sm sm:text-base text-amber-900 leading-relaxed font-bold">{STAFF_RECEPTION_INTRO.note}</p>
           <p className="text-sm text-amber-800 mt-2 leading-relaxed">
-            会員さんの入口は <strong>/r/部屋コード</strong>（例：/r/room-7a53）です。スタッフが部屋を作ってから、URLと入室パスをお渡しします。
+            会員さんの入口は <strong>/r/顧客番号</strong>（例：/r/1234）です。スタッフが部屋を作ってから、URLと入室パスをお渡しします。
           </p>
         </section>
 
@@ -100,7 +103,32 @@ export default function HomePage({ onOpenAdminLogin, onOpenStaffManual, onOpenMe
         </section>
 
         <section className="bg-white rounded-2xl border p-5 sm:p-6 shadow-sm space-y-3">
-          <h2 className="text-lg font-bold text-slate-800">会員にお渡しする説明書（A4印刷）</h2>
+          <h2 className="text-lg font-bold text-slate-800">会員に渡す本番ドメイン</h2>
+          <p className="text-sm text-slate-600 leading-relaxed">
+            QR・URLコピーに使われるアドレスです。会員の入口は <strong className="font-mono">{entryExample}</strong> の形になります。
+          </p>
+          <div className="rounded-xl bg-slate-50 border p-4 space-y-2 text-sm">
+            <p>
+              <span className="font-bold text-slate-700">いま有効なドメイン：</span>
+              <span className="font-mono text-indigo-800 break-all"> {origin || '（未設定）'}</span>
+            </p>
+            <p>
+              <span className="font-bold text-slate-700">決めた本番ドメイン（推奨）：</span>
+              <span className="font-mono text-teal-800 break-all"> {RECOMMENDED_PUBLIC_SITE_URL}</span>
+            </p>
+          </div>
+          {usingRecommendedDomain ? (
+            <p className="text-sm text-teal-800 font-bold">本番ドメインが有効です。</p>
+          ) : (
+            <p className="text-sm text-slate-600 leading-relaxed">
+              独自ドメインに切り替える手順は <code className="text-xs bg-slate-100 px-1 rounded">care-portal/DOMAIN-SETUP.md</code>{' '}
+              を参照。DNS設定後、Vercel の環境変数 <code className="text-xs bg-slate-100 px-1 rounded">VITE_PUBLIC_SITE_URL</code> に{' '}
+              <code className="text-xs">{RECOMMENDED_PUBLIC_SITE_URL}</code> を入れて再デプロイすると、QR・コピーURLが新ドメインになります。
+            </p>
+          )}
+        </section>
+
+        <section className="bg-white rounded-2xl border p-5 sm:p-6 shadow-sm space-y-3">
           <p className="text-sm text-slate-600 leading-relaxed">
             初めての会員さんに、使い方を<strong>紙で渡す</strong>ときに使います。スマホで見せたりURLを送ったりするものではありません（まぎらわしいため）。
           </p>
