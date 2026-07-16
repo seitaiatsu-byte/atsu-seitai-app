@@ -1,0 +1,85 @@
+【セルフケア動画ポータル（care-portal）本番デプロイ】
+
+整体院アプリ（project/）とは別の Vercel プロジェクトを1つ作ります。
+会員が開くのは本番URL（例: https://atsu-care-xxxx.vercel.app/r/room-7a55）です。
+localhost は開発用だけ。会員には渡しません。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+手順1：Vercel で新プロジェクトを作る
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1) ブラウザで https://vercel.com を開き、ログイン
+
+2) 右上「Add New…」→「Project」
+
+3) 同じ GitHub リポジトリ（atsu-seitai-app）を選んで「Import」
+   ※整体院アプリ用のプロジェクトとは別に、もう1つ作る
+
+4) 「Configure Project」画面で次を設定:
+
+   ■ Project Name（好きな名前）
+     例: atsu-care-portal
+
+   ■ Root Directory  ← 最重要
+     「Edit」を押して:  care-portal
+     （project ではない。care-portal フォルダ）
+
+   ■ Framework Preset
+     Vite（自動で合うはず）
+
+   ■ Build / Output
+     上書き（Override）はオフのまま
+     → care-portal/vercel.json の設定が使われる
+
+5) Environment Variables を追加（整体院アプリと同じ値）:
+
+   VITE_SUPABASE_URL        = （SupabaseのURL）
+   VITE_SUPABASE_ANON_KEY   = （anon publicキー）
+
+   任意:
+   VITE_CLINIC_HELP_PHONE   = あつ整体院 高槻院 072-XXX-XXXX
+
+   ※既存の atsu-web プロジェクトの Settings → Environment Variables からコピー可
+
+6) 「Deploy」を押す
+
+7) 完了後、表示される URL（例: https://atsu-care-portal.vercel.app）を控える
+   → これが会員に渡す本番の土台になる
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+手順2：動作確認
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+本番URL + /admin/login     … スタッフ管理
+本番URL + /r/room-7a55     … 会員入室（テスト用ルーム）
+本番URL + /admin/rooms     … ログイン後のルーム一覧
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+手順3：main に push すると自動再デプロイ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GitHub 連携済みなら、care-portal/ を変更して main に push するたびに更新される。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+サイトマップ（覚えておくURL）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【会員】
+  /r/部屋コード     … 入口（QR・LINEはここ）
+  /watch            … 動画一覧（入室後）
+
+【スタッフ】
+  /admin/login      … 管理ログイン
+  /admin/rooms      … ルーム一覧
+
+【印刷用（会員が毎日開くURLではない）】
+  /guide?member=名前&room=部屋コード
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+会員に渡すもの
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+① 本番URL/r/部屋コード  （QR化するのはこれ）
+② 入室パス（院が決める。例: 0919）
+
+/guide の長いURLは印刷説明用。会員のスマホの行き先ではない。
