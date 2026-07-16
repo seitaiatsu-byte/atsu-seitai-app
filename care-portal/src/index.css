@@ -331,6 +331,46 @@ body {
   max-width: 210mm;
 }
 
+.sub-room-num {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: var(--member-gold-soft, #e8dcc8);
+  color: var(--member-gold-deep, #6b5a3e);
+  font-weight: 800;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sub-room-play {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  border: 2px solid var(--member-gold-soft, #e8dcc8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+}
+
+.sub-room-count {
+  min-width: 3.25rem;
+  text-align: center;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.5rem;
+  background: var(--member-camel-card, #faf4e8);
+  border: 1px solid var(--member-gold-soft, #e8dcc8);
+}
+
+.sub-room-count-num {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--member-teal, #1a7d76);
+  white-space: nowrap;
+}
+
 @media screen {
   .member-manual-flyer .manual-journey-grid {
     grid-template-columns: 1fr;

@@ -1,4 +1,5 @@
 import { functionsBaseUrl, supabase } from './supabase';
+import type { SubRoomItem } from './subRooms';
 import type { CareSession } from './session';
 
 export type CareVideoItem = {
@@ -8,6 +9,7 @@ export type CareVideoItem = {
   duration_seconds: number | null;
   uploaded_at: string;
   sort_order: number;
+  sub_room_slot: number;
 };
 
 export type CareRoomRow = {
@@ -74,12 +76,24 @@ export async function validateSession(sessionToken: string): Promise<CareSession
   };
 }
 
-export async function listMemberVideos(sessionToken: string): Promise<CareVideoItem[]> {
-  const { data, error } = await supabase.rpc('care_room_list_videos', {
+export async function listMemberSubRooms(sessionToken: string) {
+  const { data, error } = await supabase.rpc('care_room_list_sub_rooms', {
     p_session_token: sessionToken,
   });
   if (error) throw new Error(parseRpcError(error.message));
-  return (data || []) as CareVideoItem[];
+  return (data || []) as SubRoomItem[];
+}
+
+export async function listMemberVideos(sessionToken: string, subRoomSlot?: number): Promise<CareVideoItem[]> {
+  const { data, error } = await supabase.rpc('care_room_list_videos', {
+    p_session_token: sessionToken,
+    p_sub_room_slot: subRoomSlot ?? null,
+  });
+  if (error) throw new Error(parseRpcError(error.message));
+  return ((data || []) as CareVideoItem[]).map((v) => ({
+    ...v,
+    sub_room_slot: v.sub_room_slot ?? 1,
+  }));
 }
 
 export async function logoutRoom(sessionToken: string) {
@@ -169,10 +183,32 @@ export async function adminUpdateRoom(
   if (error) throw new Error(error.message);
 }
 
+export async function adminListSubRoomMaster() {
+  const { data, error } = await supabase.rpc('care_admin_list_sub_room_master');
+  if (error) throw new Error(parseRpcError(error.message));
+  return (data || []) as { slot_number: number; title: string; updated_at: string }[];
+}
+
+export async function adminUpdateSubRoomTitle(slotNumber: number, title: string) {
+  const { error } = await supabase.rpc('care_admin_update_sub_room_title', {
+    p_slot_number: slotNumber,
+    p_title: title,
+  });
+  if (error) throw new Error(parseRpcError(error.message));
+}
+
+export async function adminUpdateVideoSubRoom(videoId: string, subRoomSlot: number) {
+  const { error } = await supabase
+    .from('care_room_videos')
+    .update({ sub_room_slot: subRoomSlot })
+    .eq('id', videoId);
+  if (error) throw new Error(error.message);
+}
+
 export async function adminUploadVideo(
   roomId: string,
   file: File,
-  meta: { title: string; description?: string; sortOrder?: number }
+  meta: { title: string; description?: string; sortOrder?: number; subRoomSlot?: number }
 ): Promise<string> {
   const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
   const videoId = crypto.randomUUID();
@@ -195,6 +231,7 @@ export async function adminUploadVideo(
       storage_path: storagePath,
       file_size: file.size,
       sort_order: meta.sortOrder ?? 0,
+      sub_room_slot: meta.subRoomSlot ?? 1,
       is_published: true,
     })
     .select('id')

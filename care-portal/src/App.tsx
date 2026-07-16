@@ -8,6 +8,7 @@ import AdminRoomsPage from './pages/admin/AdminRoomsPage';
 import AdminRoomDetailPage from './pages/admin/AdminRoomDetailPage';
 import MemberGuidePage from './pages/MemberGuidePage';
 import MemberManualPage from './pages/MemberManualPage';
+import AdminSubRoomsMasterPage from './pages/admin/AdminSubRoomsMasterPage';
 import StaffManualPage from './pages/admin/StaffManualPage';
 import { loadSession } from './lib/session';
 
@@ -20,6 +21,7 @@ type Route =
   | { name: 'staff-manual' }
   | { name: 'admin-login' }
   | { name: 'admin-rooms' }
+  | { name: 'admin-sub-rooms' }
   | { name: 'admin-room'; roomId: string };
 
 function parseGuideQuery(search: string) {
@@ -45,6 +47,7 @@ function parseRoute(pathname: string, search = ''): Route {
     if (parts[1] === 'manual') return { name: 'staff-manual' };
     if (parts[1] === 'rooms' && parts[2]) return { name: 'admin-room', roomId: parts[2] };
     if (parts[1] === 'rooms') return { name: 'admin-rooms' };
+    if (parts[1] === 'sub-rooms') return { name: 'admin-sub-rooms' };
     return { name: 'admin-login' };
   }
   return { name: 'home' };
@@ -163,9 +166,22 @@ export default function App() {
             navigate(`/admin/rooms/${id}`);
             setRoute({ name: 'admin-room', roomId: id });
           }}
+          onOpenSubRoomsMaster={() => {
+            navigate('/admin/sub-rooms');
+            setRoute({ name: 'admin-sub-rooms' });
+          }}
           onLogout={() => {
             navigate('/');
             setRoute({ name: 'home' });
+          }}
+        />
+      );
+    case 'admin-sub-rooms':
+      return (
+        <AdminSubRoomsMasterPage
+          onBack={() => {
+            navigate('/admin/rooms');
+            setRoute({ name: 'admin-rooms' });
           }}
         />
       );

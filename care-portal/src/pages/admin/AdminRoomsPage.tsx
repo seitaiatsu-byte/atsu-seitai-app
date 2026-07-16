@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, DoorOpen, LogOut, Plus, QrCode, Search, X } from 'lucide-react';
+import { Copy, DoorOpen, LayoutGrid, LogOut, Plus, QrCode, Search, X } from 'lucide-react';
 import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
 import {
   adminCreateRoom,
@@ -13,10 +13,11 @@ import { roomUrl } from '../../lib/session';
 
 type Props = {
   onOpenRoom: (roomId: string) => void;
+  onOpenSubRoomsMaster: () => void;
   onLogout: () => void;
 };
 
-export default function AdminRoomsPage({ onOpenRoom, onLogout }: Props) {
+export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLogout }: Props) {
   const [rooms, setRooms] = useState<CareRoomRow[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -126,6 +127,15 @@ export default function AdminRoomsPage({ onOpenRoom, onLogout }: Props) {
       </header>
 
       <main className="max-w-3xl mx-auto p-4 space-y-4">
+        <button
+          type="button"
+          onClick={onOpenSubRoomsMaster}
+          className="w-full flex items-center justify-center gap-2 bg-white border border-indigo-200 text-indigo-800 font-bold px-4 py-3 rounded-xl hover:bg-indigo-50"
+        >
+          <LayoutGrid size={18} />
+          小部屋マスター（15枠の名前を設定）
+        </button>
+
         {error && <div className="rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm p-3">{error}</div>}
 
         <div className="flex gap-2">

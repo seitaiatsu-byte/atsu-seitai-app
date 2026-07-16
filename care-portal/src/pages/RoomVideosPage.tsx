@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { PlayCircle } from 'lucide-react';
+import { ArrowLeft, PlayCircle } from 'lucide-react';
 import VideoPlayer from '../components/VideoPlayer';
 import MemberBrandHeader from '../components/member/MemberBrandHeader';
 import MemberHelpFooter from '../components/member/MemberHelpFooter';
 import MemberPageShell from '../components/member/MemberPageShell';
 import MemberStepGuide from '../components/member/MemberStepGuide';
-import { fetchPlaybackUrl, listMemberVideos, logoutRoom, validateSession, type CareVideoItem } from '../lib/careApi';
+import {
+  fetchPlaybackUrl,
+  listMemberSubRooms,
+  listMemberVideos,
+  logoutRoom,
+  validateSession,
+  type CareVideoItem,
+} from '../lib/careApi';
 import { MEMBER_GUIDE_STEPS } from '../lib/memberGuide';
+import { formatVideoCount, type SubRoomItem } from '../lib/subRooms';
 import { clearSession, loadSession, saveSession } from '../lib/session';
 
 type Props = {
@@ -21,7 +29,9 @@ function formatDate(iso: string) {
 
 export default function RoomVideosPage({ onLogout }: Props) {
   const [session, setSession] = useState(loadSession);
+  const [subRooms, setSubRooms] = useState<SubRoomItem[]>([]);
   const [videos, setVideos] = useState<CareVideoItem[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeVideo, setActiveVideo] = useState<CareVideoItem | null>(null);
@@ -30,7 +40,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
 
   const sessionToken = session?.sessionToken;
 
-  const refresh = useCallback(async () => {
+  const refreshSubRooms = useCallback(async () => {
     const token = sessionToken ?? loadSession()?.sessionToken;
     if (!token) return;
     setLoading(true);
@@ -45,8 +55,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
           ? prev
           : valid
       );
-      const list = await listMemberVideos(token);
-      setVideos(list);
+      setSubRooms(await listMemberSubRooms(token));
     } catch (err) {
       clearSession();
       setSession(null);
@@ -56,13 +65,36 @@ export default function RoomVideosPage({ onLogout }: Props) {
     }
   }, [sessionToken]);
 
+  const loadVideosForSlot = useCallback(
+    async (slot: number) => {
+      const token = sessionToken ?? loadSession()?.sessionToken;
+      if (!token) return;
+      setLoading(true);
+      setError('');
+      try {
+        setVideos(await listMemberVideos(token, slot));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '動画の読み込みに失敗しました');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [sessionToken]
+  );
+
   useEffect(() => {
     if (!sessionToken) {
       window.location.href = '/';
       return;
     }
-    void refresh();
-  }, [sessionToken, refresh]);
+    void refreshSubRooms();
+  }, [sessionToken, refreshSubRooms]);
+
+  useEffect(() => {
+    if (selectedSlot !== null) {
+      void loadVideosForSlot(selectedSlot);
+    }
+  }, [selectedSlot, loadVideosForSlot]);
 
   const handlePlay = async (video: CareVideoItem) => {
     const token = sessionToken ?? loadSession()?.sessionToken;
@@ -95,14 +127,40 @@ export default function RoomVideosPage({ onLogout }: Props) {
     onLogout();
   };
 
+  const selectedSubRoom = selectedSlot !== null ? subRooms.find((s) => s.slot_number === selectedSlot) : null;
+
   if (!session) return null;
 
   return (
     <MemberPageShell>
-      <MemberBrandHeader sticky title={`${session.memberName} さんの動画`} subtitle="ステップ3：動画を選んで再生">
+      <MemberBrandHeader
+        sticky
+        title={
+          selectedSubRoom
+            ? `${session.memberName} さんの動画`
+            : `${session.memberName} さんの部屋`
+        }
+        subtitle={
+          selectedSubRoom
+            ? selectedSubRoom.title
+            : '見たいカテゴリ（小部屋）を選んでください'
+        }
+      >
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => void refresh()} className="member-btn-primary px-4 py-2.5 text-base">
-            新しい動画を確認
+          {selectedSlot !== null && !activeVideo && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedSlot(null);
+                setVideos([]);
+              }}
+              className="member-btn-secondary px-4 py-2.5 text-base"
+            >
+              ← 小部屋一覧へ
+            </button>
+          )}
+          <button type="button" onClick={() => void refreshSubRooms()} className="member-btn-primary px-4 py-2.5 text-base">
+            更新する
           </button>
           <button type="button" onClick={() => void handleLogout()} className="member-btn-secondary px-4 py-2.5 text-base">
             終了する
@@ -134,7 +192,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
       )}
 
       <main className="flex-1 p-4 max-w-2xl mx-auto w-full space-y-4">
-        {!activeVideo && <MemberStepGuide currentStep={3} steps={WATCH_STEP} compact />}
+        {!activeVideo && selectedSlot === null && <MemberStepGuide currentStep={3} steps={WATCH_STEP} compact />}
 
         {error && (
           <div className="rounded-xl bg-red-50 border-2 border-red-200 text-red-900 text-base px-4 py-4 leading-relaxed">
@@ -143,17 +201,48 @@ export default function RoomVideosPage({ onLogout }: Props) {
         )}
 
         {loading ? (
-          <p className="text-center member-text-muted text-lg py-12">動画を読み込んでいます…</p>
+          <p className="text-center member-text-muted text-lg py-12">読み込んでいます…</p>
+        ) : selectedSlot === null ? (
+          <ul className="space-y-3">
+            {subRooms.map((sr) => (
+              <li key={sr.slot_number}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSlot(sr.slot_number)}
+                  className="sub-room-card member-card w-full text-left px-4 py-4 flex items-center gap-3 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[4.5rem] transition-colors"
+                >
+                  <span className="sub-room-num shrink-0">{sr.slot_number}</span>
+                  <div className="sub-room-play shrink-0">
+                    <PlayCircle size={28} className="text-member-teal" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-base sm:text-lg text-member-text leading-snug line-clamp-3">
+                      {sr.title}
+                    </p>
+                    <p className="text-sm member-text-accent font-bold mt-1">▶ タップして動画一覧へ</p>
+                  </div>
+                  <div className="sub-room-count shrink-0">
+                    <span className="sub-room-count-num">{formatVideoCount(sr.video_count)}</span>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
         ) : videos.length === 0 ? (
           <div className="text-center py-10 px-4 member-card">
-            <p className="font-bold text-xl text-member-text">まだ動画がありません</p>
+            <p className="font-bold text-xl text-member-text">この小部屋にはまだ動画がありません</p>
             <p className="text-base member-text-muted mt-3 leading-relaxed">
-              新しい動画がアップロードされるまでお待ちください。
-              <br />
-              あとで同じリンクから、もう一度開いてください。
+              スタッフが動画を追加するまでお待ちください。
             </p>
-            <button type="button" onClick={() => void refresh()} className="member-btn-primary mt-5 px-6 py-3 text-lg">
-              もう一度確認する
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedSlot(null);
+                setVideos([]);
+              }}
+              className="member-btn-primary mt-5 px-6 py-3 text-lg"
+            >
+              小部屋一覧へ戻る
             </button>
           </div>
         ) : (
