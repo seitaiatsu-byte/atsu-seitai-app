@@ -323,12 +323,17 @@ body {
   max-height: none;
 }
 
+.member-manual-a4 .manual-a4-content {
+  max-width: 210mm;
+}
+
 @media print {
   .no-print {
     display: none !important;
   }
 
-  .member-guide-print {
+  .member-guide-print,
+  .member-manual-a4 {
     background: white !important;
   }
 
@@ -346,7 +351,42 @@ body {
     mix-blend-mode: normal;
   }
 
+  .member-manual-a4 .member-site-banner {
+    max-height: 48mm;
+    object-fit: contain;
+  }
+
+  .member-manual-a4 .manual-a4-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .member-manual-a4 .manual-journey-grid {
+    gap: 0.35rem;
+  }
+
+  .member-manual-a4 .manual-step-figure {
+    padding: 0.75rem !important;
+  }
+
+  .member-manual-a4 .manual-phone-frame {
+    width: 7.5rem;
+  }
+
+  .member-manual-a4 h1 {
+    font-size: 1.25rem !important;
+  }
+
+  .member-manual-a4 h2 {
+    font-size: 1rem !important;
+  }
+
+  .member-manual-a4 .member-step-item {
+    padding: 0.5rem !important;
+  }
+
   @page {
-    margin: 12mm;
+    size: A4 portrait;
+    margin: 10mm;
   }
 }

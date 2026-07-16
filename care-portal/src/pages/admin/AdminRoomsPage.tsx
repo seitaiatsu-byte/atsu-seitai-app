@@ -3,12 +3,12 @@ import { Copy, DoorOpen, LogOut, Plus, QrCode, Search, X } from 'lucide-react';
 import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
 import {
   adminCreateRoom,
-  adminGenerateRoomCode,
   adminListRooms,
   adminSignOut,
   isStaffUser,
   type CareRoomRow,
 } from '../../lib/careApi';
+import { buildPasswordFromBirthMonthDay, buildRoomCodeFromCustomerNumber, STAFF_ROOM_CONVENTION } from '../../lib/memberGuide';
 import { roomUrl } from '../../lib/session';
 
 type Props = {
@@ -26,6 +26,8 @@ export default function AdminRoomsPage({ onOpenRoom, onLogout }: Props) {
   const [roomCode, setRoomCode] = useState('');
   const [password, setPassword] = useState('');
   const [customerNumber, setCustomerNumber] = useState('');
+  const [birthMonth, setBirthMonth] = useState('');
+  const [birthDay, setBirthDay] = useState('');
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState('');
   const [qrRoom, setQrRoom] = useState<CareRoomRow | null>(null);
@@ -59,13 +61,17 @@ export default function AdminRoomsPage({ onOpenRoom, onLogout }: Props) {
     );
   }, [rooms, query]);
 
-  const handleGenerateCode = async () => {
-    try {
-      const code = await adminGenerateRoomCode(memberName || 'room');
-      setRoomCode(code);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'コード生成に失敗');
-    }
+  const handleCustomerNumberChange = (value: string) => {
+    setCustomerNumber(value);
+    const code = buildRoomCodeFromCustomerNumber(value);
+    if (code) setRoomCode(code);
+  };
+
+  const applyBirthPassword = () => {
+    const month = Number(birthMonth);
+    const day = Number(birthDay);
+    const pass = buildPasswordFromBirthMonthDay(month, day);
+    if (pass) setPassword(pass);
   };
 
   const handleCreate = async () => {
@@ -81,6 +87,8 @@ export default function AdminRoomsPage({ onOpenRoom, onLogout }: Props) {
       setRoomCode('');
       setPassword('');
       setCustomerNumber('');
+      setBirthMonth('');
+      setBirthDay('');
       await load();
       onOpenRoom(id);
     } catch (err) {
@@ -143,6 +151,7 @@ export default function AdminRoomsPage({ onOpenRoom, onLogout }: Props) {
         {showCreate && (
           <div className="bg-white rounded-2xl border p-4 space-y-3">
             <h2 className="font-bold text-slate-800">新しい会員ルーム</h2>
+            <p className="text-xs text-slate-500 leading-relaxed">{STAFF_ROOM_CONVENTION.note}</p>
             <input
               value={memberName}
               onChange={(e) => setMemberName(e.target.value)}
@@ -151,26 +160,51 @@ export default function AdminRoomsPage({ onOpenRoom, onLogout }: Props) {
             />
             <input
               value={customerNumber}
-              onChange={(e) => setCustomerNumber(e.target.value)}
-              placeholder="顧客番号（任意）"
+              onChange={(e) => handleCustomerNumberChange(e.target.value)}
+              placeholder="顧客番号（例：7a53）"
               className="w-full px-3 py-2 rounded-lg border"
             />
-            <div className="flex gap-2">
-              <input
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value)}
-                placeholder="部屋コード（例: tanaka-a7f3）"
-                className="flex-1 px-3 py-2 rounded-lg border font-mono text-sm"
-              />
-              <button type="button" onClick={() => void handleGenerateCode()} className="px-3 py-2 rounded-lg border bg-slate-50 text-sm font-bold">
-                自動生成
-              </button>
+            <input
+              value={roomCode}
+              onChange={(e) => setRoomCode(e.target.value)}
+              placeholder="部屋コード（例: room-7a53）"
+              className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
+            />
+            <p className="text-xs text-indigo-700 font-bold">{STAFF_ROOM_CONVENTION.rules[0].example}</p>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="text-xs text-slate-500 block mb-1">生月日（入室パス自動入力）</label>
+                <div className="flex gap-2">
+                  <input
+                    value={birthMonth}
+                    onChange={(e) => setBirthMonth(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                    placeholder="月"
+                    className="w-16 px-3 py-2 rounded-lg border text-center"
+                    inputMode="numeric"
+                  />
+                  <input
+                    value={birthDay}
+                    onChange={(e) => setBirthDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                    placeholder="日"
+                    className="w-16 px-3 py-2 rounded-lg border text-center"
+                    inputMode="numeric"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyBirthPassword}
+                    className="px-3 py-2 rounded-lg border bg-slate-50 text-sm font-bold whitespace-nowrap"
+                  >
+                    パスに入れる
+                  </button>
+                </div>
+              </div>
             </div>
+            <p className="text-xs text-indigo-700 font-bold">{STAFF_ROOM_CONVENTION.rules[1].example}</p>
             <input
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="入室パス（4文字以上）"
-              className="w-full px-3 py-2 rounded-lg border"
+              placeholder="入室パス（生年月日の月日4桁、例：0319）"
+              className="w-full px-3 py-2 rounded-lg border font-mono"
             />
             <button
               type="button"

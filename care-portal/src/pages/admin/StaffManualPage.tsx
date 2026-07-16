@@ -1,6 +1,6 @@
 import { BookOpen, LogIn, Shield } from 'lucide-react';
 import ManualFlowTimeline from '../../components/member/ManualFlowTimeline';
-import { MEMBER_GUIDE_STEPS, STAFF_CHECKLIST, STAFF_FULL_FLOW, STAFF_SITE_PURPOSE } from '../../lib/memberGuide';
+import { MEMBER_GUIDE_STEPS, STAFF_CHECKLIST, STAFF_FULL_FLOW, STAFF_ROOM_CONVENTION, STAFF_SITE_PURPOSE } from '../../lib/memberGuide';
 
 type Props = {
   onGoLogin: () => void;
@@ -50,8 +50,19 @@ export default function StaffManualPage({ onGoLogin, onGoHome }: Props) {
           <h2 className="text-lg font-bold text-amber-950 mb-3">会員さんはトップページを見ない</h2>
           <p className="text-base text-amber-900 leading-relaxed">
             会員が日常で開くのは <strong>お渡しの専用リンク（/r/部屋コード）</strong> または <strong>QR</strong> だけです。
-            トップ（/）は「説明用の表紙」であり、会員の入り口ではありません。渡すときは必ずルーム詳細の QR か URL を使ってください。
+            トップ（/）は受付スタッフ向けの「はじめてガイド」です。渡すときは必ずルーム詳細の QR か URL を使ってください。
           </p>
+        </section>
+
+        <section className="bg-white rounded-2xl border p-5 sm:p-6 shadow-sm space-y-3">
+          <h2 className="text-lg font-bold text-slate-800">{STAFF_ROOM_CONVENTION.title}</h2>
+          {STAFF_ROOM_CONVENTION.rules.map((r) => (
+            <div key={r.label} className="rounded-xl bg-slate-50 border p-4 text-sm">
+              <p className="font-bold text-slate-800">{r.label}</p>
+              <p className="text-indigo-700 font-bold mt-1">{r.rule}</p>
+              <p className="text-slate-600 mt-1">{r.example}</p>
+            </div>
+          ))}
         </section>
 
         <div className="bg-white rounded-2xl border p-5 sm:p-6 shadow-sm">
@@ -104,7 +115,7 @@ export default function StaffManualPage({ onGoLogin, onGoHome }: Props) {
               <span className="text-slate-500">/guide?member=…&room=…</span> … 印刷用案内（会員の日常URLではない）
             </li>
             <li>
-              <span className="text-slate-500">/manual</span> … 会員向け取扱説明書（図解つき・印刷して渡す）
+              <span className="text-slate-500">/manual</span> … 会員向け取扱説明書（A4印刷・PDF、またはスマホURL共有）
             </li>
           </ul>
         </section>

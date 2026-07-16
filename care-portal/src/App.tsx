@@ -91,8 +91,18 @@ export default function App() {
     case 'home':
       return (
         <HomePage
-          onOpenAdmin={() => navigate('/admin/manual')}
-          onOpenManual={() => navigate('/manual')}
+          onOpenAdminLogin={() => {
+            navigate('/admin/login');
+            setRoute({ name: 'admin-login' });
+          }}
+          onOpenStaffManual={() => {
+            navigate('/admin/manual');
+            setRoute({ name: 'staff-manual' });
+          }}
+          onOpenMemberManual={() => {
+            navigate('/manual');
+            setRoute({ name: 'member-manual' });
+          }}
         />
       );
     case 'room-login':
@@ -180,8 +190,18 @@ export default function App() {
     default:
       return (
         <HomePage
-          onOpenAdmin={() => navigate('/admin/manual')}
-          onOpenManual={() => navigate('/manual')}
+          onOpenAdminLogin={() => {
+            navigate('/admin/login');
+            setRoute({ name: 'admin-login' });
+          }}
+          onOpenStaffManual={() => {
+            navigate('/admin/manual');
+            setRoute({ name: 'staff-manual' });
+          }}
+          onOpenMemberManual={() => {
+            navigate('/manual');
+            setRoute({ name: 'member-manual' });
+          }}
         />
       );
   }
