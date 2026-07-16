@@ -6,19 +6,33 @@ import RoomVideosPage from './pages/RoomVideosPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminRoomsPage from './pages/admin/AdminRoomsPage';
 import AdminRoomDetailPage from './pages/admin/AdminRoomDetailPage';
+import MemberGuidePage from './pages/MemberGuidePage';
 import { loadSession } from './lib/session';
 
 type Route =
   | { name: 'home' }
   | { name: 'room-login'; roomCode: string }
   | { name: 'room-videos' }
+  | { name: 'member-guide'; memberName?: string; roomCode?: string }
   | { name: 'admin-login' }
   | { name: 'admin-rooms' }
   | { name: 'admin-room'; roomId: string };
 
-function parseRoute(pathname: string): Route {
+function parseGuideQuery(search: string) {
+  const params = new URLSearchParams(search);
+  return {
+    memberName: params.get('member') || params.get('name') || undefined,
+    roomCode: params.get('room') || undefined,
+  };
+}
+
+function parseRoute(pathname: string, search = ''): Route {
   const parts = pathname.replace(/\/+$/, '').split('/').filter(Boolean);
   if (parts.length === 0) return { name: 'home' };
+  if (parts[0] === 'guide') {
+    const q = parseGuideQuery(search);
+    return { name: 'member-guide', memberName: q.memberName, roomCode: q.roomCode };
+  }
   if (parts[0] === 'r' && parts[1]) return { name: 'room-login', roomCode: decodeURIComponent(parts[1]) };
   if (parts[0] === 'watch') return { name: 'room-videos' };
   if (parts[0] === 'admin') {
@@ -36,10 +50,12 @@ function navigate(path: string) {
 }
 
 export default function App() {
-  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.pathname));
+  const [route, setRoute] = useState<Route>(() =>
+    parseRoute(window.location.pathname, window.location.search)
+  );
 
   useEffect(() => {
-    const onPop = () => setRoute(parseRoute(window.location.pathname));
+    const onPop = () => setRoute(parseRoute(window.location.pathname, window.location.search));
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
@@ -86,6 +102,10 @@ export default function App() {
             setRoute({ name: 'home' });
           }}
         />
+      );
+    case 'member-guide':
+      return (
+        <MemberGuidePage memberName={route.memberName} roomCode={route.roomCode} />
       );
     case 'admin-login':
       return (

@@ -1,22 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, LogOut, PlayCircle, RefreshCw } from 'lucide-react';
+import { ChevronLeft, PlayCircle } from 'lucide-react';
 import VideoPlayer from '../components/VideoPlayer';
+import MemberHelpFooter from '../components/member/MemberHelpFooter';
+import MemberStepGuide from '../components/member/MemberStepGuide';
 import { fetchPlaybackUrl, listMemberVideos, logoutRoom, validateSession, type CareVideoItem } from '../lib/careApi';
+import { MEMBER_GUIDE_STEPS } from '../lib/memberGuide';
 import { clearSession, loadSession, saveSession } from '../lib/session';
 
 type Props = {
   onLogout: () => void;
 };
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
-}
+const WATCH_STEP = MEMBER_GUIDE_STEPS.filter((s) => s.number === 3);
 
-function formatDuration(sec: number | null) {
-  if (!sec || sec <= 0) return '';
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 export default function RoomVideosPage({ onLogout }: Props) {
@@ -50,7 +48,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
     } catch (err) {
       clearSession();
       setSession(null);
-      setError(err instanceof Error ? err.message : '読み込みに失敗しました');
+      setError(err instanceof Error ? err.message : '読み込みに失敗しました。もう一度リンクから開き直してください。');
     } finally {
       setLoading(false);
     }
@@ -74,8 +72,9 @@ export default function RoomVideosPage({ onLogout }: Props) {
     try {
       const url = await fetchPlaybackUrl(token, video.id);
       setPlaybackUrl(url);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : '再生準備に失敗しました');
+      setError(err instanceof Error ? err.message : '動画の準備に失敗しました。しばらくしてからもう一度タップしてください。');
       setActiveVideo(null);
     } finally {
       setPlaybackLoading(false);
@@ -98,27 +97,23 @@ export default function RoomVideosPage({ onLogout }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
-      <header className="sticky top-0 z-20 bg-teal-700 text-white px-3 py-3 flex items-center justify-between shadow">
-        <div className="min-w-0">
-          <p className="text-xs text-teal-200">ようこそ</p>
-          <h1 className="font-bold truncate">{session.memberName} さん</h1>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
+      <header className="sticky top-0 z-20 bg-teal-700 text-white px-4 py-4 shadow">
+        <p className="text-sm text-teal-100">ステップ3：動画を選んで再生</p>
+        <h1 className="font-bold text-xl sm:text-2xl mt-0.5">{session.memberName} さんの動画</h1>
+        <div className="flex flex-wrap gap-2 mt-3">
           <button
             type="button"
             onClick={() => void refresh()}
-            className="p-2 rounded-lg hover:bg-teal-600"
-            aria-label="更新"
+            className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-base border border-teal-400"
           >
-            <RefreshCw size={18} />
+            新しい動画を確認
           </button>
           <button
             type="button"
             onClick={() => void handleLogout()}
-            className="p-2 rounded-lg hover:bg-teal-600"
-            aria-label="退出"
+            className="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-base border border-white/30"
           >
-            <LogOut size={18} />
+            終了する
           </button>
         </div>
       </header>
@@ -126,68 +121,79 @@ export default function RoomVideosPage({ onLogout }: Props) {
       {activeVideo && (
         <div className="bg-black">
           {playbackLoading ? (
-            <div className="aspect-video flex items-center justify-center text-white text-sm">読み込み中…</div>
+            <div className="aspect-video flex items-center justify-center text-white text-lg">動画を準備しています…</div>
           ) : playbackUrl ? (
             <VideoPlayer src={playbackUrl} title={activeVideo.title} />
           ) : null}
-          <div className="px-3 py-2 bg-slate-900 text-white flex items-center gap-2">
+          <div className="px-4 py-3 bg-slate-900 text-white flex items-center gap-2">
             <button
               type="button"
               onClick={() => {
                 setActiveVideo(null);
                 setPlaybackUrl('');
               }}
-              className="p-1 rounded hover:bg-slate-800"
+              className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-base font-bold shrink-0"
             >
-              <ChevronLeft size={20} />
+              ← 一覧へ
             </button>
-            <p className="text-sm font-bold truncate flex-1">{activeVideo.title}</p>
+            <p className="text-base font-bold truncate flex-1">{activeVideo.title}</p>
           </div>
         </div>
       )}
 
-      <main className="flex-1 p-3 max-w-2xl mx-auto w-full">
+      <main className="flex-1 p-4 max-w-2xl mx-auto w-full space-y-4">
+        {!activeVideo && <MemberStepGuide currentStep={3} steps={WATCH_STEP} compact />}
+
         {error && (
-          <div className="mb-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3">
+          <div className="rounded-xl bg-red-50 border-2 border-red-300 text-red-900 text-base px-4 py-4 leading-relaxed">
             {error}
-            <button type="button" onClick={() => (window.location.href = '/')} className="block mt-2 underline">
-              トップへ戻る
-            </button>
           </div>
         )}
 
         {loading ? (
-          <p className="text-center text-slate-500 py-12">動画を読み込み中…</p>
+          <p className="text-center text-slate-600 text-lg py-12">動画を読み込んでいます…</p>
         ) : videos.length === 0 ? (
-          <div className="text-center py-12 text-slate-600">
-            <p className="font-bold">まだ動画がありません</p>
-            <p className="text-sm mt-2">新しい動画がアップロードされるまでお待ちください</p>
+          <div className="text-center py-10 px-4 rounded-2xl bg-white border-2 border-slate-200">
+            <p className="font-bold text-xl text-slate-800">まだ動画がありません</p>
+            <p className="text-base text-slate-600 mt-3 leading-relaxed">
+              新しい動画がアップロードされるまでお待ちください。
+              <br />
+              あとで同じリンクから、もう一度開いてください。
+            </p>
+            <button
+              type="button"
+              onClick={() => void refresh()}
+              className="mt-5 px-6 py-3 rounded-xl bg-teal-600 text-white font-bold text-lg"
+            >
+              もう一度確認する
+            </button>
           </div>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {videos.map((v) => (
               <li key={v.id}>
                 <button
                   type="button"
                   onClick={() => void handlePlay(v)}
-                  className="w-full text-left bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3 flex items-center gap-3 hover:border-teal-300 active:bg-teal-50"
+                  className="w-full text-left bg-white rounded-2xl border-2 border-slate-200 shadow-sm px-4 py-4 flex items-center gap-4 hover:border-teal-400 active:bg-teal-50 min-h-[5rem]"
                 >
-                  <PlayCircle className="text-teal-600 shrink-0" size={28} />
+                  <div className="shrink-0 w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center">
+                    <PlayCircle className="text-teal-700" size={32} />
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-slate-800 truncate">{v.title || '無題'}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {formatDate(v.uploaded_at)}
-                      {v.duration_seconds ? ` · ${formatDuration(v.duration_seconds)}` : ''}
+                    <p className="font-bold text-lg sm:text-xl text-slate-900 leading-snug">
+                      {v.title || 'セルフケア動画'}
                     </p>
-                    {v.description && (
-                      <p className="text-xs text-slate-600 mt-1 line-clamp-2">{v.description}</p>
-                    )}
+                    <p className="text-base text-slate-600 mt-1">{formatDate(v.uploaded_at)}</p>
+                    <p className="text-sm text-teal-700 font-bold mt-1">▶ タップして再生</p>
                   </div>
                 </button>
               </li>
             ))}
           </ul>
         )}
+
+        <MemberHelpFooter large />
       </main>
     </div>
   );

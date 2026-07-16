@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, KeyRound, Trash2, Upload, Video } from 'lucide-react';
+import { ArrowLeft, KeyRound, Printer, Trash2, Upload, Video } from 'lucide-react';
 import {
   adminDeleteVideo,
   adminListRoomVideos,
@@ -140,15 +140,26 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
           <p className="text-xs text-slate-500 mt-2">
             入室パス最終更新: {new Date(room.password_updated_at).toLocaleString('ja-JP')}
           </p>
-          <button
-            type="button"
-            onClick={() => void handleToggleActive()}
-            className={`mt-3 text-sm font-bold px-3 py-1.5 rounded-lg ${
-              room.is_active ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'
-            }`}
-          >
-            {room.is_active ? 'ルームを停止する' : 'ルームを有効にする'}
-          </button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href={`/guide?member=${encodeURIComponent(room.member_name)}&room=${encodeURIComponent(room.room_code)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700"
+            >
+              <Printer size={16} />
+              会員用案内を印刷
+            </a>
+            <button
+              type="button"
+              onClick={() => void handleToggleActive()}
+              className={`text-sm font-bold px-3 py-1.5 rounded-lg ${
+                room.is_active ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'
+              }`}
+            >
+              {room.is_active ? 'ルームを停止する' : 'ルームを有効にする'}
+            </button>
+          </div>
         </section>
 
         <section className="bg-white rounded-2xl border p-4">

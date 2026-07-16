@@ -6,3 +6,17 @@ body {
   @apply bg-slate-50 text-slate-900 antialiased;
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .member-guide-print {
+    background: white !important;
+  }
+
+  @page {
+    margin: 12mm;
+  }
+}
