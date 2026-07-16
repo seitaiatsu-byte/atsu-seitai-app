@@ -323,8 +323,28 @@ body {
   max-height: none;
 }
 
+.member-print-header {
+  padding-top: 0.5rem;
+}
+
 .member-manual-a4 .manual-a4-content {
   max-width: 210mm;
+}
+
+@media screen {
+  .member-manual-flyer .manual-journey-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .member-manual-flyer .manual-journey-arrow {
+    transform: rotate(90deg);
+    padding: 0.25rem 0;
+  }
+
+  .member-manual-a4 .manual-step-figure .flex.flex-col.sm\:flex-row {
+    flex-direction: column;
+  }
 }
 
 @media print {
@@ -354,6 +374,10 @@ body {
   .member-manual-a4 .member-site-banner {
     max-height: 48mm;
     object-fit: contain;
+  }
+
+  .member-print-header {
+    padding-top: 0;
   }
 
   .member-manual-a4 .manual-a4-section {

@@ -113,10 +113,6 @@ export default function App() {
             navigate('/watch');
             setRoute({ name: 'room-videos' });
           }}
-          onOpenManual={() => {
-            navigate('/manual');
-            setRoute({ name: 'member-manual' });
-          }}
         />
       );
     case 'room-videos':
@@ -125,10 +121,6 @@ export default function App() {
           onLogout={() => {
             navigate('/');
             setRoute({ name: 'home' });
-          }}
-          onOpenManual={() => {
-            navigate('/manual');
-            setRoute({ name: 'member-manual' });
           }}
         />
       );

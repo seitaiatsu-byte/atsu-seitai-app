@@ -203,7 +203,7 @@ export const STAFF_RECEPTION_STEPS: ReceptionGuideStep[] = [
     body: '会員さんには①専用URLまたはQR、②入室パスワードの2つをお渡しします。会員は /r/部屋コード を開き、パスワードを入れて動画を見ます。',
     detail: [
       '入口の例：https://atsu-care-portal.vercel.app/r/room-7a53',
-      '会員向けのくわしい見方は /manual（印刷用）または /guide（個別印刷）を参照',
+      '会員向けのくわしい見方は /manual または /guide をA4印刷して渡す（スマホURLは送らない）',
       '困ったときは「LINEや、直接来院時にお尋ねください」と伝えてください',
     ],
   },
@@ -243,3 +243,12 @@ export function buildPasswordFromBirthMonthDay(month: number, day: number): stri
 }
 
 export const MEMBER_MANUAL_PATH = '/manual';
+
+export const MEMBER_MANUAL_PURPOSE = {
+  title: '会員向け取扱説明書（印刷用）',
+  staffBanner: 'スタッフ用プレビュー — 会員には印刷して渡してください',
+  staffDetail:
+    'このページは動画を見る部屋ではありません。会員（特にご高齢の方）にスマホで見せたり、URLをLINEで送ったりしないでください。A4で印刷するか、PDFに保存してお渡ししてください。',
+  memberWarning:
+    '※ 動画を見るには、お渡しした専用リンク（/r/部屋コード）を開いてください。このページは説明書です。',
+};

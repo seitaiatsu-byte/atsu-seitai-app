@@ -1,6 +1,5 @@
-import { BookOpen, ClipboardCopy, ExternalLink, LogIn, Printer, Share2, Shield } from 'lucide-react';
+import { BookOpen, LogIn, Printer, Shield } from 'lucide-react';
 import {
-  MEMBER_MANUAL_PATH,
   STAFF_ENTRY_URL,
   STAFF_RECEPTION_INTRO,
   STAFF_RECEPTION_STEPS,
@@ -101,41 +100,18 @@ export default function HomePage({ onOpenAdminLogin, onOpenStaffManual, onOpenMe
         </section>
 
         <section className="bg-white rounded-2xl border p-5 sm:p-6 shadow-sm space-y-3">
-          <h2 className="text-lg font-bold text-slate-800">会員にお渡しする説明書（2通り）</h2>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div className="rounded-xl border bg-slate-50 p-4">
-              <p className="font-bold text-slate-800">① A4で印刷・PDF</p>
-              <p className="text-sm text-slate-600 mt-1 leading-relaxed">
-                取扱説明書をA4で印刷して渡せます。PDFにする場合は「PDFとして保存」を選んでください。
-              </p>
-              <button
-                type="button"
-                onClick={onOpenMemberManual}
-                className="mt-3 inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-lg text-sm"
-              >
-                <Printer size={16} />
-                取扱説明書を開く
-              </button>
-            </div>
-            <div className="rounded-xl border bg-slate-50 p-4">
-              <p className="font-bold text-slate-800">② スマホで見るURL</p>
-              <p className="text-sm text-slate-600 mt-1 leading-relaxed">
-                同じ説明書をスマホで見られるURLです。LINEで送れます。
-              </p>
-              <p className="mt-2 font-mono text-xs break-all text-teal-800 bg-white border rounded-lg p-2">
-                {origin}
-                {MEMBER_MANUAL_PATH}
-              </p>
-              <button
-                type="button"
-                onClick={onOpenMemberManual}
-                className="mt-3 inline-flex items-center gap-2 border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-900 font-bold px-4 py-2 rounded-lg text-sm"
-              >
-                <ExternalLink size={16} />
-                スマホ用ページを開く
-              </button>
-            </div>
-          </div>
+          <h2 className="text-lg font-bold text-slate-800">会員にお渡しする説明書（A4印刷）</h2>
+          <p className="text-sm text-slate-600 leading-relaxed">
+            初めての会員さんに、使い方を<strong>紙で渡す</strong>ときに使います。スマホで見せたりURLを送ったりするものではありません（まぎらわしいため）。
+          </p>
+          <button
+            type="button"
+            onClick={onOpenMemberManual}
+            className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2.5 rounded-lg text-sm"
+          >
+            <Printer size={16} />
+            取扱説明書を開いて印刷
+          </button>
         </section>
 
         <div className="flex flex-wrap gap-3">
@@ -161,7 +137,7 @@ export default function HomePage({ onOpenAdminLogin, onOpenStaffManual, onOpenMe
             className="border border-teal-300 bg-teal-50 hover:bg-teal-100 font-bold px-5 py-2.5 rounded-xl text-sm text-teal-900 inline-flex items-center gap-2"
           >
             <BookOpen size={16} />
-            会員向け取扱説明書
+            会員向け取扱説明書（印刷用）
           </button>
         </div>
       </main>

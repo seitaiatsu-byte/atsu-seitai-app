@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BookOpen, PlayCircle } from 'lucide-react';
+import { PlayCircle } from 'lucide-react';
 import VideoPlayer from '../components/VideoPlayer';
 import MemberBrandHeader from '../components/member/MemberBrandHeader';
 import MemberHelpFooter from '../components/member/MemberHelpFooter';
@@ -11,7 +11,6 @@ import { clearSession, loadSession, saveSession } from '../lib/session';
 
 type Props = {
   onLogout: () => void;
-  onOpenManual?: () => void;
 };
 
 const WATCH_STEP = MEMBER_GUIDE_STEPS.filter((s) => s.number === 3);
@@ -20,7 +19,7 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-export default function RoomVideosPage({ onLogout, onOpenManual }: Props) {
+export default function RoomVideosPage({ onLogout }: Props) {
   const [session, setSession] = useState(loadSession);
   const [videos, setVideos] = useState<CareVideoItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,12 +182,6 @@ export default function RoomVideosPage({ onLogout, onOpenManual }: Props) {
         )}
 
         <MemberHelpFooter large />
-        {onOpenManual && (
-          <button type="button" onClick={onOpenManual} className="member-btn-secondary w-full flex items-center justify-center gap-2 py-3 text-sm">
-            <BookOpen size={18} />
-            取扱説明書（図解つき）
-          </button>
-        )}
       </main>
     </MemberPageShell>
   );

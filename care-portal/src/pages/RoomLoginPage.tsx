@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, LogIn } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import MemberBrandHeader from '../components/member/MemberBrandHeader';
 import MemberHelpFooter from '../components/member/MemberHelpFooter';
 import MemberPageShell from '../components/member/MemberPageShell';
@@ -11,12 +11,11 @@ import { saveSession } from '../lib/session';
 type Props = {
   roomCode: string;
   onLoggedIn: () => void;
-  onOpenManual?: () => void;
 };
 
 const LOGIN_STEPS = MEMBER_GUIDE_STEPS.filter((s) => s.number <= 2);
 
-export default function RoomLoginPage({ roomCode, onLoggedIn, onOpenManual }: Props) {
+export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -86,12 +85,6 @@ export default function RoomLoginPage({ roomCode, onLoggedIn, onOpenManual }: Pr
         </form>
 
         <MemberHelpFooter large />
-        {onOpenManual && (
-          <button type="button" onClick={onOpenManual} className="member-btn-secondary w-full flex items-center justify-center gap-2 py-3 text-sm">
-            <BookOpen size={18} />
-            取扱説明書（図解つき・印刷用）
-          </button>
-        )}
       </main>
     </MemberPageShell>
   );
