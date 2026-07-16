@@ -104,7 +104,7 @@ export default function StaffManualPage({ onGoLogin, onGoHome }: Props) {
               <span className="text-slate-500">/guide?member=…&room=…</span> … 印刷用案内（会員の日常URLではない）
             </li>
             <li>
-              <span className="text-slate-500">/manual</span> … 会員向けくわしいマニュアル
+              <span className="text-slate-500">/manual</span> … 会員向け取扱説明書（図解つき・印刷して渡す）
             </li>
           </ul>
         </section>

@@ -116,6 +116,10 @@ export default function App() {
             navigate('/');
             setRoute({ name: 'home' });
           }}
+          onOpenManual={() => {
+            navigate('/manual');
+            setRoute({ name: 'member-manual' });
+          }}
         />
       );
     case 'member-guide':
@@ -123,14 +127,7 @@ export default function App() {
         <MemberGuidePage memberName={route.memberName} roomCode={route.roomCode} />
       );
     case 'member-manual':
-      return (
-        <MemberManualPage
-          onGoHome={() => {
-            navigate('/');
-            setRoute({ name: 'home' });
-          }}
-        />
-      );
+      return <MemberManualPage />;
     case 'staff-manual':
       return (
         <StaffManualPage

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogIn } from 'lucide-react';
+import { BookOpen, LogIn } from 'lucide-react';
 import MemberBrandHeader from '../components/member/MemberBrandHeader';
 import MemberHelpFooter from '../components/member/MemberHelpFooter';
 import MemberPageShell from '../components/member/MemberPageShell';
@@ -87,8 +87,9 @@ export default function RoomLoginPage({ roomCode, onLoggedIn, onOpenManual }: Pr
 
         <MemberHelpFooter large />
         {onOpenManual && (
-          <button type="button" onClick={onOpenManual} className="member-link-subtle text-sm w-full text-center">
-            くわしい使い方マニュアルを読む
+          <button type="button" onClick={onOpenManual} className="member-btn-secondary w-full flex items-center justify-center gap-2 py-3 text-sm">
+            <BookOpen size={18} />
+            取扱説明書（図解つき・印刷用）
           </button>
         )}
       </main>

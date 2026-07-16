@@ -5,6 +5,7 @@ import MemberHandoutSection from '../components/member/MemberHandoutSection';
 import MemberHelpFooter from '../components/member/MemberHelpFooter';
 import MemberPageShell from '../components/member/MemberPageShell';
 import MemberStepGuide from '../components/member/MemberStepGuide';
+import MemberStepIllustrations, { MemberJourneyMap } from '../components/member/MemberStepIllustrations';
 import { buildMemberRoomUrl, MEMBER_GUIDE_STEPS } from '../lib/memberGuide';
 
 type Props = {
@@ -59,6 +60,14 @@ export default function MemberGuidePage({ memberName, roomCode, roomUrl }: Props
               <p className="text-base member-text-muted mt-2">※口頭・LINE・紙などでお渡しします。ここに書き写しても構いません。</p>
             </div>
           </div>
+        </section>
+
+        <section className="mb-8">
+          <MemberJourneyMap />
+        </section>
+
+        <section className="mb-8">
+          <MemberStepIllustrations />
         </section>
 
         <section className="mb-8">
