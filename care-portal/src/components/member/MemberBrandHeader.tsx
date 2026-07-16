@@ -14,19 +14,13 @@ export default function MemberBrandHeader({ title, subtitle, children, sticky }:
   return (
     <header className={`member-site-header ${sticky ? 'sticky top-0 z-20' : ''}`}>
       <div className="member-site-banner-wrap">
-        <div className="member-site-banner-crop">
-          <img
-            src="/member-header-banner.png"
-            alt="あつ整体院 会員専用コンテンツサイト"
-            className="member-site-banner"
-            width={1200}
-            height={360}
-          />
-        </div>
-        <p className="member-site-tagline">
-          あなたの「健康スイッチ」が<span className="member-tagline-on">ON</span>になる部屋
-        </p>
-        <div className="member-site-header-fade" aria-hidden />
+        <img
+          src="/member-header-banner.png"
+          alt="あつ整体院 会員専用コンテンツサイト あなたの健康スイッチがONになる部屋"
+          className="member-site-banner"
+          width={1200}
+          height={400}
+        />
       </div>
 
       {hasSub && (
