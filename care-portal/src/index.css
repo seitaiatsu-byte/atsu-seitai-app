@@ -331,6 +331,30 @@ body {
   max-width: 210mm;
 }
 
+.study-room-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff5f7;
+  border: 2px solid #fdb9c8;
+  color: #e88a9e;
+}
+
+.study-room-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--member-gold-soft, #c4ae82) 15%,
+    var(--member-gold-soft, #c4ae82) 85%,
+    transparent 100%
+  );
+  opacity: 0.85;
+}
+
 .sub-room-num {
   width: 1.75rem;
   height: 1.75rem;

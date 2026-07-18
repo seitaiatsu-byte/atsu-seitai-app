@@ -40,6 +40,16 @@ function parseRpcError(message: string): string {
   return message;
 }
 
+export async function peekRoomMember(roomCode: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('care_room_peek_member', {
+    p_room_code: roomCode.trim(),
+  });
+  if (error) return null;
+  const row = data as { member_name?: string | null; found?: boolean };
+  if (!row?.found || !row.member_name?.trim()) return null;
+  return row.member_name.trim();
+}
+
 export async function loginRoom(roomCode: string, password: string): Promise<CareSession> {
   const { data, error } = await supabase.rpc('care_room_login', {
     p_room_code: roomCode.trim(),

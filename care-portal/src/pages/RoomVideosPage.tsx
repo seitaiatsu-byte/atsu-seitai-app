@@ -441,32 +441,35 @@ export default function RoomVideosPage({ onLogout }: Props) {
         ) : selectedSlot === null ? (
           <>
             {studyRoom && (
-              <ul className="space-y-3">
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowStudyRoom(true);
-                      setSelectedSlot(null);
-                      setVideos([]);
-                    }}
-                    className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors"
-                  >
-                    <div className="member-icon-badge w-12 h-12 shrink-0">
-                      <BookOpen size={28} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-lg sm:text-xl text-member-text leading-snug">
-                        {studyRoom.title || DEFAULT_STUDY_ROOM_TITLE}
-                      </p>
-                      <p className="text-sm member-text-accent font-bold mt-1">▶ タップして資料一覧へ</p>
-                    </div>
-                    <div className="sub-room-count shrink-0">
-                      <span className="sub-room-count-num">{Math.min(99, studyRoom.item_count)}件</span>
-                    </div>
-                  </button>
-                </li>
-              </ul>
+              <div className="space-y-4">
+                <ul className="space-y-3">
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowStudyRoom(true);
+                        setSelectedSlot(null);
+                        setVideos([]);
+                      }}
+                      className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors"
+                    >
+                      <div className="study-room-icon shrink-0">
+                        <BookOpen size={28} strokeWidth={2.25} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-lg sm:text-xl text-member-text leading-snug">
+                          {studyRoom.title || DEFAULT_STUDY_ROOM_TITLE}
+                        </p>
+                        <p className="text-sm member-text-accent font-bold mt-1">▶ タップして資料一覧へ</p>
+                      </div>
+                      <div className="sub-room-count shrink-0">
+                        <span className="sub-room-count-num">{Math.min(99, studyRoom.item_count)}件</span>
+                      </div>
+                    </button>
+                  </li>
+                </ul>
+                <div className="study-room-divider" aria-hidden />
+              </div>
             )}
 
             {greetingA && (

@@ -1,11 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LogIn } from 'lucide-react';
 import MemberBrandHeader from '../components/member/MemberBrandHeader';
-import MemberHelpFooter from '../components/member/MemberHelpFooter';
 import MemberPageShell from '../components/member/MemberPageShell';
-import MemberStepGuide from '../components/member/MemberStepGuide';
-import { loginRoom } from '../lib/careApi';
-import { MEMBER_GUIDE_STEPS, MEMBER_LOGIN_ERROR_FALLBACK, MEMBER_PASSWORD_HINT } from '../lib/memberGuide';
+import { loginRoom, peekRoomMember } from '../lib/careApi';
+import { MEMBER_LOGIN_ERROR_FALLBACK } from '../lib/memberGuide';
 import { saveSession } from '../lib/session';
 
 type Props = {
@@ -13,12 +11,21 @@ type Props = {
   onLoggedIn: () => void;
 };
 
-const LOGIN_STEPS = MEMBER_GUIDE_STEPS.filter((s) => s.number <= 2);
-
 export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
   const [password, setPassword] = useState('');
+  const [memberName, setMemberName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    void peekRoomMember(roomCode).then((name) => {
+      if (!cancelled) setMemberName(name);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [roomCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,15 +48,18 @@ export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
     }
   };
 
+  const displayName = memberName || 'あなた';
+
   return (
     <MemberPageShell>
-      <MemberBrandHeader
-        title="ステップ2：入室パスを入力"
-        subtitle="リンクは開けています。あと1つ入力すれば動画が見られます"
-      />
+      <MemberBrandHeader />
 
       <main className="flex-1 p-4 sm:p-5 max-w-lg mx-auto w-full space-y-4">
-        <MemberStepGuide currentStep={2} steps={LOGIN_STEPS} compact />
+        <p className="text-center text-xl sm:text-2xl font-bold text-member-text leading-relaxed px-2">
+          パスワード入れたら
+          <br />
+          {displayName}さんの部屋へ行けます！
+        </p>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="member-panel w-full p-5 sm:p-6">
           {error && (
@@ -59,13 +69,12 @@ export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
           )}
 
           <label className="block text-lg font-bold text-member-text mb-2" htmlFor="room-password">
-            入室パスワード
+            パスワード
           </label>
-          <p className="text-base member-text-muted mb-3">{MEMBER_PASSWORD_HINT}</p>
           <input
             id="room-password"
             type="text"
-            inputMode="text"
+            inputMode="numeric"
             autoComplete="off"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -80,11 +89,9 @@ export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
             className="member-btn-primary mt-6 w-full flex items-center justify-center gap-2 text-xl py-4"
           >
             <LogIn size={22} />
-            {loading ? '確認中…' : '動画を見る'}
+            {loading ? '確認中…' : '部屋へ入る'}
           </button>
         </form>
-
-        <MemberHelpFooter large />
       </main>
     </MemberPageShell>
   );
