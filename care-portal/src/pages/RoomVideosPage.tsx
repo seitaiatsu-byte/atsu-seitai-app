@@ -21,7 +21,7 @@ import { clearSession, loadSession, saveSession } from '../lib/session';
 import { DEFAULT_STUDY_ROOM_TITLE, studyItemTypeLabel, type StudyItem, type StudyRoomSummary } from '../lib/studyRoom';
 
 type Props = {
-  onLogout: () => void;
+  onLogout: (roomCode?: string) => void;
 };
 
 type ActivePlayback = {
@@ -123,8 +123,18 @@ export default function RoomVideosPage({ onLogout }: Props) {
 
   const sessionToken = session?.sessionToken;
 
+  const goToRoomLogin = useCallback((roomCode?: string) => {
+    const code = roomCode?.trim() || loadSession()?.roomCode?.trim();
+    if (code) {
+      window.location.href = `/r/${encodeURIComponent(code)}`;
+      return;
+    }
+    setError('セッションが切れました。お渡しの専用リンク（/r/顧客番号）から開き直してください。');
+  }, []);
+
   const refreshSubRooms = useCallback(async () => {
-    const token = sessionToken ?? loadSession()?.sessionToken;
+    const existing = loadSession();
+    const token = sessionToken ?? existing?.sessionToken;
     if (!token) return;
     setLoading(true);
     setError('');
@@ -132,22 +142,31 @@ export default function RoomVideosPage({ onLogout }: Props) {
       const valid = await validateSession(token);
       saveSession(valid);
       setSession(valid);
-      const [greetings, rooms, study] = await Promise.all([
+      const [greetings, rooms] = await Promise.all([
         listMemberGreetingVideos(token),
         listMemberSubRooms(token),
-        getMemberStudyRoom(token),
       ]);
       setGreetingVideos(greetings);
       setSubRooms(rooms);
-      setStudyRoom(study);
+      // 勉強部屋は未マイグレーションでも部屋全体を落とさない
+      try {
+        setStudyRoom(await getMemberStudyRoom(token));
+      } catch {
+        setStudyRoom(null);
+      }
     } catch (err) {
+      const roomCode = existing?.roomCode;
       clearSession();
       setSession(null);
+      if (roomCode) {
+        goToRoomLogin(roomCode);
+        return;
+      }
       setError(err instanceof Error ? err.message : '読み込みに失敗しました。もう一度リンクから開き直してください。');
     } finally {
       setLoading(false);
     }
-  }, [sessionToken]);
+  }, [sessionToken, goToRoomLogin]);
 
   const loadVideosForSlot = useCallback(
     async (slot: number) => {
@@ -182,11 +201,11 @@ export default function RoomVideosPage({ onLogout }: Props) {
 
   useEffect(() => {
     if (!sessionToken) {
-      window.location.href = '/';
+      goToRoomLogin();
       return;
     }
     void refreshSubRooms();
-  }, [sessionToken, refreshSubRooms]);
+  }, [sessionToken, refreshSubRooms, goToRoomLogin]);
 
   useEffect(() => {
     if (selectedSlot !== null) {
@@ -243,6 +262,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
   };
 
   const handleLogout = async () => {
+    const roomCode = session?.roomCode || loadSession()?.roomCode;
     if (sessionToken) {
       try {
         await logoutRoom(sessionToken);
@@ -251,7 +271,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
       }
     }
     clearSession();
-    onLogout();
+    onLogout(roomCode);
   };
 
   const selectedSubRoom = selectedSlot !== null ? subRooms.find((s) => s.slot_number === selectedSlot) : null;
@@ -262,7 +282,23 @@ export default function RoomVideosPage({ onLogout }: Props) {
   const dietSubRooms = subRooms.filter((sr) => isDietSubRoom(sr.slot_number));
   const extraSubRooms = subRooms.filter((sr) => isLegacyExtraSubRoom(sr.slot_number));
 
-  if (!session) return null;
+  if (!session) {
+    return (
+      <MemberPageShell>
+        <MemberBrandHeader title="入室し直してください" subtitle="お渡しの専用リンクから開いてください" />
+        <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
+          {error && (
+            <div className="rounded-xl bg-red-50 border-2 border-red-200 text-red-900 text-base px-4 py-4 leading-relaxed">
+              {error}
+            </div>
+          )}
+          <p className="text-base member-text-muted mt-4 leading-relaxed">
+            トップページ（スタッフ案内）ではなく、お渡しした <strong>/r/顧客番号</strong> のリンクから入ります。
+          </p>
+        </main>
+      </MemberPageShell>
+    );
+  }
 
   return (
     <MemberPageShell>

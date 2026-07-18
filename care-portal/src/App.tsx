@@ -126,7 +126,12 @@ export default function App() {
     case 'room-videos':
       return (
         <RoomVideosPage
-          onLogout={() => {
+          onLogout={(roomCode) => {
+            if (roomCode) {
+              navigate(`/r/${encodeURIComponent(roomCode)}`);
+              setRoute({ name: 'room-login', roomCode });
+              return;
+            }
             navigate('/');
             setRoute({ name: 'home' });
           }}
