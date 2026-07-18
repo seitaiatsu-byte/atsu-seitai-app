@@ -9,7 +9,7 @@ import {
   isStaffUser,
   type CareRoomRow,
 } from '../../lib/careApi';
-import { buildPasswordFromBirthMonthDay, buildRoomCodeFromCustomerNumber, STAFF_ROOM_CONVENTION } from '../../lib/memberGuide';
+import { buildRoomCodeFromCustomerNumber } from '../../lib/memberGuide';
 import { roomUrl } from '../../lib/session';
 
 type Props = {
@@ -25,11 +25,8 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [memberName, setMemberName] = useState('');
-  const [roomCode, setRoomCode] = useState('');
-  const [password, setPassword] = useState('');
   const [customerNumber, setCustomerNumber] = useState('');
-  const [birthMonth, setBirthMonth] = useState('');
-  const [birthDay, setBirthDay] = useState('');
+  const [password, setPassword] = useState('');
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState('');
   const [qrRoom, setQrRoom] = useState<CareRoomRow | null>(null);
@@ -63,34 +60,26 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
     );
   }, [rooms, query]);
 
-  const handleCustomerNumberChange = (value: string) => {
-    setCustomerNumber(value);
-    const code = buildRoomCodeFromCustomerNumber(value);
-    if (code) setRoomCode(code);
-  };
-
-  const applyBirthPassword = () => {
-    const month = Number(birthMonth);
-    const day = Number(birthDay);
-    const pass = buildPasswordFromBirthMonthDay(month, day);
-    if (pass) setPassword(pass);
-  };
-
   const handleCreate = async () => {
-    if (!memberName.trim() || !roomCode.trim() || !password.trim()) {
-      alert('氏名・部屋コード・入室パスは必須です');
+    const name = memberName.trim();
+    const customerNo = customerNumber.trim();
+    const roomCode = buildRoomCodeFromCustomerNumber(customerNo) || customerNo.toLowerCase();
+    const pass = password.trim();
+    if (!name || !roomCode || !pass) {
+      alert('会員氏名・顧客No.・パスワードは必須です');
+      return;
+    }
+    if (pass.length < 4) {
+      alert('パスワードは生月日4ケタで入力してください');
       return;
     }
     setCreating(true);
     try {
-      const id = await adminCreateRoom(memberName.trim(), roomCode.trim(), password.trim(), customerNumber.trim());
+      const id = await adminCreateRoom(name, roomCode, pass, customerNo);
       setShowCreate(false);
       setMemberName('');
-      setRoomCode('');
-      setPassword('');
       setCustomerNumber('');
-      setBirthMonth('');
-      setBirthDay('');
+      setPassword('');
       await load();
       onOpenRoom(id);
     } catch (err) {
@@ -178,61 +167,36 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
         {showCreate && (
           <div className="bg-white rounded-2xl border p-4 space-y-3">
             <h2 className="font-bold text-slate-800">新しい会員ルーム</h2>
-            <p className="text-xs text-slate-500 leading-relaxed">{STAFF_ROOM_CONVENTION.note}</p>
-            <input
-              value={memberName}
-              onChange={(e) => setMemberName(e.target.value)}
-              placeholder="会員氏名"
-              className="w-full px-3 py-2 rounded-lg border"
-            />
-            <input
-              value={customerNumber}
-              onChange={(e) => handleCustomerNumberChange(e.target.value)}
-              placeholder="顧客番号（例：1234）"
-              className="w-full px-3 py-2 rounded-lg border"
-            />
-            <input
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value)}
-              placeholder="部屋コード（顧客番号と同じ、例: 1234）"
-              className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
-            />
-            <p className="text-xs text-indigo-700 font-bold">{STAFF_ROOM_CONVENTION.rules[0].example}</p>
-            <div className="flex gap-2 items-end">
-              <div className="flex-1">
-                <label className="text-xs text-slate-500 block mb-1">生月日（入室パス自動入力）</label>
-                <div className="flex gap-2">
-                  <input
-                    value={birthMonth}
-                    onChange={(e) => setBirthMonth(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                    placeholder="月"
-                    className="w-16 px-3 py-2 rounded-lg border text-center"
-                    inputMode="numeric"
-                  />
-                  <input
-                    value={birthDay}
-                    onChange={(e) => setBirthDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                    placeholder="日"
-                    className="w-16 px-3 py-2 rounded-lg border text-center"
-                    inputMode="numeric"
-                  />
-                  <button
-                    type="button"
-                    onClick={applyBirthPassword}
-                    className="px-3 py-2 rounded-lg border bg-slate-50 text-sm font-bold whitespace-nowrap"
-                  >
-                    パスに入れる
-                  </button>
-                </div>
-              </div>
+            <div>
+              <label className="text-xs font-bold text-slate-600 block mb-1">会員氏名</label>
+              <input
+                value={memberName}
+                onChange={(e) => setMemberName(e.target.value)}
+                placeholder="会員氏名"
+                className="w-full px-3 py-2 rounded-lg border"
+              />
             </div>
-            <p className="text-xs text-indigo-700 font-bold">{STAFF_ROOM_CONVENTION.rules[1].example}</p>
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="入室パス（生年月日の月日4桁、例：0319）"
-              className="w-full px-3 py-2 rounded-lg border font-mono"
-            />
+            <div>
+              <label className="text-xs font-bold text-slate-600 block mb-1">顧客No.（部屋コード）</label>
+              <input
+                value={customerNumber}
+                onChange={(e) => setCustomerNumber(e.target.value)}
+                placeholder="例：1234"
+                className="w-full px-3 py-2 rounded-lg border font-mono"
+                inputMode="numeric"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-600 block mb-1">パスワード</label>
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="例：0319"
+                className="w-full px-3 py-2 rounded-lg border font-mono"
+                inputMode="numeric"
+              />
+              <p className="text-xs text-slate-500 mt-1">生月日 4ケタを入れる</p>
+            </div>
             <button
               type="button"
               disabled={creating}
