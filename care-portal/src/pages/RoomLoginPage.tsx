@@ -32,7 +32,7 @@ export default function RoomLoginPage({ roomCode, onLoggedIn }: Props) {
     setError('');
     setLoading(true);
     try {
-      const session = await loginRoom(roomCode, password);
+      const session = await loginRoom(roomCode, password.trim());
       saveSession(session);
       onLoggedIn();
     } catch (err) {

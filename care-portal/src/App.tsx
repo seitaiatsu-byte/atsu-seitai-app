@@ -203,6 +203,10 @@ export default function App() {
             navigate('/admin/rooms');
             setRoute({ name: 'admin-rooms' });
           }}
+          onPreviewMemberRoom={() => {
+            navigate('/watch');
+            setRoute({ name: 'room-videos' });
+          }}
         />
       );
     default:

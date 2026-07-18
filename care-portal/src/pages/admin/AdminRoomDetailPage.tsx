@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, KeyRound, Pencil, Printer, Save, Trash2, Upload, Video } from 'lucide-react';
+import { ArrowLeft, Eye, KeyRound, Pencil, Printer, Save, Trash2, Upload, Video } from 'lucide-react';
 import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
 import ProgramAccessPreview from '../../components/admin/ProgramAccessPreview';
 import {
@@ -7,12 +7,14 @@ import {
   adminDeleteVideo,
   adminGetStudyRoomTitle,
   adminListGreetingVideos,
+  adminListProgramDefs,
   adminListProgramRules,
   adminListRoomVideos,
   adminListRooms,
   adminListSubRoomMaster,
   adminListWatchLayout,
   adminSetRoomPassword,
+  adminStartRoomPreview,
   adminToggleVideoPublish,
   adminUpdateRoom,
   adminUpdateVideoMeta,
@@ -23,7 +25,8 @@ import {
 } from '../../lib/careApi';
 import { DEFAULT_GREETING_TITLES, type GreetingSlot } from '../../lib/greetingVideos';
 import { buildRoomCodeFromCustomerNumber } from '../../lib/memberGuide';
-import { type ProgramItemRule, type ProgramTier } from '../../lib/programTiers';
+import { type ProgramDef, type ProgramItemRule, type ProgramTier } from '../../lib/programTiers';
+import { saveSession } from '../../lib/session';
 import { DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
 import { DEFAULT_SUB_ROOM_TITLES, SUB_ROOM_COUNT } from '../../lib/subRooms';
 import type { WatchLayoutItemKey } from '../../lib/watchLayout';
@@ -31,6 +34,7 @@ import type { WatchLayoutItemKey } from '../../lib/watchLayout';
 type Props = {
   roomId: string;
   onBack: () => void;
+  onPreviewMemberRoom?: () => void;
 };
 
 function formatSize(bytes: number | null) {
@@ -39,7 +43,7 @@ function formatSize(bytes: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
+export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoom }: Props) {
   const [room, setRoom] = useState<CareRoomRow | null>(null);
   const [videos, setVideos] = useState<CareRoomVideoRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,13 +51,15 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
   const [editMemberName, setEditMemberName] = useState('');
   const [editCustomerNumber, setEditCustomerNumber] = useState('');
   const [editRoomCode, setEditRoomCode] = useState('');
-  const [editProgramTier, setEditProgramTier] = useState<ProgramTier>('p30');
+  const [editProgramTier, setEditProgramTier] = useState<ProgramTier>('E');
   const [programConfirmed, setProgramConfirmed] = useState(false);
   const [programRules, setProgramRules] = useState<ProgramItemRule[]>([]);
+  const [programDefs, setProgramDefs] = useState<ProgramDef[]>([]);
   const [layoutKeys, setLayoutKeys] = useState<WatchLayoutItemKey[]>([]);
   const [studyTitle, setStudyTitle] = useState(DEFAULT_STUDY_ROOM_TITLE);
   const [greetingTitles, setGreetingTitles] = useState<Partial<Record<GreetingSlot, string>>>({});
   const [savingRoom, setSavingRoom] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [deletingRoom, setDeletingRoom] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -69,10 +75,11 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
   const load = async () => {
     setLoading(true);
     try {
-      const [rooms, master, rules, layout, study, greetings] = await Promise.all([
+      const [rooms, master, rules, defs, layout, study, greetings] = await Promise.all([
         adminListRooms(),
         adminListSubRoomMaster(),
         adminListProgramRules(),
+        adminListProgramDefs(),
         adminListWatchLayout(),
         adminGetStudyRoomTitle(),
         adminListGreetingVideos(),
@@ -83,11 +90,12 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
         setEditMemberName(found.member_name);
         setEditCustomerNumber(found.customer_number || '');
         setEditRoomCode(found.room_code);
-        setEditProgramTier(found.program_tier || 'p30');
+        setEditProgramTier(found.program_tier || 'E');
         setProgramConfirmed(false);
       }
       setVideos(await adminListRoomVideos(roomId));
       setProgramRules(rules);
+      setProgramDefs(defs);
       setLayoutKeys(layout);
       setStudyTitle(study);
       const gTitles: Partial<Record<GreetingSlot, string>> = { ...DEFAULT_GREETING_TITLES };
@@ -166,6 +174,23 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
     setEditCustomerNumber(value);
     const code = buildRoomCodeFromCustomerNumber(value);
     if (code) setEditRoomCode(code);
+  };
+
+  const handlePreviewMemberRoom = async () => {
+    setPreviewing(true);
+    try {
+      const session = await adminStartRoomPreview(roomId);
+      saveSession(session);
+      if (onPreviewMemberRoom) {
+        onPreviewMemberRoom();
+      } else {
+        window.location.href = '/watch';
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '会員部屋の確認を開始できませんでした');
+    } finally {
+      setPreviewing(false);
+    }
   };
 
   const handlePasswordChange = async () => {
@@ -312,6 +337,7 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
               setProgramConfirmed(false);
             }}
             rules={programRules}
+            defs={programDefs}
             layoutKeys={layoutKeys}
             studyTitle={studyTitle}
             greetingTitles={greetingTitles}
@@ -329,6 +355,15 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
             >
               <Save size={14} />
               {savingRoom ? '保存中…' : '会員情報を保存'}
+            </button>
+            <button
+              type="button"
+              disabled={previewing}
+              onClick={() => void handlePreviewMemberRoom()}
+              className="inline-flex items-center gap-1 text-sm font-bold px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              <Eye size={14} />
+              {previewing ? '開いています…' : '会員さんの部屋を確認'}
             </button>
             <button
               type="button"

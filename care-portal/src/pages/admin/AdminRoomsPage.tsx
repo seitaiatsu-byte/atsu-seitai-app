@@ -7,6 +7,7 @@ import {
   adminDeleteRoom,
   adminGetStudyRoomTitle,
   adminListGreetingVideos,
+  adminListProgramDefs,
   adminListProgramRules,
   adminListRooms,
   adminListSubRoomMaster,
@@ -17,7 +18,12 @@ import {
 } from '../../lib/careApi';
 import { DEFAULT_GREETING_TITLES, type GreetingSlot } from '../../lib/greetingVideos';
 import { buildRoomCodeFromCustomerNumber } from '../../lib/memberGuide';
-import { programTierShortLabel, type ProgramItemRule, type ProgramTier } from '../../lib/programTiers';
+import {
+  programTierShortLabel,
+  type ProgramDef,
+  type ProgramItemRule,
+  type ProgramTier,
+} from '../../lib/programTiers';
 import { roomUrl } from '../../lib/session';
 import { DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
 import { DEFAULT_SUB_ROOM_TITLES, SUB_ROOM_COUNT } from '../../lib/subRooms';
@@ -38,9 +44,10 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
   const [memberName, setMemberName] = useState('');
   const [customerNumber, setCustomerNumber] = useState('');
   const [password, setPassword] = useState('');
-  const [programTier, setProgramTier] = useState<ProgramTier>('p30');
+  const [programTier, setProgramTier] = useState<ProgramTier>('E');
   const [programConfirmed, setProgramConfirmed] = useState(false);
   const [programRules, setProgramRules] = useState<ProgramItemRule[]>([]);
+  const [programDefs, setProgramDefs] = useState<ProgramDef[]>([]);
   const [layoutKeys, setLayoutKeys] = useState<WatchLayoutItemKey[]>([]);
   const [studyTitle, setStudyTitle] = useState(DEFAULT_STUDY_ROOM_TITLE);
   const [greetingTitles, setGreetingTitles] = useState<Partial<Record<GreetingSlot, string>>>({});
@@ -55,9 +62,10 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
     try {
       const staff = await isStaffUser();
       if (!staff) throw new Error('スタッフ権限がありません');
-      const [roomRows, rules, layout, study, greetings, master] = await Promise.all([
+      const [roomRows, rules, defs, layout, study, greetings, master] = await Promise.all([
         adminListRooms(),
         adminListProgramRules(),
+        adminListProgramDefs(),
         adminListWatchLayout(),
         adminGetStudyRoomTitle(),
         adminListGreetingVideos(),
@@ -65,6 +73,7 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
       ]);
       setRooms(roomRows);
       setProgramRules(rules);
+      setProgramDefs(defs);
       setLayoutKeys(layout);
       setStudyTitle(study);
       const gTitles: Partial<Record<GreetingSlot, string>> = { ...DEFAULT_GREETING_TITLES };
@@ -122,7 +131,7 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
       setMemberName('');
       setCustomerNumber('');
       setPassword('');
-      setProgramTier('p30');
+      setProgramTier('E');
       setProgramConfirmed(false);
       await load();
       onOpenRoom(id);
@@ -248,6 +257,7 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
                 setProgramConfirmed(false);
               }}
               rules={programRules}
+              defs={programDefs}
               layoutKeys={layoutKeys}
               studyTitle={studyTitle}
               greetingTitles={greetingTitles}
@@ -283,7 +293,7 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
                         <p className="text-xs text-slate-500">顧客番号: {r.customer_number}</p>
                       )}
                       <p className="text-xs text-indigo-700 font-bold mt-1">
-                        プログラム: {programTierShortLabel(r.program_tier)}
+                        プログラム: {programTierShortLabel(r.program_tier, programDefs)}
                       </p>
                       <p className="text-[11px] text-slate-400 mt-1">
                         パス更新: {new Date(r.password_updated_at).toLocaleDateString('ja-JP')}

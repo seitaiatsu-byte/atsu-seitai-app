@@ -1,77 +1,65 @@
 import { DEFAULT_WATCH_LAYOUT_KEYS, type WatchLayoutItemKey } from './watchLayout';
 
-/** 会員ルームの購入プログラム */
-export type ProgramTier = 'p10' | 'p20' | 'p30';
+/** 会員ルームの購入プログラム区分（固定コード） */
+export type ProgramTier = 'A' | 'B' | 'C' | 'D' | 'E';
 
-/** 鍵ルール側の必要プログラム（万円） */
-export type ProgramMinTier = 10 | 20 | 30;
+export type ProgramDef = {
+  code: ProgramTier;
+  display_name: string;
+  sort_order?: number;
+  updated_at?: string;
+};
 
 export type ProgramItemRule = {
   item_key: string;
-  min_tier: ProgramMinTier;
+  allowed_tiers: ProgramTier[];
   updated_at?: string;
 };
 
 export type ProgramItemAccess = {
   item_key: string;
-  min_tier: ProgramMinTier;
+  allowed_tiers: ProgramTier[];
   unlocked: boolean;
 };
 
-export const PROGRAM_TIER_OPTIONS: {
-  value: ProgramTier;
-  rank: ProgramMinTier;
-  label: string;
-  shortLabel: string;
-}[] = [
-  { value: 'p10', rank: 10, label: '10万円プログラム', shortLabel: '10万' },
-  { value: 'p20', rank: 20, label: '20万円プログラム', shortLabel: '20万' },
-  { value: 'p30', rank: 30, label: '30万円プログラム', shortLabel: '30万' },
-];
+export const PROGRAM_TIER_CODES: ProgramTier[] = ['A', 'B', 'C', 'D', 'E'];
 
-export const PROGRAM_MIN_TIER_OPTIONS: {
-  value: ProgramMinTier;
-  label: string;
-}[] = [
-  { value: 10, label: '10万円〜（全員）' },
-  { value: 20, label: '20万円〜' },
-  { value: 30, label: '30万円のみ' },
-];
+export const DEFAULT_PROGRAM_DEFS: ProgramDef[] = PROGRAM_TIER_CODES.map((code, i) => ({
+  code,
+  display_name: code,
+  sort_order: i + 1,
+}));
 
 export function isProgramTier(value: unknown): value is ProgramTier {
-  return value === 'p10' || value === 'p20' || value === 'p30';
+  return value === 'A' || value === 'B' || value === 'C' || value === 'D' || value === 'E';
 }
 
-export function isProgramMinTier(value: unknown): value is ProgramMinTier {
-  return value === 10 || value === 20 || value === 30;
+export function normalizeAllowedTiers(value: unknown): ProgramTier[] {
+  if (!Array.isArray(value)) return [...PROGRAM_TIER_CODES];
+  const out = value.map((v) => String(v).toUpperCase()).filter(isProgramTier);
+  return out.length > 0 ? out : [];
 }
 
-export function programTierRank(tier: ProgramTier | null | undefined): ProgramMinTier {
-  if (tier === 'p10') return 10;
-  if (tier === 'p20') return 20;
-  return 30;
+export function programTierLabel(
+  tier: ProgramTier | null | undefined,
+  defs: ProgramDef[] = DEFAULT_PROGRAM_DEFS
+): string {
+  const found = defs.find((d) => d.code === tier);
+  return found?.display_name?.trim() || tier || 'E';
 }
 
-export function programTierLabel(tier: ProgramTier | null | undefined): string {
-  const found = PROGRAM_TIER_OPTIONS.find((o) => o.value === tier);
-  return found?.label || '30万円プログラム';
+export function programTierShortLabel(
+  tier: ProgramTier | null | undefined,
+  defs: ProgramDef[] = DEFAULT_PROGRAM_DEFS
+): string {
+  return programTierLabel(tier, defs);
 }
 
-export function programTierShortLabel(tier: ProgramTier | null | undefined): string {
-  const found = PROGRAM_TIER_OPTIONS.find((o) => o.value === tier);
-  return found?.shortLabel || '30万';
+export function isItemUnlocked(memberTier: ProgramTier, allowedTiers: ProgramTier[]): boolean {
+  return allowedTiers.includes(memberTier);
 }
 
-export function programMinTierLabel(minTier: ProgramMinTier): string {
-  const found = PROGRAM_MIN_TIER_OPTIONS.find((o) => o.value === minTier);
-  return found?.label || `${minTier}万円〜`;
-}
-
-export function isItemUnlocked(memberTier: ProgramTier, minTier: ProgramMinTier): boolean {
-  return programTierRank(memberTier) >= minTier;
-}
-
-/** ルール未設定時は開放（既存ルームを壊さない） */
+/** ルール未設定時は全開放 */
 export function buildAccessMap(
   rules: ProgramItemRule[],
   memberTier: ProgramTier
@@ -79,19 +67,20 @@ export function buildAccessMap(
   const map: Record<string, ProgramItemAccess> = {};
   for (const key of DEFAULT_WATCH_LAYOUT_KEYS) {
     const rule = rules.find((r) => r.item_key === key);
-    const minTier = rule?.min_tier ?? 10;
+    const allowed = rule?.allowed_tiers?.length ? rule.allowed_tiers : [...PROGRAM_TIER_CODES];
     map[key] = {
       item_key: key,
-      min_tier: minTier,
-      unlocked: isItemUnlocked(memberTier, minTier),
+      allowed_tiers: allowed,
+      unlocked: isItemUnlocked(memberTier, allowed),
     };
   }
   for (const rule of rules) {
     if (map[rule.item_key]) continue;
+    const allowed = rule.allowed_tiers?.length ? rule.allowed_tiers : [...PROGRAM_TIER_CODES];
     map[rule.item_key] = {
       item_key: rule.item_key,
-      min_tier: rule.min_tier,
-      unlocked: isItemUnlocked(memberTier, rule.min_tier),
+      allowed_tiers: allowed,
+      unlocked: isItemUnlocked(memberTier, allowed),
     };
   }
   return map;
@@ -110,6 +99,11 @@ export function countAccessSummary(
     else locked += 1;
   }
   return { unlocked, locked, total: keys.length };
+}
+
+export function toggleAllowedTier(current: ProgramTier[], code: ProgramTier): ProgramTier[] {
+  if (current.includes(code)) return current.filter((c) => c !== code);
+  return PROGRAM_TIER_CODES.filter((c) => current.includes(c) || c === code);
 }
 
 export const LOCKED_ITEM_MESSAGE = 'ご購入のプログラムでは、この枠はまだ開けません';

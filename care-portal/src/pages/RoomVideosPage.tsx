@@ -200,41 +200,60 @@ export default function RoomVideosPage({ onLogout }: Props) {
     setError('');
     try {
       const valid = await validateSession(token);
-      saveSession(valid);
-      setSession(valid);
-      const [greetings, rooms, layout, access] = await Promise.all([
-        listMemberGreetingVideos(token),
-        listMemberSubRooms(token),
+      const merged = {
+        ...valid,
+        staffPreview: existing?.staffPreview === true || valid.staffPreview === true,
+        adminRoomId: existing?.adminRoomId || valid.adminRoomId,
+      };
+      saveSession(merged);
+      setSession(merged);
+
+      const [greetingsResult, roomsResult, layout, access] = await Promise.all([
+        listMemberGreetingVideos(token).catch(() => [] as GreetingVideoItem[]),
+        listMemberSubRooms(token).catch(() => [] as SubRoomItem[]),
         listMemberWatchLayout(token),
         listMemberItemAccess(token),
       ]);
-      setGreetingVideos(greetings);
-      setSubRooms(rooms);
+      setGreetingVideos(greetingsResult);
+      setSubRooms(roomsResult);
       setWatchLayout(layout);
       const unlockMap: Record<string, boolean> = {};
       for (const key of DEFAULT_WATCH_LAYOUT_KEYS) unlockMap[key] = true;
       for (const item of access.items) unlockMap[item.item_key] = item.unlocked;
       setItemUnlocked(unlockMap);
-      if (access.programTier && valid.programTier !== access.programTier) {
-        const next = { ...valid, programTier: access.programTier };
+      if (access.programTier && merged.programTier !== access.programTier) {
+        const next = { ...merged, programTier: access.programTier };
         saveSession(next);
         setSession(next);
       }
-      // 勉強部屋は未マイグレーションでも部屋全体を落とさない
       try {
         setStudyRoom(await getMemberStudyRoom(token));
       } catch {
         setStudyRoom(null);
       }
     } catch (err) {
-      const roomCode = existing?.roomCode;
-      clearSession();
-      setSession(null);
-      if (roomCode) {
-        goToRoomLogin(roomCode);
-        return;
+      const message = err instanceof Error ? err.message : '';
+      const isAuthError =
+        message.includes('セッション') ||
+        message.includes('入室パス') ||
+        message.includes('expired') ||
+        message.includes('inactive') ||
+        message.includes('credentials');
+      if (isAuthError) {
+        const roomCode = existing?.roomCode;
+        const adminRoomId = existing?.adminRoomId;
+        clearSession();
+        setSession(null);
+        if (existing?.staffPreview && adminRoomId) {
+          window.location.href = `/admin/rooms/${adminRoomId}`;
+          return;
+        }
+        if (roomCode) {
+          goToRoomLogin(roomCode);
+          return;
+        }
       }
-      setError(err instanceof Error ? err.message : '読み込みに失敗しました。もう一度リンクから開き直してください。');
+      setError(message || '読み込みに失敗しました。もう一度リンクから開き直してください。');
     } finally {
       setLoading(false);
     }
@@ -346,7 +365,10 @@ export default function RoomVideosPage({ onLogout }: Props) {
   };
 
   const handleLogout = async () => {
-    const roomCode = session?.roomCode || loadSession()?.roomCode;
+    const current = session || loadSession();
+    const roomCode = current?.roomCode;
+    const adminRoomId = current?.adminRoomId;
+    const wasPreview = current?.staffPreview === true;
     if (sessionToken) {
       try {
         await logoutRoom(sessionToken);
@@ -355,7 +377,29 @@ export default function RoomVideosPage({ onLogout }: Props) {
       }
     }
     clearSession();
+    if (wasPreview && adminRoomId) {
+      window.location.href = `/admin/rooms/${adminRoomId}`;
+      return;
+    }
     onLogout(roomCode);
+  };
+
+  const handleBackToAdminEdit = async () => {
+    const current = session || loadSession();
+    const adminRoomId = current?.adminRoomId;
+    if (sessionToken) {
+      try {
+        await logoutRoom(sessionToken);
+      } catch {
+        /* ignore */
+      }
+    }
+    clearSession();
+    if (adminRoomId) {
+      window.location.href = `/admin/rooms/${adminRoomId}`;
+      return;
+    }
+    window.location.href = '/admin/rooms';
   };
 
   const selectedSubRoom = selectedSlot !== null ? subRooms.find((s) => s.slot_number === selectedSlot) : null;
@@ -492,10 +536,27 @@ export default function RoomVideosPage({ onLogout }: Props) {
             更新する
           </button>
           <button type="button" onClick={() => void handleLogout()} className="member-btn-secondary px-4 py-2.5 text-base">
-            終了する
+            {session.staffPreview ? '確認を終了' : '終了する'}
           </button>
         </div>
       </MemberBrandHeader>
+
+      {session.staffPreview && (
+        <div className="bg-indigo-700 text-white px-4 py-3">
+          <div className="max-w-2xl mx-auto flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <p className="text-sm font-bold flex-1">
+              スタッフ確認中：{session.memberName} さんの部屋（会員と同じ見え方）
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleBackToAdminEdit()}
+              className="shrink-0 rounded-lg bg-white text-indigo-800 font-bold text-sm px-4 py-2"
+            >
+              ← スタッフの編集画面へ戻る
+            </button>
+          </div>
+        </div>
+      )}
 
       {previewImageUrl && (
         <div className="bg-member-gold-deep">

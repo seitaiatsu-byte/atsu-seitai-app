@@ -5,10 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function tierRank(tier: string | null | undefined): number {
-  if (tier === 'p10') return 10;
-  if (tier === 'p20') return 20;
-  return 30;
+function normalizeTier(tier: string | null | undefined): string {
+  const t = String(tier || 'E').toUpperCase();
+  if (t === 'A' || t === 'B' || t === 'C' || t === 'D' || t === 'E') return t;
+  if (t === 'P10') return 'A';
+  if (t === 'P20') return 'B';
+  if (t === 'P30') return 'E';
+  return 'E';
 }
 
 Deno.serve(async (req) => {
@@ -60,7 +63,7 @@ Deno.serve(async (req) => {
       return json({ error: 'room inactive' }, 401);
     }
 
-    const memberRank = tierRank(room.program_tier as string | undefined);
+    const memberTier = normalizeTier(room.program_tier as string | undefined);
 
     let storagePath: string | null = null;
     let itemKey: string | null = null;
@@ -99,12 +102,17 @@ Deno.serve(async (req) => {
     if (itemKey) {
       const { data: rule } = await admin
         .from('care_program_item_rules')
-        .select('min_tier')
+        .select('allowed_tiers, min_tier')
         .eq('item_key', itemKey)
         .maybeSingle();
 
-      if (rule?.min_tier != null && memberRank < Number(rule.min_tier)) {
-        return json({ error: 'このプログラムでは再生できません' }, 403);
+      if (rule) {
+        const allowed = Array.isArray(rule.allowed_tiers)
+          ? (rule.allowed_tiers as string[]).map((t) => String(t).toUpperCase())
+          : null;
+        if (allowed && allowed.length > 0 && !allowed.includes(memberTier)) {
+          return json({ error: 'このプログラムでは再生できません' }, 403);
+        }
       }
     }
 

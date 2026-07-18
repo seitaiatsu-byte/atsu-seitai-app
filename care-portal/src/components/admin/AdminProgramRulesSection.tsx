@@ -3,19 +3,21 @@ import { KeyRound, Save } from 'lucide-react';
 import {
   adminGetStudyRoomTitle,
   adminListGreetingVideos,
+  adminListProgramDefs,
   adminListProgramRules,
   adminListSubRoomMaster,
   adminListWatchLayout,
+  adminSaveProgramDefs,
   adminSaveProgramRules,
 } from '../../lib/careApi';
 import { DEFAULT_GREETING_TITLES, type GreetingSlot } from '../../lib/greetingVideos';
 import {
-  PROGRAM_MIN_TIER_OPTIONS,
+  PROGRAM_TIER_CODES,
   countAccessSummary,
-  programMinTierLabel,
   programTierLabel,
+  toggleAllowedTier,
+  type ProgramDef,
   type ProgramItemRule,
-  type ProgramMinTier,
   type ProgramTier,
 } from '../../lib/programTiers';
 import { DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
@@ -28,30 +30,34 @@ import {
 
 export default function AdminProgramRulesSection() {
   const [layoutKeys, setLayoutKeys] = useState<WatchLayoutItemKey[]>([]);
-  const [rules, setRules] = useState<Record<string, ProgramMinTier>>({});
+  const [rules, setRules] = useState<Record<string, ProgramTier[]>>({});
+  const [defs, setDefs] = useState<ProgramDef[]>([]);
   const [studyTitle, setStudyTitle] = useState(DEFAULT_STUDY_ROOM_TITLE);
   const [greetingTitles, setGreetingTitles] = useState<Partial<Record<GreetingSlot, string>>>({});
   const [subRoomTitles, setSubRoomTitles] = useState<Record<number, string>>({});
-  const [previewTier, setPreviewTier] = useState<ProgramTier>('p10');
+  const [previewTier, setPreviewTier] = useState<ProgramTier>('A');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingNames, setSavingNames] = useState(false);
+  const [savingRules, setSavingRules] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [layout, programRules, study, greetings, master] = await Promise.all([
+      const [layout, programRules, programDefs, study, greetings, master] = await Promise.all([
         adminListWatchLayout(),
         adminListProgramRules(),
+        adminListProgramDefs(),
         adminGetStudyRoomTitle(),
         adminListGreetingVideos(),
         adminListSubRoomMaster(),
       ]);
       setLayoutKeys(layout);
+      setDefs(programDefs);
       setStudyTitle(study);
 
-      const next: Record<string, ProgramMinTier> = {};
-      for (const key of layout) next[key] = 10;
-      for (const rule of programRules) next[rule.item_key] = rule.min_tier;
+      const next: Record<string, ProgramTier[]> = {};
+      for (const key of layout) next[key] = [...PROGRAM_TIER_CODES];
+      for (const rule of programRules) next[rule.item_key] = rule.allowed_tiers;
       setRules(next);
 
       const gTitles: Partial<Record<GreetingSlot, string>> = { ...DEFAULT_GREETING_TITLES };
@@ -76,7 +82,11 @@ export default function AdminProgramRulesSection() {
   }, []);
 
   const ruleList: ProgramItemRule[] = useMemo(
-    () => layoutKeys.map((item_key) => ({ item_key, min_tier: rules[item_key] ?? 10 })),
+    () =>
+      layoutKeys.map((item_key) => ({
+        item_key,
+        allowed_tiers: rules[item_key] ?? [...PROGRAM_TIER_CODES],
+      })),
     [layoutKeys, rules]
   );
 
@@ -85,8 +95,23 @@ export default function AdminProgramRulesSection() {
     [ruleList, previewTier, layoutKeys]
   );
 
-  const handleSave = async () => {
-    setSaving(true);
+  const handleSaveNames = async () => {
+    setSavingNames(true);
+    try {
+      await adminSaveProgramDefs(
+        defs.map((d) => ({ code: d.code, display_name: d.display_name.trim() || d.code }))
+      );
+      alert('プログラム名を保存しました');
+      await load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '保存に失敗しました');
+    } finally {
+      setSavingNames(false);
+    }
+  };
+
+  const handleSaveRules = async () => {
+    setSavingRules(true);
     try {
       await adminSaveProgramRules(ruleList);
       alert('鍵の対象範囲を保存しました。会員画面に反映されます。');
@@ -94,7 +119,7 @@ export default function AdminProgramRulesSection() {
     } catch (err) {
       alert(err instanceof Error ? err.message : '保存に失敗しました');
     } finally {
-      setSaving(false);
+      setSavingRules(false);
     }
   };
 
@@ -103,20 +128,53 @@ export default function AdminProgramRulesSection() {
   }
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-4">
       <h2 className="font-bold text-slate-800 flex items-center gap-2">
         <KeyRound size={18} className="text-indigo-600" />
-        鍵の対象範囲（購入プログラム）
+        購入プログラム（A〜E）と鍵の範囲
       </h2>
       <p className="text-xs text-slate-500 leading-relaxed">
-        各枠を開けるために必要なプログラムを設定します。会員ルーム側で 10万 / 20万 / 30万
-        を選ぶと、ここより下の枠はグレー＋鍵でタップできなくなります。
+        プログラム区分は A〜E の5つです。表示名は自由に変更できます。各枠は、開ける区分にチェックを付けたものだけ会員がタップできます。
       </p>
+
+      <div className="bg-white rounded-xl border p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-bold text-slate-700">プログラム名（変更可）</p>
+          <button
+            type="button"
+            disabled={savingNames}
+            onClick={() => void handleSaveNames()}
+            className="inline-flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-50"
+          >
+            <Save size={14} />
+            {savingNames ? '保存中…' : '名前を保存'}
+          </button>
+        </div>
+        <ul className="space-y-2">
+          {defs.map((d) => (
+            <li key={d.code} className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-800 font-bold flex items-center justify-center text-sm shrink-0">
+                {d.code}
+              </span>
+              <input
+                value={d.display_name}
+                onChange={(e) =>
+                  setDefs((prev) =>
+                    prev.map((x) => (x.code === d.code ? { ...x, display_name: e.target.value } : x))
+                  )
+                }
+                className="flex-1 px-3 py-2 rounded-lg border text-sm"
+                placeholder={`プログラム${d.code}`}
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
 
       <div className="bg-white rounded-xl border p-4 space-y-3">
         <p className="text-sm font-bold text-slate-700">確認プレビュー</p>
         <div className="flex flex-wrap gap-2">
-          {(['p10', 'p20', 'p30'] as ProgramTier[]).map((tier) => (
+          {PROGRAM_TIER_CODES.map((tier) => (
             <button
               key={tier}
               type="button"
@@ -127,65 +185,74 @@ export default function AdminProgramRulesSection() {
                   : 'bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              {programTierLabel(tier)}
+              {programTierLabel(tier, defs)}
             </button>
           ))}
         </div>
         <p className="text-sm text-slate-600">
-          {programTierLabel(previewTier)}の場合：開ける {preview.unlocked} / 鍵 {preview.locked}（全
-          {preview.total}枠）
+          「{programTierLabel(previewTier, defs)}」の場合：開ける {preview.unlocked} / 鍵{' '}
+          {preview.locked}（全{preview.total}枠）
         </p>
       </div>
 
       <div className="flex justify-end">
         <button
           type="button"
-          disabled={saving}
-          onClick={() => void handleSave()}
+          disabled={savingRules}
+          onClick={() => void handleSaveRules()}
           className="inline-flex items-center gap-1 text-sm font-bold px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
         >
           <Save size={14} />
-          {saving ? '保存中…' : '鍵ルールを保存'}
+          {savingRules ? '保存中…' : '鍵ルールを保存'}
         </button>
       </div>
 
       <ul className="space-y-2">
         {layoutKeys.map((key) => {
-          const minTier = rules[key] ?? 10;
-          const unlockedInPreview = previewTier === 'p30' || (previewTier === 'p20' ? minTier <= 20 : minTier <= 10);
+          const allowed = rules[key] ?? [...PROGRAM_TIER_CODES];
+          const unlockedInPreview = allowed.includes(previewTier);
           return (
             <li
               key={key}
-              className={`rounded-xl border p-3 flex flex-col sm:flex-row sm:items-center gap-3 ${
+              className={`rounded-xl border p-3 space-y-2 ${
                 unlockedInPreview ? 'bg-white' : 'bg-slate-100 border-slate-300'
               }`}
             >
-              <div className="min-w-0 flex-1">
+              <div>
                 <p className="text-xs font-bold text-indigo-700">{watchLayoutKindLabel(key)}</p>
                 <p className="text-sm font-bold text-slate-800 mt-0.5 leading-snug line-clamp-2">
                   {watchLayoutLabel(key, { studyTitle, greetingTitles, subRoomTitles })}
                 </p>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  現在: {programMinTierLabel(minTier)}
+                  開ける区分にチェック（外すと鍵）
                   {!unlockedInPreview && ' ／ プレビューでは鍵'}
                 </p>
               </div>
-              <select
-                value={minTier}
-                onChange={(e) =>
-                  setRules((prev) => ({
-                    ...prev,
-                    [key]: Number(e.target.value) as ProgramMinTier,
-                  }))
-                }
-                className="shrink-0 px-3 py-2 rounded-lg border text-sm bg-white"
-              >
-                {PROGRAM_MIN_TIER_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-wrap gap-2">
+                {PROGRAM_TIER_CODES.map((code) => {
+                  const on = allowed.includes(code);
+                  return (
+                    <label
+                      key={code}
+                      className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg border cursor-pointer ${
+                        on ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-500'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() =>
+                          setRules((prev) => ({
+                            ...prev,
+                            [key]: toggleAllowedTier(prev[key] ?? [...PROGRAM_TIER_CODES], code),
+                          }))
+                        }
+                      />
+                      {programTierLabel(code, defs)}
+                    </label>
+                  );
+                })}
+              </div>
             </li>
           );
         })}

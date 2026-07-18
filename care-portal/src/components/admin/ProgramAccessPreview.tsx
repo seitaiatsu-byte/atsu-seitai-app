@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { Lock, Unlock } from 'lucide-react';
 import {
-  PROGRAM_TIER_OPTIONS,
+  PROGRAM_TIER_CODES,
   buildAccessMap,
   countAccessSummary,
   programTierLabel,
+  type ProgramDef,
   type ProgramItemRule,
   type ProgramTier,
 } from '../../lib/programTiers';
@@ -19,11 +20,11 @@ type Props = {
   programTier: ProgramTier;
   onChange: (tier: ProgramTier) => void;
   rules: ProgramItemRule[];
+  defs: ProgramDef[];
   layoutKeys: WatchLayoutItemKey[];
   studyTitle?: string;
   greetingTitles?: Partial<Record<GreetingSlot, string>>;
   subRoomTitles?: Record<number, string>;
-  /** 作成時は確認チェックを必須にする */
   requireConfirm?: boolean;
   confirmed?: boolean;
   onConfirmedChange?: (value: boolean) => void;
@@ -33,6 +34,7 @@ export default function ProgramAccessPreview({
   programTier,
   onChange,
   rules,
+  defs,
   layoutKeys,
   studyTitle,
   greetingTitles,
@@ -50,24 +52,26 @@ export default function ProgramAccessPreview({
   return (
     <div className="space-y-3 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
       <div>
-        <label className="text-xs font-bold text-slate-600 block mb-1">購入プログラム</label>
-        <div className="grid grid-cols-3 gap-2">
-          {PROGRAM_TIER_OPTIONS.map((opt) => (
+        <label className="text-xs font-bold text-slate-600 block mb-1">購入プログラム（A〜E）</label>
+        <div className="grid grid-cols-5 gap-1.5">
+          {PROGRAM_TIER_CODES.map((code) => (
             <button
-              key={opt.value}
+              key={code}
               type="button"
-              onClick={() => onChange(opt.value)}
-              className={`text-sm font-bold px-2 py-2 rounded-lg border ${
-                programTier === opt.value
+              onClick={() => onChange(code)}
+              className={`text-xs font-bold px-1 py-2 rounded-lg border leading-tight ${
+                programTier === code
                   ? 'bg-indigo-600 text-white border-indigo-600'
                   : 'bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              {opt.shortLabel}
+              {programTierLabel(code, defs)}
             </button>
           ))}
         </div>
-        <p className="text-xs text-slate-500 mt-1">{programTierLabel(programTier)}を適用します</p>
+        <p className="text-xs text-slate-500 mt-1">
+          「{programTierLabel(programTier, defs)}」を適用します
+        </p>
       </div>
 
       <div className="bg-white rounded-lg border p-3">
@@ -110,7 +114,7 @@ export default function ProgramAccessPreview({
             className="mt-1"
           />
           <span>
-            上記の開ける枠／鍵の内容を確認しました（{programTierLabel(programTier)}）
+            上記の開ける枠／鍵の内容を確認しました（{programTierLabel(programTier, defs)}）
           </span>
         </label>
       )}

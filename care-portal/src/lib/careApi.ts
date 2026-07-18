@@ -2,14 +2,16 @@ import { functionsBaseUrl, supabase } from './supabase';
 import type { GreetingSlot, GreetingVideoItem, GreetingVideoRow } from './greetingVideos';
 import { DEFAULT_GREETING_TITLES } from './greetingVideos';
 import type { SubRoomItem } from './subRooms';
-import type { CareSession } from './session';
+import { loadSession, type CareSession } from './session';
 import { DEFAULT_STUDY_ROOM_TITLE, type StudyItem, type StudyItemRow, type StudyRoomSummary } from './studyRoom';
 import {
-  isProgramMinTier,
+  DEFAULT_PROGRAM_DEFS,
   isProgramTier,
+  normalizeAllowedTiers,
+  PROGRAM_TIER_CODES,
+  type ProgramDef,
   type ProgramItemAccess,
   type ProgramItemRule,
-  type ProgramMinTier,
   type ProgramTier,
 } from './programTiers';
 import {
@@ -65,47 +67,83 @@ export async function peekRoomMember(roomCode: string): Promise<string | null> {
   return row.member_name.trim();
 }
 
-export async function loginRoom(roomCode: string, password: string): Promise<CareSession> {
-  const { data, error } = await supabase.rpc('care_room_login', {
-    p_room_code: roomCode.trim(),
-    p_password: password,
-  });
-  if (error) throw new Error(parseRpcError(error.message));
-  const row = data as {
+function toCareSession(
+  row: {
     session_token: string;
     member_name: string;
     room_code: string;
     expires_at: string;
     program_tier?: string;
-  };
+    staff_preview?: boolean;
+    admin_room_id?: string;
+  },
+  preserve?: Pick<CareSession, 'staffPreview' | 'adminRoomId'>
+): CareSession {
   return {
     sessionToken: row.session_token,
     memberName: row.member_name,
     roomCode: row.room_code,
     expiresAt: row.expires_at,
-    programTier: isProgramTier(row.program_tier) ? row.program_tier : 'p30',
+    programTier: isProgramTier(row.program_tier) ? row.program_tier : 'E',
+    staffPreview: row.staff_preview === true || preserve?.staffPreview === true,
+    adminRoomId: row.admin_room_id || preserve?.adminRoomId,
   };
 }
 
+export async function loginRoom(roomCode: string, password: string): Promise<CareSession> {
+  const { data, error } = await supabase.rpc('care_room_login', {
+    p_room_code: roomCode.trim(),
+    p_password: password.trim(),
+  });
+  if (error) throw new Error(parseRpcError(error.message));
+  return toCareSession(
+    data as {
+      session_token: string;
+      member_name: string;
+      room_code: string;
+      expires_at: string;
+      program_tier?: string;
+    }
+  );
+}
+
 export async function validateSession(sessionToken: string): Promise<CareSession> {
+  const existing = loadSession();
   const { data, error } = await supabase.rpc('care_room_validate_session', {
     p_session_token: sessionToken,
   });
   if (error) throw new Error(parseRpcError(error.message));
-  const row = data as {
-    session_token: string;
-    member_name: string;
-    room_code: string;
-    expires_at: string;
-    program_tier?: string;
-  };
-  return {
-    sessionToken: row.session_token,
-    memberName: row.member_name,
-    roomCode: row.room_code,
-    expiresAt: row.expires_at,
-    programTier: isProgramTier(row.program_tier) ? row.program_tier : 'p30',
-  };
+  return toCareSession(
+    data as {
+      session_token: string;
+      member_name: string;
+      room_code: string;
+      expires_at: string;
+      program_tier?: string;
+    },
+    {
+      staffPreview: existing?.staffPreview,
+      adminRoomId: existing?.adminRoomId,
+    }
+  );
+}
+
+export async function adminStartRoomPreview(roomId: string): Promise<CareSession> {
+  const { data, error } = await supabase.rpc('care_admin_start_room_preview', {
+    p_room_id: roomId,
+  });
+  if (error) throw new Error(parseRpcError(error.message));
+  return toCareSession(
+    data as {
+      session_token: string;
+      member_name: string;
+      room_code: string;
+      expires_at: string;
+      program_tier?: string;
+      staff_preview?: boolean;
+      admin_room_id?: string;
+    }
+  );
 }
 
 export async function listMemberSubRooms(sessionToken: string) {
@@ -156,24 +194,27 @@ export async function listMemberItemAccess(
       p_session_token: sessionToken,
     });
     if (error) throw error;
-    const row = data as { program_tier?: string; items?: ProgramItemAccess[] };
+    const row = data as {
+      program_tier?: string;
+      items?: { item_key?: string; allowed_tiers?: unknown; unlocked?: boolean }[];
+    };
     const items = (row?.items || [])
-      .filter((i) => i?.item_key && isProgramMinTier(i.min_tier))
+      .filter((i) => i?.item_key)
       .map((i) => ({
-        item_key: i.item_key,
-        min_tier: i.min_tier as ProgramMinTier,
+        item_key: i.item_key as string,
+        allowed_tiers: normalizeAllowedTiers(i.allowed_tiers),
         unlocked: Boolean(i.unlocked),
       }));
     return {
-      programTier: isProgramTier(row?.program_tier) ? row.program_tier : 'p30',
+      programTier: isProgramTier(row?.program_tier) ? row.program_tier : 'E',
       items,
     };
   } catch {
     return {
-      programTier: 'p30',
+      programTier: 'E',
       items: DEFAULT_WATCH_LAYOUT_KEYS.map((item_key) => ({
         item_key,
-        min_tier: 10 as ProgramMinTier,
+        allowed_tiers: [...PROGRAM_TIER_CODES],
         unlocked: true,
       })),
     };
@@ -259,7 +300,7 @@ export async function adminListRooms(): Promise<CareRoomRow[]> {
   if (!withTier.error) {
     return ((withTier.data || []) as CareRoomRow[]).map((r) => ({
       ...r,
-      program_tier: isProgramTier(r.program_tier) ? r.program_tier : 'p30',
+      program_tier: isProgramTier(r.program_tier) ? r.program_tier : 'E',
     }));
   }
 
@@ -271,7 +312,7 @@ export async function adminListRooms(): Promise<CareRoomRow[]> {
   if (error) throw new Error(error.message);
   return ((data || []) as Omit<CareRoomRow, 'program_tier'>[]).map((r) => ({
     ...r,
-    program_tier: 'p30' as ProgramTier,
+    program_tier: 'E' as ProgramTier,
   }));
 }
 
@@ -291,7 +332,7 @@ export async function adminCreateRoom(
   roomCode: string,
   password: string,
   customerNumber?: string,
-  programTier: ProgramTier = 'p30'
+  programTier: ProgramTier = 'E'
 ): Promise<string> {
   const { data, error } = await supabase.rpc('care_admin_create_room', {
     p_member_name: memberName,
@@ -328,26 +369,53 @@ export async function adminUpdateRoom(
   if (error) throw new Error(error.message);
 }
 
+export async function adminListProgramDefs(): Promise<ProgramDef[]> {
+  try {
+    const { data, error } = await supabase.rpc('care_admin_list_program_defs');
+    if (error) throw error;
+    const rows = (data || []) as ProgramDef[];
+    if (!rows.length) return [...DEFAULT_PROGRAM_DEFS];
+    return PROGRAM_TIER_CODES.map((code) => {
+      const found = rows.find((r) => r.code === code);
+      return {
+        code,
+        display_name: found?.display_name?.trim() || code,
+        sort_order: found?.sort_order,
+        updated_at: found?.updated_at,
+      };
+    });
+  } catch {
+    return [...DEFAULT_PROGRAM_DEFS];
+  }
+}
+
+export async function adminSaveProgramDefs(defs: { code: ProgramTier; display_name: string }[]) {
+  const { error } = await supabase.rpc('care_admin_save_program_defs', {
+    p_defs: defs,
+  });
+  if (error) throw new Error(parseRpcError(error.message));
+}
+
 export async function adminListProgramRules(): Promise<ProgramItemRule[]> {
   try {
     const { data, error } = await supabase.rpc('care_admin_list_program_rules');
     if (error) throw error;
-    return ((data || []) as ProgramItemRule[])
-      .filter((r) => r?.item_key && isProgramMinTier(r.min_tier))
+    return ((data || []) as { item_key?: string; allowed_tiers?: unknown; updated_at?: string }[])
+      .filter((r) => r?.item_key)
       .map((r) => ({
-        item_key: r.item_key,
-        min_tier: r.min_tier,
+        item_key: r.item_key as string,
+        allowed_tiers: normalizeAllowedTiers(r.allowed_tiers),
         updated_at: r.updated_at,
       }));
   } catch {
     return DEFAULT_WATCH_LAYOUT_KEYS.map((item_key) => ({
       item_key,
-      min_tier: 10 as ProgramMinTier,
+      allowed_tiers: [...PROGRAM_TIER_CODES],
     }));
   }
 }
 
-export async function adminSaveProgramRules(rules: { item_key: string; min_tier: ProgramMinTier }[]) {
+export async function adminSaveProgramRules(rules: { item_key: string; allowed_tiers: ProgramTier[] }[]) {
   const { error } = await supabase.rpc('care_admin_save_program_rules', {
     p_rules: rules,
   });

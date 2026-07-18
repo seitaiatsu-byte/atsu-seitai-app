@@ -8,8 +8,11 @@ export type CareSession = {
   memberName: string;
   roomCode: string;
   expiresAt: string;
-  /** 未設定の古いセッションは p30（全開放）扱い */
+  /** 未設定の古いセッションは E（全開放寄り）扱い */
   programTier?: ProgramTier;
+  /** スタッフが会員部屋を確認中 */
+  staffPreview?: boolean;
+  adminRoomId?: string;
 };
 
 export function loadSession(): CareSession | null {
