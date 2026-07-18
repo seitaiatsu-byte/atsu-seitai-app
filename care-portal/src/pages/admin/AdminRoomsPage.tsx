@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, DoorOpen, LayoutGrid, LogOut, Plus, QrCode, Search, Trash2, X } from 'lucide-react';
+import { Award, Copy, DoorOpen, LogOut, Plus, QrCode, Search, Trash2, X } from 'lucide-react';
 import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
 import ProgramAccessPreview from '../../components/admin/ProgramAccessPreview';
 import {
@@ -189,10 +189,12 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
         <button
           type="button"
           onClick={onOpenSubRoomsMaster}
-          className="w-full flex items-center justify-center gap-2 bg-white border border-indigo-200 text-indigo-800 font-bold px-4 py-3 rounded-xl hover:bg-indigo-50"
+          className="w-full flex items-center gap-3 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 border-2 border-amber-600 text-amber-950 font-black text-base sm:text-lg px-4 py-4 rounded-2xl shadow-md shadow-amber-300/60 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 active:scale-[0.99] transition"
         >
-          <LayoutGrid size={18} />
-          マスター設定（表示順・鍵・勉強部屋・小部屋）
+          <span className="shrink-0 w-11 h-11 rounded-full bg-white/90 border-2 border-amber-600 flex items-center justify-center shadow-sm">
+            <Award size={26} className="text-amber-600 fill-amber-300" strokeWidth={2.25} />
+          </span>
+          <span className="flex-1 text-left leading-snug">会員の部屋を編集するページへいく</span>
         </button>
 
         {error && <div className="rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm p-3">{error}</div>}
