@@ -8,33 +8,77 @@ type Props = {
   sticky?: boolean;
 };
 
+function BannerTitle() {
+  return (
+    <svg
+      className="member-site-banner-title-svg"
+      viewBox="0 0 520 168"
+      role="img"
+      aria-label="会員専用コンテンツサイト"
+    >
+      <defs>
+        <filter id="banner-title-soft" x="-5%" y="-5%" width="110%" height="110%">
+          <feDropShadow dx="0" dy="1" stdDeviation="0.6" floodColor="#1a1510" floodOpacity="0.35" />
+        </filter>
+      </defs>
+      <g
+        fill="#ffffff"
+        stroke="#1c1610"
+        strokeWidth="6.5"
+        strokeLinejoin="round"
+        paintOrder="stroke fill"
+        filter="url(#banner-title-soft)"
+        fontFamily="'Zen Kaku Gothic New', 'Hiragino Sans', 'Noto Sans JP', sans-serif"
+        fontWeight="900"
+        fontSize="72"
+      >
+        <text x="8" y="72">
+          会員専用
+        </text>
+        <text x="8" y="148">
+          コンテンツサイト
+        </text>
+      </g>
+    </svg>
+  );
+}
+
 export default function MemberBrandHeader({ title, subtitle, children, sticky }: Props) {
   const hasSub = Boolean(title || subtitle || children);
 
   return (
     <header className={`member-site-header ${sticky ? 'sticky top-0 z-20' : ''}`}>
       <div className="member-site-banner-wrap">
-        <div className="member-site-banner" role="img" aria-label="あつ整体院 会員専用コンテンツサイト あなたの健康スイッチがONになる部屋">
+        <div
+          className="member-site-banner"
+          role="img"
+          aria-label="あつ整体院 会員専用コンテンツサイト あなたの健康スイッチがONになる部屋"
+        >
           <div className="member-site-banner-watermarks" aria-hidden>
-            <img src="/clinic-logo.png" alt="" className="member-site-banner-wm member-site-banner-wm-a" />
-            <img src="/clinic-logo.png" alt="" className="member-site-banner-wm member-site-banner-wm-b" />
+            <span className="member-site-banner-wm member-site-banner-wm-a">
+              <img src="/clinic-logo.png" alt="" />
+            </span>
+            <span className="member-site-banner-wm member-site-banner-wm-b">
+              <img src="/clinic-logo.png" alt="" />
+            </span>
           </div>
 
           <div className="member-site-banner-inner">
             <div className="member-site-banner-brand">
-              <img
-                src="/clinic-logo.png"
-                alt="a2 Re CONDITIONING STATION"
-                className="member-site-banner-logo"
-                width={112}
-                height={112}
-              />
+              <span className="member-site-banner-logo-wrap">
+                <img
+                  src="/clinic-logo.png"
+                  alt="a2 Re CONDITIONING STATION"
+                  className="member-site-banner-logo"
+                  width={160}
+                  height={160}
+                />
+              </span>
               <p className="member-site-banner-clinic">あつ整体院</p>
             </div>
 
             <div className="member-site-banner-titles">
-              <p className="member-site-banner-title">会員専用</p>
-              <p className="member-site-banner-title">コンテンツサイト</p>
+              <BannerTitle />
             </div>
           </div>
 

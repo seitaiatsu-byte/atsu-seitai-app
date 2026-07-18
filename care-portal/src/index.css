@@ -79,7 +79,7 @@ body {
 
 .member-site-banner-wrap {
   position: relative;
-  background: #d8c48a;
+  background: #dcd198;
   line-height: normal;
 }
 
@@ -89,10 +89,8 @@ body {
   width: 100%;
   max-width: 42rem;
   margin: 0 auto;
-  padding: 1rem 1rem 0.95rem;
-  background:
-    radial-gradient(ellipse 80% 70% at 50% 40%, #e4d3a0 0%, transparent 62%),
-    linear-gradient(165deg, #e2d19a 0%, #d4c086 48%, #c9b478 100%);
+  padding: 0.85rem 0.9rem 0.8rem;
+  background: #dcd198;
   font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
 }
 
@@ -101,30 +99,46 @@ body {
   inset: 0;
   pointer-events: none;
   user-select: none;
+  overflow: hidden;
 }
 
+/* PNGの四角い下地を円で切り、金色地に溶かす */
 .member-site-banner-wm {
   position: absolute;
-  width: 9.5rem;
-  height: 9.5rem;
-  object-fit: contain;
-  opacity: 0.08;
-  filter: grayscale(0.15);
+  display: block;
+  width: 10rem;
+  height: 10rem;
+  border-radius: 50%;
+  overflow: hidden;
+  opacity: 0.14;
+  mix-blend-mode: multiply;
+  -webkit-mask-image: radial-gradient(circle at center, #000 66%, transparent 68%);
+  mask-image: radial-gradient(circle at center, #000 66%, transparent 68%);
+}
+
+.member-site-banner-wm img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+  outline: 0;
+  background: transparent;
 }
 
 .member-site-banner-wm-a {
-  top: -1.25rem;
-  right: 18%;
-  transform: rotate(-8deg);
+  top: -1.5rem;
+  left: 42%;
+  transform: rotate(-6deg);
 }
 
 .member-site-banner-wm-b {
-  bottom: -2rem;
-  right: -1rem;
-  width: 11rem;
-  height: 11rem;
-  opacity: 0.07;
-  transform: rotate(12deg);
+  right: -1.75rem;
+  bottom: -2.25rem;
+  width: 12rem;
+  height: 12rem;
+  opacity: 0.12;
+  transform: rotate(10deg);
 }
 
 .member-site-banner-inner {
@@ -132,8 +146,7 @@ body {
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  min-height: 6.5rem;
+  gap: 0.55rem;
 }
 
 .member-site-banner-brand {
@@ -141,24 +154,37 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 5.5rem;
+  width: 5.35rem;
+}
+
+.member-site-banner-logo-wrap {
+  display: block;
+  width: 4.85rem;
+  height: 4.85rem;
+  border-radius: 50%;
+  overflow: hidden;
+  background: transparent;
+  -webkit-mask-image: radial-gradient(circle at center, #000 68%, transparent 70%);
+  mask-image: radial-gradient(circle at center, #000 68%, transparent 70%);
 }
 
 .member-site-banner-logo {
-  width: 4.75rem;
-  height: 4.75rem;
-  border-radius: 9999px;
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(80, 60, 20, 0.18);
+  border: 0;
+  outline: 0;
+  background: transparent;
+  mix-blend-mode: multiply;
 }
 
 .member-site-banner-clinic {
-  margin-top: 0.35rem;
-  font-size: 0.95rem;
+  margin: 0.3rem 0 0;
+  font-size: 0.98rem;
   font-weight: 900;
-  letter-spacing: 0.04em;
-  color: #5c4a2e;
+  letter-spacing: 0.02em;
+  color: #4a3a24;
   line-height: 1.1;
   white-space: nowrap;
 }
@@ -166,66 +192,60 @@ body {
 .member-site-banner-titles {
   flex: 1;
   min-width: 0;
-  padding-top: 0.15rem;
+  display: flex;
+  align-items: center;
 }
 
-.member-site-banner-title {
-  margin: 0;
-  font-size: clamp(1.55rem, 6.8vw, 2.35rem);
-  font-weight: 900;
-  line-height: 1.12;
-  letter-spacing: 0.02em;
-  color: #fff;
-  -webkit-text-stroke: 1.5px #1a1510;
-  paint-order: stroke fill;
-  text-shadow:
-    0 0 1px #1a1510,
-    1px 1px 0 #1a1510,
-    -1px 1px 0 #1a1510,
-    1px -1px 0 #1a1510,
-    -1px -1px 0 #1a1510,
-    2px 2px 0 #1a1510;
+.member-site-banner-title-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 5.6rem;
+  overflow: visible;
 }
 
 .member-site-banner-tagline {
   position: relative;
   z-index: 1;
-  margin: 0.65rem 0 0;
+  margin: 0.55rem 0 0;
   text-align: center;
-  font-size: clamp(0.92rem, 3.6vw, 1.15rem);
+  font-size: clamp(0.95rem, 3.7vw, 1.18rem);
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: #1f1a14;
+  color: #1a1510;
   line-height: 1.35;
 }
 
 .member-site-banner-on {
-  color: #e11d48;
+  color: #dc2626;
   font-weight: 900;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
 }
 
 @media (min-width: 480px) {
   .member-site-banner {
-    padding: 1.15rem 1.35rem 1.1rem;
+    padding: 1.05rem 1.25rem 0.95rem;
   }
 
   .member-site-banner-brand {
-    width: 6.25rem;
+    width: 6.1rem;
   }
 
-  .member-site-banner-logo {
-    width: 5.5rem;
-    height: 5.5rem;
+  .member-site-banner-logo-wrap {
+    width: 5.55rem;
+    height: 5.55rem;
   }
 
   .member-site-banner-clinic {
-    font-size: 1.05rem;
+    font-size: 1.08rem;
   }
 
   .member-site-banner-inner {
-    gap: 1.1rem;
-    min-height: 7.25rem;
+    gap: 0.85rem;
+  }
+
+  .member-site-banner-title-svg {
+    max-height: 6.4rem;
   }
 }
 
@@ -587,8 +607,13 @@ body {
     height: 22mm;
   }
 
-  .member-manual-a4 .member-site-banner-title {
-    font-size: 7mm;
+  .member-manual-a4 .member-site-banner-title-svg {
+    max-height: 22mm;
+  }
+
+  .member-manual-a4 .member-site-banner-logo-wrap {
+    width: 20mm;
+    height: 20mm;
   }
 
   .member-manual-a4 .member-site-banner-tagline {
