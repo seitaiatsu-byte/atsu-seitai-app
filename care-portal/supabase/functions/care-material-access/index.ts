@@ -5,6 +5,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function tierRank(tier: string | null | undefined): number {
+  if (tier === 'p10') return 10;
+  if (tier === 'p20') return 20;
+  return 30;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -28,7 +34,7 @@ Deno.serve(async (req) => {
 
     const { data: sess, error: sessErr } = await admin
       .from('care_room_sessions')
-      .select('id, expires_at')
+      .select('id, room_id, expires_at')
       .eq('id', sessionToken)
       .maybeSingle();
 
@@ -37,6 +43,26 @@ Deno.serve(async (req) => {
     }
     if (new Date(sess.expires_at).getTime() <= Date.now()) {
       return json({ error: 'session expired' }, 401);
+    }
+
+    const { data: room } = await admin
+      .from('care_member_rooms')
+      .select('id, program_tier, is_active')
+      .eq('id', sess.room_id)
+      .maybeSingle();
+
+    if (!room || room.is_active === false) {
+      return json({ error: 'room inactive' }, 401);
+    }
+
+    const { data: rule } = await admin
+      .from('care_program_item_rules')
+      .select('min_tier')
+      .eq('item_key', 'study')
+      .maybeSingle();
+
+    if (rule?.min_tier != null && tierRank(room.program_tier as string | undefined) < Number(rule.min_tier)) {
+      return json({ error: 'このプログラムでは資料を開けません' }, 403);
     }
 
     const { data: item, error: itemErr } = await admin

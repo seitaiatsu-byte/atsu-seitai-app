@@ -1,16 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Copy, DoorOpen, LayoutGrid, LogOut, Plus, QrCode, Search, Trash2, X } from 'lucide-react';
 import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
+import ProgramAccessPreview from '../../components/admin/ProgramAccessPreview';
 import {
   adminCreateRoom,
   adminDeleteRoom,
+  adminGetStudyRoomTitle,
+  adminListGreetingVideos,
+  adminListProgramRules,
   adminListRooms,
+  adminListSubRoomMaster,
+  adminListWatchLayout,
   adminSignOut,
   isStaffUser,
   type CareRoomRow,
 } from '../../lib/careApi';
+import { DEFAULT_GREETING_TITLES, type GreetingSlot } from '../../lib/greetingVideos';
 import { buildRoomCodeFromCustomerNumber } from '../../lib/memberGuide';
+import { programTierShortLabel, type ProgramItemRule, type ProgramTier } from '../../lib/programTiers';
 import { roomUrl } from '../../lib/session';
+import { DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
+import { DEFAULT_SUB_ROOM_TITLES, SUB_ROOM_COUNT } from '../../lib/subRooms';
+import type { WatchLayoutItemKey } from '../../lib/watchLayout';
 
 type Props = {
   onOpenRoom: (roomId: string) => void;
@@ -27,6 +38,13 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
   const [memberName, setMemberName] = useState('');
   const [customerNumber, setCustomerNumber] = useState('');
   const [password, setPassword] = useState('');
+  const [programTier, setProgramTier] = useState<ProgramTier>('p30');
+  const [programConfirmed, setProgramConfirmed] = useState(false);
+  const [programRules, setProgramRules] = useState<ProgramItemRule[]>([]);
+  const [layoutKeys, setLayoutKeys] = useState<WatchLayoutItemKey[]>([]);
+  const [studyTitle, setStudyTitle] = useState(DEFAULT_STUDY_ROOM_TITLE);
+  const [greetingTitles, setGreetingTitles] = useState<Partial<Record<GreetingSlot, string>>>({});
+  const [subRoomTitles, setSubRoomTitles] = useState<Record<number, string>>({});
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState('');
   const [qrRoom, setQrRoom] = useState<CareRoomRow | null>(null);
@@ -37,7 +55,27 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
     try {
       const staff = await isStaffUser();
       if (!staff) throw new Error('スタッフ権限がありません');
-      setRooms(await adminListRooms());
+      const [roomRows, rules, layout, study, greetings, master] = await Promise.all([
+        adminListRooms(),
+        adminListProgramRules(),
+        adminListWatchLayout(),
+        adminGetStudyRoomTitle(),
+        adminListGreetingVideos(),
+        adminListSubRoomMaster(),
+      ]);
+      setRooms(roomRows);
+      setProgramRules(rules);
+      setLayoutKeys(layout);
+      setStudyTitle(study);
+      const gTitles: Partial<Record<GreetingSlot, string>> = { ...DEFAULT_GREETING_TITLES };
+      for (const g of greetings) gTitles[g.slot_code] = g.title;
+      setGreetingTitles(gTitles);
+      const sTitles: Record<number, string> = { ...DEFAULT_SUB_ROOM_TITLES };
+      for (let i = 1; i <= SUB_ROOM_COUNT; i++) {
+        if (!sTitles[i]) sTitles[i] = `小部屋${i}`;
+      }
+      for (const m of master) sTitles[m.slot_number] = m.title;
+      setSubRoomTitles(sTitles);
     } catch (err) {
       setError(err instanceof Error ? err.message : '読み込みに失敗しました');
     } finally {
@@ -73,13 +111,19 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
       alert('パスワードは生月日4ケタで入力してください');
       return;
     }
+    if (!programConfirmed) {
+      alert('購入プログラムの開ける枠／鍵を確認し、チェックを入れてください');
+      return;
+    }
     setCreating(true);
     try {
-      const id = await adminCreateRoom(name, roomCode, pass, customerNo);
+      const id = await adminCreateRoom(name, roomCode, pass, customerNo, programTier);
       setShowCreate(false);
       setMemberName('');
       setCustomerNumber('');
       setPassword('');
+      setProgramTier('p30');
+      setProgramConfirmed(false);
       await load();
       onOpenRoom(id);
     } catch (err) {
@@ -139,7 +183,7 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
           className="w-full flex items-center justify-center gap-2 bg-white border border-indigo-200 text-indigo-800 font-bold px-4 py-3 rounded-xl hover:bg-indigo-50"
         >
           <LayoutGrid size={18} />
-          マスター設定（表示順・勉強部屋・小部屋）
+          マスター設定（表示順・鍵・勉強部屋・小部屋）
         </button>
 
         {error && <div className="rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm p-3">{error}</div>}
@@ -197,6 +241,21 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
               />
               <p className="text-xs text-slate-500 mt-1">生月日 4ケタを入れる</p>
             </div>
+            <ProgramAccessPreview
+              programTier={programTier}
+              onChange={(tier) => {
+                setProgramTier(tier);
+                setProgramConfirmed(false);
+              }}
+              rules={programRules}
+              layoutKeys={layoutKeys}
+              studyTitle={studyTitle}
+              greetingTitles={greetingTitles}
+              subRoomTitles={subRoomTitles}
+              requireConfirm
+              confirmed={programConfirmed}
+              onConfirmedChange={setProgramConfirmed}
+            />
             <button
               type="button"
               disabled={creating}
@@ -223,6 +282,9 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
                       {r.customer_number && (
                         <p className="text-xs text-slate-500">顧客番号: {r.customer_number}</p>
                       )}
+                      <p className="text-xs text-indigo-700 font-bold mt-1">
+                        プログラム: {programTierShortLabel(r.program_tier)}
+                      </p>
                       <p className="text-[11px] text-slate-400 mt-1">
                         パス更新: {new Date(r.password_updated_at).toLocaleDateString('ja-JP')}
                         {!r.is_active && <span className="ml-2 text-red-600 font-bold">停止中</span>}

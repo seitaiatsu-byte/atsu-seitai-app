@@ -5,6 +5,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function tierRank(tier: string | null | undefined): number {
+  if (tier === 'p10') return 10;
+  if (tier === 'p20') return 20;
+  return 30;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -44,12 +50,25 @@ Deno.serve(async (req) => {
       return json({ error: 'session expired' }, 401);
     }
 
+    const { data: room } = await admin
+      .from('care_member_rooms')
+      .select('id, program_tier, is_active')
+      .eq('id', sess.room_id)
+      .maybeSingle();
+
+    if (!room || room.is_active === false) {
+      return json({ error: 'room inactive' }, 401);
+    }
+
+    const memberRank = tierRank(room.program_tier as string | undefined);
+
     let storagePath: string | null = null;
+    let itemKey: string | null = null;
 
     if (videoKind === 'greeting') {
       const { data: greeting, error: greetErr } = await admin
         .from('care_greeting_videos')
-        .select('id, storage_path, is_published')
+        .select('id, slot_code, storage_path, is_published')
         .eq('id', videoId)
         .maybeSingle();
 
@@ -57,10 +76,11 @@ Deno.serve(async (req) => {
         return json({ error: 'video not found' }, 404);
       }
       storagePath = greeting.storage_path;
+      itemKey = `greeting_${greeting.slot_code}`;
     } else {
       const { data: video, error: vidErr } = await admin
         .from('care_room_videos')
-        .select('id, room_id, storage_path, is_published')
+        .select('id, room_id, storage_path, is_published, sub_room_slot')
         .eq('id', videoId)
         .maybeSingle();
 
@@ -71,11 +91,26 @@ Deno.serve(async (req) => {
         return json({ error: 'forbidden' }, 403);
       }
       storagePath = video.storage_path;
+      if (video.sub_room_slot != null) {
+        itemKey = `sub_${video.sub_room_slot}`;
+      }
+    }
+
+    if (itemKey) {
+      const { data: rule } = await admin
+        .from('care_program_item_rules')
+        .select('min_tier')
+        .eq('item_key', itemKey)
+        .maybeSingle();
+
+      if (rule?.min_tier != null && memberRank < Number(rule.min_tier)) {
+        return json({ error: 'このプログラムでは再生できません' }, 403);
+      }
     }
 
     const { data: signed, error: signErr } = await admin.storage
       .from('care-videos')
-      .createSignedUrl(storagePath, 3600);
+      .createSignedUrl(storagePath!, 3600);
 
     if (signErr || !signed?.signedUrl) {
       return json({ error: signErr?.message || 'signed url failed' }, 500);

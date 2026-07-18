@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, KeyRound, Pencil, Printer, Save, Trash2, Upload, Video } from 'lucide-react';
 import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
+import ProgramAccessPreview from '../../components/admin/ProgramAccessPreview';
 import {
   adminDeleteRoom,
   adminDeleteVideo,
+  adminGetStudyRoomTitle,
+  adminListGreetingVideos,
+  adminListProgramRules,
   adminListRoomVideos,
   adminListRooms,
   adminListSubRoomMaster,
+  adminListWatchLayout,
   adminSetRoomPassword,
   adminToggleVideoPublish,
   adminUpdateRoom,
@@ -16,8 +21,12 @@ import {
   type CareRoomRow,
   type CareRoomVideoRow,
 } from '../../lib/careApi';
+import { DEFAULT_GREETING_TITLES, type GreetingSlot } from '../../lib/greetingVideos';
 import { buildRoomCodeFromCustomerNumber } from '../../lib/memberGuide';
-import { SUB_ROOM_COUNT } from '../../lib/subRooms';
+import { type ProgramItemRule, type ProgramTier } from '../../lib/programTiers';
+import { DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
+import { DEFAULT_SUB_ROOM_TITLES, SUB_ROOM_COUNT } from '../../lib/subRooms';
+import type { WatchLayoutItemKey } from '../../lib/watchLayout';
 
 type Props = {
   roomId: string;
@@ -38,6 +47,12 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
   const [editMemberName, setEditMemberName] = useState('');
   const [editCustomerNumber, setEditCustomerNumber] = useState('');
   const [editRoomCode, setEditRoomCode] = useState('');
+  const [editProgramTier, setEditProgramTier] = useState<ProgramTier>('p30');
+  const [programConfirmed, setProgramConfirmed] = useState(false);
+  const [programRules, setProgramRules] = useState<ProgramItemRule[]>([]);
+  const [layoutKeys, setLayoutKeys] = useState<WatchLayoutItemKey[]>([]);
+  const [studyTitle, setStudyTitle] = useState(DEFAULT_STUDY_ROOM_TITLE);
+  const [greetingTitles, setGreetingTitles] = useState<Partial<Record<GreetingSlot, string>>>({});
   const [savingRoom, setSavingRoom] = useState(false);
   const [deletingRoom, setDeletingRoom] = useState(false);
   const [title, setTitle] = useState('');
@@ -54,16 +69,31 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
   const load = async () => {
     setLoading(true);
     try {
-      const [rooms, master] = await Promise.all([adminListRooms(), adminListSubRoomMaster()]);
+      const [rooms, master, rules, layout, study, greetings] = await Promise.all([
+        adminListRooms(),
+        adminListSubRoomMaster(),
+        adminListProgramRules(),
+        adminListWatchLayout(),
+        adminGetStudyRoomTitle(),
+        adminListGreetingVideos(),
+      ]);
       const found = rooms.find((r) => r.id === roomId) || null;
       setRoom(found);
       if (found) {
         setEditMemberName(found.member_name);
         setEditCustomerNumber(found.customer_number || '');
         setEditRoomCode(found.room_code);
+        setEditProgramTier(found.program_tier || 'p30');
+        setProgramConfirmed(false);
       }
       setVideos(await adminListRoomVideos(roomId));
-      const titles: Record<number, string> = {};
+      setProgramRules(rules);
+      setLayoutKeys(layout);
+      setStudyTitle(study);
+      const gTitles: Partial<Record<GreetingSlot, string>> = { ...DEFAULT_GREETING_TITLES };
+      for (const g of greetings) gTitles[g.slot_code] = g.title;
+      setGreetingTitles(gTitles);
+      const titles: Record<number, string> = { ...DEFAULT_SUB_ROOM_TITLES };
       for (const m of master) titles[m.slot_number] = m.title;
       for (let i = 1; i <= SUB_ROOM_COUNT; i++) {
         if (!titles[i]) titles[i] = `小部屋${i}`;
@@ -89,12 +119,18 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
       alert('部屋コードを入力してください');
       return;
     }
+    const tierChanged = room?.program_tier !== editProgramTier;
+    if (tierChanged && !programConfirmed) {
+      alert('購入プログラムを変更する場合は、開ける枠／鍵を確認してチェックを入れてください');
+      return;
+    }
     setSavingRoom(true);
     try {
       await adminUpdateRoom(roomId, {
         member_name: editMemberName.trim(),
         customer_number: editCustomerNumber.trim() || null,
         room_code: editRoomCode.trim().toLowerCase(),
+        program_tier: editProgramTier,
       });
       await load();
       alert('会員情報を保存しました');
@@ -268,6 +304,21 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
             onChange={(e) => setEditRoomCode(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
             placeholder="例：1234"
+          />
+          <ProgramAccessPreview
+            programTier={editProgramTier}
+            onChange={(tier) => {
+              setEditProgramTier(tier);
+              setProgramConfirmed(false);
+            }}
+            rules={programRules}
+            layoutKeys={layoutKeys}
+            studyTitle={studyTitle}
+            greetingTitles={greetingTitles}
+            subRoomTitles={subRoomTitles}
+            requireConfirm={room.program_tier !== editProgramTier}
+            confirmed={programConfirmed}
+            onConfirmedChange={setProgramConfirmed}
           />
           <div className="flex flex-wrap gap-2 pt-1">
             <button

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { BookOpen, ExternalLink, FileText, Image, PlayCircle } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BookOpen, ExternalLink, FileText, Image, Lock, PlayCircle } from 'lucide-react';
 import VideoPlayer from '../components/VideoPlayer';
 import MemberBrandHeader from '../components/member/MemberBrandHeader';
 import MemberPageShell from '../components/member/MemberPageShell';
@@ -8,6 +8,7 @@ import {
   fetchPlaybackUrl,
   getMemberStudyRoom,
   listMemberGreetingVideos,
+  listMemberItemAccess,
   listMemberStudyItems,
   listMemberSubRooms,
   listMemberVideos,
@@ -17,6 +18,7 @@ import {
   type CareVideoItem,
 } from '../lib/careApi';
 import type { GreetingVideoItem } from '../lib/greetingVideos';
+import { LOCKED_ITEM_MESSAGE } from '../lib/programTiers';
 import { formatVideoCount, showsSubRoomNumber, type SubRoomItem } from '../lib/subRooms';
 import { clearSession, loadSession, saveSession } from '../lib/session';
 import { DEFAULT_STUDY_ROOM_TITLE, studyItemTypeLabel, type StudyItem, type StudyRoomSummary } from '../lib/studyRoom';
@@ -43,35 +45,47 @@ function formatDate(iso: string) {
 
 function GreetingVideoCard({
   greeting,
+  locked,
   onPlay,
 }: {
   greeting: GreetingVideoItem;
+  locked?: boolean;
   onPlay: (video: ActivePlayback) => void;
 }) {
   return (
     <li>
       <button
         type="button"
-        disabled={!greeting.has_video}
-        onClick={() =>
-          greeting.has_video &&
-          onPlay({ id: greeting.id, title: greeting.title, kind: 'greeting' })
-        }
-        className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={locked || !greeting.has_video}
+        onClick={() => {
+          if (locked || !greeting.has_video) return;
+          onPlay({ id: greeting.id, title: greeting.title, kind: 'greeting' });
+        }}
+        className={`member-card w-full text-left px-4 py-4 flex items-center gap-4 min-h-[5rem] transition-colors ${
+          locked
+            ? 'bg-slate-200/80 border-slate-300 opacity-70 cursor-not-allowed grayscale'
+            : 'hover:border-member-gold/45 active:bg-member-camel-light/50 disabled:opacity-50 disabled:cursor-not-allowed'
+        }`}
       >
-        <span className="shrink-0 w-10 h-10 rounded-full bg-member-gold/20 text-member-gold-deep font-bold flex items-center justify-center text-lg">
+        <span
+          className={`shrink-0 w-10 h-10 rounded-full font-bold flex items-center justify-center text-lg ${
+            locked ? 'bg-slate-300 text-slate-500' : 'bg-member-gold/20 text-member-gold-deep'
+          }`}
+        >
           {greeting.slot_code}
         </span>
-        <div className="member-icon-badge w-12 h-12 shrink-0">
-          <PlayCircle size={32} />
+        <div className={`member-icon-badge w-12 h-12 shrink-0 ${locked ? '!bg-slate-300 !text-slate-500' : ''}`}>
+          {locked ? <Lock size={28} /> : <PlayCircle size={32} />}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-lg sm:text-xl text-member-text leading-snug">{greeting.title}</p>
-          {greeting.has_video && greeting.uploaded_at && (
+          <p className={`font-bold text-lg sm:text-xl leading-snug ${locked ? 'text-slate-500' : 'text-member-text'}`}>
+            {greeting.title}
+          </p>
+          {!locked && greeting.has_video && greeting.uploaded_at && (
             <p className="text-base member-text-muted mt-1">{formatDate(greeting.uploaded_at)}</p>
           )}
-          <p className="text-sm member-text-accent font-bold mt-1">
-            {greeting.has_video ? '▶ タップして再生' : '準備中です'}
+          <p className={`text-sm font-bold mt-1 ${locked ? 'text-slate-500' : 'member-text-accent'}`}>
+            {locked ? '鍵付き（プログラム対象外）' : greeting.has_video ? '▶ タップして再生' : '準備中です'}
           </p>
         </div>
       </button>
@@ -79,33 +93,63 @@ function GreetingVideoCard({
   );
 }
 
-function SubRoomCard({ subRoom, onSelect }: { subRoom: SubRoomItem; onSelect: (slot: number) => void }) {
+function SubRoomCard({
+  subRoom,
+  locked,
+  onSelect,
+}: {
+  subRoom: SubRoomItem;
+  locked?: boolean;
+  onSelect: (slot: number) => void;
+}) {
   const showNumber = showsSubRoomNumber(subRoom.slot_number);
 
   return (
     <li>
       <button
         type="button"
-        onClick={() => onSelect(subRoom.slot_number)}
-        className="sub-room-card member-card w-full text-left px-4 py-4 flex items-center gap-3 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[4.5rem] transition-colors"
+        disabled={locked}
+        onClick={() => {
+          if (locked) return;
+          onSelect(subRoom.slot_number);
+        }}
+        className={`sub-room-card member-card w-full text-left px-4 py-4 flex items-center gap-3 min-h-[4.5rem] transition-colors ${
+          locked
+            ? 'bg-slate-200/80 border-slate-300 opacity-70 cursor-not-allowed grayscale'
+            : 'hover:border-member-gold/45 active:bg-member-camel-light/50'
+        }`}
       >
         {showNumber ? (
-          <span className="sub-room-num shrink-0">{subRoom.slot_number}</span>
+          <span className={`sub-room-num shrink-0 ${locked ? '!bg-slate-300 !text-slate-500' : ''}`}>
+            {subRoom.slot_number}
+          </span>
         ) : (
           <span className="shrink-0 w-7" aria-hidden />
         )}
         <div className="sub-room-play shrink-0">
-          <PlayCircle size={28} className="text-member-teal" />
+          {locked ? (
+            <Lock size={26} className="text-slate-500" />
+          ) : (
+            <PlayCircle size={28} className="text-member-teal" />
+          )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-base sm:text-lg text-member-text leading-snug line-clamp-3">
+          <p
+            className={`font-bold text-base sm:text-lg leading-snug line-clamp-3 ${
+              locked ? 'text-slate-500' : 'text-member-text'
+            }`}
+          >
             {subRoom.title}
           </p>
-          <p className="text-sm member-text-accent font-bold mt-1">▶ タップして動画一覧へ</p>
+          <p className={`text-sm font-bold mt-1 ${locked ? 'text-slate-500' : 'member-text-accent'}`}>
+            {locked ? '鍵付き（プログラム対象外）' : '▶ タップして動画一覧へ'}
+          </p>
         </div>
-        <div className="sub-room-count shrink-0">
-          <span className="sub-room-count-num">{formatVideoCount(subRoom.video_count)}</span>
-        </div>
+        {!locked && (
+          <div className="sub-room-count shrink-0">
+            <span className="sub-room-count-num">{formatVideoCount(subRoom.video_count)}</span>
+          </div>
+        )}
       </button>
     </li>
   );
@@ -119,6 +163,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [previewImageTitle, setPreviewImageTitle] = useState('');
   const [watchLayout, setWatchLayout] = useState<WatchLayoutItemKey[]>([...DEFAULT_WATCH_LAYOUT_KEYS]);
+  const [itemUnlocked, setItemUnlocked] = useState<Record<string, boolean>>({});
   const [greetingVideos, setGreetingVideos] = useState<GreetingVideoItem[]>([]);
   const [subRooms, setSubRooms] = useState<SubRoomItem[]>([]);
   const [videos, setVideos] = useState<CareVideoItem[]>([]);
@@ -130,6 +175,13 @@ export default function RoomVideosPage({ onLogout }: Props) {
   const [playbackLoading, setPlaybackLoading] = useState(false);
 
   const sessionToken = session?.sessionToken;
+
+  const isUnlocked = useCallback(
+    (key: string) => itemUnlocked[key] !== false,
+    [itemUnlocked]
+  );
+
+  const unlockedMapReady = useMemo(() => Object.keys(itemUnlocked).length > 0, [itemUnlocked]);
 
   const goToRoomLogin = useCallback((roomCode?: string) => {
     const code = roomCode?.trim() || loadSession()?.roomCode?.trim();
@@ -150,14 +202,24 @@ export default function RoomVideosPage({ onLogout }: Props) {
       const valid = await validateSession(token);
       saveSession(valid);
       setSession(valid);
-      const [greetings, rooms, layout] = await Promise.all([
+      const [greetings, rooms, layout, access] = await Promise.all([
         listMemberGreetingVideos(token),
         listMemberSubRooms(token),
         listMemberWatchLayout(token),
+        listMemberItemAccess(token),
       ]);
       setGreetingVideos(greetings);
       setSubRooms(rooms);
       setWatchLayout(layout);
+      const unlockMap: Record<string, boolean> = {};
+      for (const key of DEFAULT_WATCH_LAYOUT_KEYS) unlockMap[key] = true;
+      for (const item of access.items) unlockMap[item.item_key] = item.unlocked;
+      setItemUnlocked(unlockMap);
+      if (access.programTier && valid.programTier !== access.programTier) {
+        const next = { ...valid, programTier: access.programTier };
+        saveSession(next);
+        setSession(next);
+      }
       // 勉強部屋は未マイグレーションでも部屋全体を落とさない
       try {
         setStudyRoom(await getMemberStudyRoom(token));
@@ -182,6 +244,12 @@ export default function RoomVideosPage({ onLogout }: Props) {
     async (slot: number) => {
       const token = sessionToken ?? loadSession()?.sessionToken;
       if (!token) return;
+      if (unlockedMapReady && !isUnlocked(`sub_${slot}`)) {
+        setError(LOCKED_ITEM_MESSAGE);
+        setSelectedSlot(null);
+        setVideos([]);
+        return;
+      }
       setLoading(true);
       setError('');
       try {
@@ -192,12 +260,18 @@ export default function RoomVideosPage({ onLogout }: Props) {
         setLoading(false);
       }
     },
-    [sessionToken]
+    [sessionToken, unlockedMapReady, isUnlocked]
   );
 
   const loadStudyItems = useCallback(async () => {
     const token = sessionToken ?? loadSession()?.sessionToken;
     if (!token) return;
+    if (unlockedMapReady && !isUnlocked('study')) {
+      setError(LOCKED_ITEM_MESSAGE);
+      setShowStudyRoom(false);
+      setStudyItems([]);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -207,7 +281,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [sessionToken]);
+  }, [sessionToken, unlockedMapReady, isUnlocked]);
 
   useEffect(() => {
     if (!sessionToken) {
@@ -287,6 +361,8 @@ export default function RoomVideosPage({ onLogout }: Props) {
   const selectedSubRoom = selectedSlot !== null ? subRooms.find((s) => s.slot_number === selectedSlot) : null;
 
   const renderWatchEntry = (key: WatchLayoutItemKey) => {
+    const locked = !isUnlocked(key);
+
     if (key === 'study') {
       if (!studyRoom) return null;
       return (
@@ -295,25 +371,39 @@ export default function RoomVideosPage({ onLogout }: Props) {
             <li>
               <button
                 type="button"
+                disabled={locked}
                 onClick={() => {
+                  if (locked) return;
                   setShowStudyRoom(true);
                   setSelectedSlot(null);
                   setVideos([]);
                 }}
-                className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors"
+                className={`member-card w-full text-left px-4 py-4 flex items-center gap-4 min-h-[5rem] transition-colors ${
+                  locked
+                    ? 'bg-slate-200/80 border-slate-300 opacity-70 cursor-not-allowed grayscale'
+                    : 'hover:border-member-gold/45 active:bg-member-camel-light/50'
+                }`}
               >
-                <div className="study-room-icon shrink-0">
-                  <BookOpen size={28} strokeWidth={2.25} />
+                <div className={`study-room-icon shrink-0 ${locked ? '!bg-slate-300 !text-slate-500' : ''}`}>
+                  {locked ? <Lock size={26} strokeWidth={2.25} /> : <BookOpen size={28} strokeWidth={2.25} />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-lg sm:text-xl text-member-text leading-snug">
+                  <p
+                    className={`font-bold text-lg sm:text-xl leading-snug ${
+                      locked ? 'text-slate-500' : 'text-member-text'
+                    }`}
+                  >
                     {studyRoom.title || DEFAULT_STUDY_ROOM_TITLE}
                   </p>
-                  <p className="text-sm member-text-accent font-bold mt-1">▶ タップして資料一覧へ</p>
+                  <p className={`text-sm font-bold mt-1 ${locked ? 'text-slate-500' : 'member-text-accent'}`}>
+                    {locked ? '鍵付き（プログラム対象外）' : '▶ タップして資料一覧へ'}
+                  </p>
                 </div>
-                <div className="sub-room-count shrink-0">
-                  <span className="sub-room-count-num">{Math.min(99, studyRoom.item_count)}件</span>
-                </div>
+                {!locked && (
+                  <div className="sub-room-count shrink-0">
+                    <span className="sub-room-count-num">{Math.min(99, studyRoom.item_count)}件</span>
+                  </div>
+                )}
               </button>
             </li>
           </ul>
@@ -328,7 +418,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
       if (!greeting) return null;
       return (
         <ul key={key} className="space-y-3">
-          <GreetingVideoCard greeting={greeting} onPlay={(v) => void handlePlay(v)} />
+          <GreetingVideoCard greeting={greeting} locked={locked} onPlay={(v) => void handlePlay(v)} />
         </ul>
       );
     }
@@ -339,7 +429,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
     if (!subRoom) return null;
     return (
       <ul key={key} className="space-y-3">
-        <SubRoomCard subRoom={subRoom} onSelect={setSelectedSlot} />
+        <SubRoomCard subRoom={subRoom} locked={locked} onSelect={setSelectedSlot} />
       </ul>
     );
   };

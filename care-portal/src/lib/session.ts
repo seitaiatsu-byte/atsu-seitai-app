@@ -1,3 +1,4 @@
+import type { ProgramTier } from './programTiers';
 import { buildMemberRoomUrl } from './siteConfig';
 
 const SESSION_KEY = 'care_portal_session';
@@ -7,6 +8,8 @@ export type CareSession = {
   memberName: string;
   roomCode: string;
   expiresAt: string;
+  /** 未設定の古いセッションは p30（全開放）扱い */
+  programTier?: ProgramTier;
 };
 
 export function loadSession(): CareSession | null {
