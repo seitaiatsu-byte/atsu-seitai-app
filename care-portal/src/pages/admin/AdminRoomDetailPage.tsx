@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, KeyRound, Printer, Trash2, Upload, Video } from 'lucide-react';
+import { ArrowLeft, KeyRound, Pencil, Printer, Save, Trash2, Upload, Video } from 'lucide-react';
 import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
 import {
+  adminDeleteRoom,
   adminDeleteVideo,
   adminListRoomVideos,
   adminListRooms,
@@ -9,11 +10,13 @@ import {
   adminSetRoomPassword,
   adminToggleVideoPublish,
   adminUpdateRoom,
+  adminUpdateVideoMeta,
   adminUpdateVideoSubRoom,
   adminUploadVideo,
   type CareRoomRow,
   type CareRoomVideoRow,
 } from '../../lib/careApi';
+import { buildRoomCodeFromCustomerNumber } from '../../lib/memberGuide';
 import { SUB_ROOM_COUNT } from '../../lib/subRooms';
 
 type Props = {
@@ -32,12 +35,21 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
   const [videos, setVideos] = useState<CareRoomVideoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPassword, setNewPassword] = useState('');
+  const [editMemberName, setEditMemberName] = useState('');
+  const [editCustomerNumber, setEditCustomerNumber] = useState('');
+  const [editRoomCode, setEditRoomCode] = useState('');
+  const [savingRoom, setSavingRoom] = useState(false);
+  const [deletingRoom, setDeletingRoom] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [uploadSlot, setUploadSlot] = useState(1);
   const [subRoomTitles, setSubRoomTitles] = useState<Record<number, string>>({});
   const [uploading, setUploading] = useState(false);
+  const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
+  const [editVideoTitle, setEditVideoTitle] = useState('');
+  const [editVideoDescription, setEditVideoDescription] = useState('');
+  const [savingVideoId, setSavingVideoId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -45,6 +57,11 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
       const [rooms, master] = await Promise.all([adminListRooms(), adminListSubRoomMaster()]);
       const found = rooms.find((r) => r.id === roomId) || null;
       setRoom(found);
+      if (found) {
+        setEditMemberName(found.member_name);
+        setEditCustomerNumber(found.customer_number || '');
+        setEditRoomCode(found.room_code);
+      }
       setVideos(await adminListRoomVideos(roomId));
       const titles: Record<number, string> = {};
       for (const m of master) titles[m.slot_number] = m.title;
@@ -62,6 +79,58 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
   useEffect(() => {
     void load();
   }, [roomId]);
+
+  const handleSaveRoom = async () => {
+    if (!editMemberName.trim()) {
+      alert('会員氏名を入力してください');
+      return;
+    }
+    if (!editRoomCode.trim()) {
+      alert('部屋コードを入力してください');
+      return;
+    }
+    setSavingRoom(true);
+    try {
+      await adminUpdateRoom(roomId, {
+        member_name: editMemberName.trim(),
+        customer_number: editCustomerNumber.trim() || null,
+        room_code: editRoomCode.trim().toLowerCase(),
+      });
+      await load();
+      alert('会員情報を保存しました');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '保存に失敗しました');
+    } finally {
+      setSavingRoom(false);
+    }
+  };
+
+  const handleDeleteRoom = async () => {
+    if (!room) return;
+    if (
+      !window.confirm(
+        `「${room.member_name}」のルームを完全に削除しますか？\n登録済みの動画もすべて削除されます。`
+      )
+    ) {
+      return;
+    }
+    setDeletingRoom(true);
+    try {
+      await adminDeleteRoom(roomId);
+      alert('ルームを削除しました');
+      onBack();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '削除に失敗しました');
+    } finally {
+      setDeletingRoom(false);
+    }
+  };
+
+  const handleCustomerNumberChange = (value: string) => {
+    setEditCustomerNumber(value);
+    const code = buildRoomCodeFromCustomerNumber(value);
+    if (code) setEditRoomCode(code);
+  };
 
   const handlePasswordChange = async () => {
     if (!newPassword.trim() || newPassword.trim().length < 4) {
@@ -115,6 +184,35 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
     }
   };
 
+  const startEditVideo = (video: CareRoomVideoRow) => {
+    setEditingVideoId(video.id);
+    setEditVideoTitle(video.title);
+    setEditVideoDescription(video.description || '');
+  };
+
+  const cancelEditVideo = () => {
+    setEditingVideoId(null);
+    setEditVideoTitle('');
+    setEditVideoDescription('');
+  };
+
+  const handleSaveVideo = async (videoId: string) => {
+    setSavingVideoId(videoId);
+    try {
+      await adminUpdateVideoMeta(videoId, {
+        title: editVideoTitle,
+        description: editVideoDescription,
+      });
+      cancelEditVideo();
+      await load();
+      alert('動画情報を保存しました');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '保存に失敗しました');
+    } finally {
+      setSavingVideoId(null);
+    }
+  };
+
   if (loading) {
     return <p className="text-center py-12 text-slate-500">読み込み中…</p>;
   }
@@ -142,6 +240,57 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
       </header>
 
       <main className="max-w-3xl mx-auto p-4 space-y-4">
+        <section className="bg-white rounded-2xl border p-4 space-y-3">
+          <h2 className="font-bold text-slate-800 flex items-center gap-2">
+            <Pencil size={18} />
+            会員情報の編集
+          </h2>
+          <p className="text-xs text-slate-500">
+            氏名を変更すると、会員が「更新する」を押したときに表示名も変わります。
+          </p>
+          <label className="text-xs font-bold text-slate-500">会員氏名</label>
+          <input
+            value={editMemberName}
+            onChange={(e) => setEditMemberName(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border"
+            placeholder="会員氏名"
+          />
+          <label className="text-xs font-bold text-slate-500">顧客番号</label>
+          <input
+            value={editCustomerNumber}
+            onChange={(e) => handleCustomerNumberChange(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border"
+            placeholder="例：1234"
+          />
+          <label className="text-xs font-bold text-slate-500">部屋コード（URLに使われます）</label>
+          <input
+            value={editRoomCode}
+            onChange={(e) => setEditRoomCode(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
+            placeholder="例：1234"
+          />
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              disabled={savingRoom}
+              onClick={() => void handleSaveRoom()}
+              className="inline-flex items-center gap-1 text-sm font-bold px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
+            >
+              <Save size={14} />
+              {savingRoom ? '保存中…' : '会員情報を保存'}
+            </button>
+            <button
+              type="button"
+              disabled={deletingRoom}
+              onClick={() => void handleDeleteRoom()}
+              className="inline-flex items-center gap-1 text-sm font-bold px-4 py-2 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              <Trash2 size={14} />
+              {deletingRoom ? '削除中…' : 'ルームを削除'}
+            </button>
+          </div>
+        </section>
+
         <section className="bg-white rounded-2xl border p-4 space-y-4">
           <h2 className="font-bold text-slate-800">会員に渡す情報</h2>
           <MemberRoomQrCard memberName={room.member_name} roomCode={room.room_code} />
@@ -248,55 +397,101 @@ export default function AdminRoomDetailPage({ roomId, onBack }: Props) {
           {videos.length === 0 ? (
             <p className="text-sm text-slate-500">まだ動画がありません</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {videos.map((v) => (
                 <li key={v.id} className="border rounded-xl p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-800 truncate">{v.title}</p>
-                      <p className="text-xs text-slate-500">
-                        小部屋{v.sub_room_slot ?? 1} · {subRoomTitles[v.sub_room_slot ?? 1] ?? ''} ·{' '}
-                        {new Date(v.uploaded_at).toLocaleDateString('ja-JP')} · {formatSize(v.file_size)}
-                        {!v.is_published && <span className="ml-2 text-amber-700 font-bold">非公開</span>}
-                      </p>
-                      <select
-                        value={v.sub_room_slot ?? 1}
-                        onChange={(e) =>
-                          void adminUpdateVideoSubRoom(v.id, Number(e.target.value))
-                            .then(load)
-                            .catch((err) => alert(err instanceof Error ? err.message : '移動に失敗'))
-                        }
-                        className="mt-2 text-xs px-2 py-1 rounded border max-w-full"
-                      >
-                        {Array.from({ length: SUB_ROOM_COUNT }, (_, i) => i + 1).map((slot) => (
-                          <option key={slot} value={slot}>
-                            小部屋{slot}: {subRoomTitles[slot]}
-                          </option>
-                        ))}
-                      </select>
+                  {editingVideoId === v.id ? (
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500">タイトル</label>
+                      <input
+                        value={editVideoTitle}
+                        onChange={(e) => setEditVideoTitle(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border text-sm"
+                      />
+                      <label className="text-xs font-bold text-slate-500">メモ</label>
+                      <textarea
+                        value={editVideoDescription}
+                        onChange={(e) => setEditVideoDescription(e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-lg border text-sm resize-none"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={savingVideoId === v.id}
+                          onClick={() => void handleSaveVideo(v.id)}
+                          className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-teal-600 text-white"
+                        >
+                          <Save size={12} />
+                          {savingVideoId === v.id ? '保存中…' : '保存'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditVideo}
+                          className="text-xs font-bold px-3 py-1.5 rounded-lg border"
+                        >
+                          キャンセル
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void adminToggleVideoPublish(v.id, !v.is_published).then(load).catch((e) => alert(e.message))
-                        }
-                        className="text-xs px-2 py-1 rounded border"
-                      >
-                        {v.is_published ? '非公開' : '公開'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!window.confirm(`「${v.title}」を削除しますか？`)) return;
-                          void adminDeleteVideo(v).then(load).catch((e) => alert(e.message));
-                        }}
-                        className="text-xs px-2 py-1 rounded border border-red-200 text-red-700"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                  ) : (
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-800">{v.title}</p>
+                        {v.description && <p className="text-xs text-slate-500 mt-1 whitespace-pre-wrap">{v.description}</p>}
+                        <p className="text-xs text-slate-500 mt-1">
+                          小部屋{v.sub_room_slot ?? 1} · {subRoomTitles[v.sub_room_slot ?? 1] ?? ''} ·{' '}
+                          {new Date(v.uploaded_at).toLocaleDateString('ja-JP')} · {formatSize(v.file_size)}
+                          {!v.is_published && <span className="ml-2 text-amber-700 font-bold">非公開</span>}
+                        </p>
+                        <select
+                          value={v.sub_room_slot ?? 1}
+                          onChange={(e) =>
+                            void adminUpdateVideoSubRoom(v.id, Number(e.target.value))
+                              .then(load)
+                              .catch((err) => alert(err instanceof Error ? err.message : '移動に失敗'))
+                          }
+                          className="mt-2 text-xs px-2 py-1 rounded border max-w-full"
+                        >
+                          {Array.from({ length: SUB_ROOM_COUNT }, (_, i) => i + 1).map((slot) => (
+                            <option key={slot} value={slot}>
+                              小部屋{slot}: {subRoomTitles[slot]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => startEditVideo(v)}
+                          className="text-xs px-2 py-1 rounded border inline-flex items-center gap-1"
+                        >
+                          <Pencil size={12} />
+                          編集
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void adminToggleVideoPublish(v.id, !v.is_published).then(load).catch((e) => alert(e.message))
+                          }
+                          className="text-xs px-2 py-1 rounded border"
+                        >
+                          {v.is_published ? '非公開' : '公開'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!window.confirm(`「${v.title}」を削除しますか？`)) return;
+                            void adminDeleteVideo(v).then(load).catch((e) => alert(e.message));
+                          }}
+                          className="text-xs px-2 py-1 rounded border border-red-200 text-red-700 inline-flex items-center gap-1"
+                        >
+                          <Trash2 size={12} />
+                          削除
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </li>
               ))}
             </ul>

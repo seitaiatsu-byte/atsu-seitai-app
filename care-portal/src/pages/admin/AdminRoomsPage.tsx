@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, DoorOpen, LayoutGrid, LogOut, Plus, QrCode, Search, X } from 'lucide-react';
+import { Copy, DoorOpen, LayoutGrid, LogOut, Plus, QrCode, Search, Trash2, X } from 'lucide-react';
 import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
 import {
   adminCreateRoom,
+  adminDeleteRoom,
   adminListRooms,
   adminSignOut,
   isStaffUser,
@@ -96,6 +97,22 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
       alert(err instanceof Error ? err.message : '作成に失敗しました');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDeleteRoom = async (room: CareRoomRow) => {
+    if (
+      !window.confirm(
+        `「${room.member_name}」のルームを削除しますか？\n登録済みの動画もすべて削除されます。`
+      )
+    ) {
+      return;
+    }
+    try {
+      await adminDeleteRoom(room.id);
+      await load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '削除に失敗しました');
     }
   };
 
@@ -272,6 +289,14 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
                     >
                       <Copy size={12} />
                       {copied === r.id ? 'コピー済' : 'URLコピー'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteRoom(r)}
+                      className="text-xs flex items-center gap-1 px-2 py-1 rounded border border-red-200 text-red-700 hover:bg-red-50 font-bold"
+                    >
+                      <Trash2 size={12} />
+                      削除
                     </button>
                   </div>
                 </li>

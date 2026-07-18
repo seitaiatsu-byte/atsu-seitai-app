@@ -122,13 +122,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
     try {
       const valid = await validateSession(token);
       saveSession(valid);
-      setSession((prev) =>
-        prev?.sessionToken === valid.sessionToken &&
-        prev.memberName === valid.memberName &&
-        prev.expiresAt === valid.expiresAt
-          ? prev
-          : valid
-      );
+      setSession(valid);
       const [greetings, rooms] = await Promise.all([
         listMemberGreetingVideos(token),
         listMemberSubRooms(token),

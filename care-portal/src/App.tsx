@@ -10,7 +10,7 @@ import MemberGuidePage from './pages/MemberGuidePage';
 import MemberManualPage from './pages/MemberManualPage';
 import AdminSubRoomsMasterPage from './pages/admin/AdminSubRoomsMasterPage';
 import StaffManualPage from './pages/admin/StaffManualPage';
-import { loadSession } from './lib/session';
+import { clearSession, loadSession, sessionMatchesRoomCode } from './lib/session';
 
 type Route =
   | { name: 'home' }
@@ -70,11 +70,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (route.name === 'room-login' && loadSession()) {
+    if (route.name !== 'room-login') return;
+    const session = loadSession();
+    if (!session) return;
+    if (sessionMatchesRoomCode(session, route.roomCode)) {
       navigate('/watch');
       setRoute({ name: 'room-videos' });
+      return;
     }
-  }, [route.name]);
+    clearSession();
+  }, [route.name, route.name === 'room-login' ? route.roomCode : '']);
 
   if (!isSupabaseConfigured) {
     return (

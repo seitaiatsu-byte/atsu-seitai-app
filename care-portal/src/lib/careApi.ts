@@ -191,9 +191,30 @@ export async function adminSetRoomPassword(roomId: string, password: string) {
 
 export async function adminUpdateRoom(
   roomId: string,
-  patch: Partial<Pick<CareRoomRow, 'member_name' | 'customer_number' | 'is_active'>>
+  patch: Partial<Pick<CareRoomRow, 'member_name' | 'customer_number' | 'is_active' | 'room_code'>>
 ) {
   const { error } = await supabase.from('care_member_rooms').update(patch).eq('id', roomId);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminDeleteRoom(roomId: string) {
+  const videos = await adminListRoomVideos(roomId);
+  const paths = videos.map((v) => v.storage_path).filter(Boolean);
+  if (paths.length > 0) {
+    await supabase.storage.from('care-videos').remove(paths);
+  }
+  const { error } = await supabase.from('care_member_rooms').delete().eq('id', roomId);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminUpdateVideoMeta(
+  videoId: string,
+  patch: Partial<Pick<CareRoomVideoRow, 'title' | 'description'>>
+) {
+  const update: Record<string, string> = {};
+  if (patch.title !== undefined) update.title = patch.title.trim() || 'セルフケア動画';
+  if (patch.description !== undefined) update.description = patch.description.trim();
+  const { error } = await supabase.from('care_room_videos').update(update).eq('id', videoId);
   if (error) throw new Error(error.message);
 }
 

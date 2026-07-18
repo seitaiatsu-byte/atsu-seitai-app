@@ -36,3 +36,11 @@ export function clearSession() {
 export function roomUrl(roomCode: string): string {
   return buildMemberRoomUrl(roomCode);
 }
+
+export function normalizeRoomCode(code: string): string {
+  return code.trim().toLowerCase();
+}
+
+export function sessionMatchesRoomCode(session: CareSession, roomCode: string): boolean {
+  return normalizeRoomCode(session.roomCode) === normalizeRoomCode(roomCode);
+}
