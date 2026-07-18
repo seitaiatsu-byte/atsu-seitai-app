@@ -79,16 +79,154 @@ body {
 
 .member-site-banner-wrap {
   position: relative;
-  background: var(--member-camel);
-  line-height: 0;
+  background: #d8c48a;
+  line-height: normal;
 }
 
 .member-site-banner {
-  display: block;
+  position: relative;
+  overflow: hidden;
   width: 100%;
-  height: auto;
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 0.95rem;
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 40%, #e4d3a0 0%, transparent 62%),
+    linear-gradient(165deg, #e2d19a 0%, #d4c086 48%, #c9b478 100%);
+  font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+}
+
+.member-site-banner-watermarks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.member-site-banner-wm {
+  position: absolute;
+  width: 9.5rem;
+  height: 9.5rem;
   object-fit: contain;
-  object-position: center;
+  opacity: 0.08;
+  filter: grayscale(0.15);
+}
+
+.member-site-banner-wm-a {
+  top: -1.25rem;
+  right: 18%;
+  transform: rotate(-8deg);
+}
+
+.member-site-banner-wm-b {
+  bottom: -2rem;
+  right: -1rem;
+  width: 11rem;
+  height: 11rem;
+  opacity: 0.07;
+  transform: rotate(12deg);
+}
+
+.member-site-banner-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 6.5rem;
+}
+
+.member-site-banner-brand {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 5.5rem;
+}
+
+.member-site-banner-logo {
+  width: 4.75rem;
+  height: 4.75rem;
+  border-radius: 9999px;
+  object-fit: cover;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(80, 60, 20, 0.18);
+}
+
+.member-site-banner-clinic {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #5c4a2e;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.member-site-banner-titles {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.15rem;
+}
+
+.member-site-banner-title {
+  margin: 0;
+  font-size: clamp(1.55rem, 6.8vw, 2.35rem);
+  font-weight: 900;
+  line-height: 1.12;
+  letter-spacing: 0.02em;
+  color: #fff;
+  -webkit-text-stroke: 1.5px #1a1510;
+  paint-order: stroke fill;
+  text-shadow:
+    0 0 1px #1a1510,
+    1px 1px 0 #1a1510,
+    -1px 1px 0 #1a1510,
+    1px -1px 0 #1a1510,
+    -1px -1px 0 #1a1510,
+    2px 2px 0 #1a1510;
+}
+
+.member-site-banner-tagline {
+  position: relative;
+  z-index: 1;
+  margin: 0.65rem 0 0;
+  text-align: center;
+  font-size: clamp(0.92rem, 3.6vw, 1.15rem);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #1f1a14;
+  line-height: 1.35;
+}
+
+.member-site-banner-on {
+  color: #e11d48;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+@media (min-width: 480px) {
+  .member-site-banner {
+    padding: 1.15rem 1.35rem 1.1rem;
+  }
+
+  .member-site-banner-brand {
+    width: 6.25rem;
+  }
+
+  .member-site-banner-logo {
+    width: 5.5rem;
+    height: 5.5rem;
+  }
+
+  .member-site-banner-clinic {
+    font-size: 1.05rem;
+  }
+
+  .member-site-banner-inner {
+    gap: 1.1rem;
+    min-height: 7.25rem;
+  }
 }
 
 .member-site-subheader {
@@ -321,6 +459,7 @@ body {
 
 .member-manual-flyer .member-site-banner {
   max-height: none;
+  max-width: none;
 }
 
 .member-print-header {
@@ -436,8 +575,24 @@ body {
   }
 
   .member-manual-a4 .member-site-banner {
-    max-height: 48mm;
-    object-fit: contain;
+    max-height: none;
+    max-width: none;
+    padding: 4mm 5mm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .member-manual-a4 .member-site-banner-logo {
+    width: 22mm;
+    height: 22mm;
+  }
+
+  .member-manual-a4 .member-site-banner-title {
+    font-size: 7mm;
+  }
+
+  .member-manual-a4 .member-site-banner-tagline {
+    font-size: 3.6mm;
   }
 
   .member-print-header {

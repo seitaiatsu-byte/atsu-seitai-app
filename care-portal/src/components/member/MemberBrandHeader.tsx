@@ -14,13 +14,34 @@ export default function MemberBrandHeader({ title, subtitle, children, sticky }:
   return (
     <header className={`member-site-header ${sticky ? 'sticky top-0 z-20' : ''}`}>
       <div className="member-site-banner-wrap">
-        <img
-          src="/member-header-banner.png"
-          alt="あつ整体院 会員専用コンテンツサイト あなたの健康スイッチがONになる部屋"
-          className="member-site-banner"
-          width={1200}
-          height={400}
-        />
+        <div className="member-site-banner" role="img" aria-label="あつ整体院 会員専用コンテンツサイト あなたの健康スイッチがONになる部屋">
+          <div className="member-site-banner-watermarks" aria-hidden>
+            <img src="/clinic-logo.png" alt="" className="member-site-banner-wm member-site-banner-wm-a" />
+            <img src="/clinic-logo.png" alt="" className="member-site-banner-wm member-site-banner-wm-b" />
+          </div>
+
+          <div className="member-site-banner-inner">
+            <div className="member-site-banner-brand">
+              <img
+                src="/clinic-logo.png"
+                alt="a2 Re CONDITIONING STATION"
+                className="member-site-banner-logo"
+                width={112}
+                height={112}
+              />
+              <p className="member-site-banner-clinic">あつ整体院</p>
+            </div>
+
+            <div className="member-site-banner-titles">
+              <p className="member-site-banner-title">会員専用</p>
+              <p className="member-site-banner-title">コンテンツサイト</p>
+            </div>
+          </div>
+
+          <p className="member-site-banner-tagline">
+            あなたの“健康スイッチ”が<span className="member-site-banner-on">ON</span>になる部屋
+          </p>
+        </div>
       </div>
 
       {hasSub && (
