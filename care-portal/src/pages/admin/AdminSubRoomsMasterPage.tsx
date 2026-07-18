@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Save, Trash2, Upload, Video } from 'lucide-react';
 import AdminStudyRoomSection from '../../components/admin/AdminStudyRoomSection';
+import AdminWatchLayoutSection from '../../components/admin/AdminWatchLayoutSection';
 import {
   adminDeleteGreetingVideo,
   adminListGreetingVideos,
@@ -170,11 +171,12 @@ export default function AdminSubRoomsMasterPage({ onBack }: Props) {
         </button>
         <h1 className="font-bold text-lg">マスター設定</h1>
         <p className="text-xs text-indigo-200 mt-1">
-          勉強部屋・挨拶動画・小部屋名は全会員ルームに共通で反映されます
+          表示順・勉強部屋・挨拶動画・小部屋名は全会員ルームに共通で反映されます
         </p>
       </header>
 
       <main className="max-w-3xl mx-auto p-4 space-y-6">
+        <AdminWatchLayoutSection />
         <AdminStudyRoomSection />
 
         {loading ? (

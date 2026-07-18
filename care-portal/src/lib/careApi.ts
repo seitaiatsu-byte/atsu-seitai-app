@@ -4,6 +4,12 @@ import { DEFAULT_GREETING_TITLES } from './greetingVideos';
 import type { SubRoomItem } from './subRooms';
 import type { CareSession } from './session';
 import { DEFAULT_STUDY_ROOM_TITLE, type StudyItem, type StudyItemRow, type StudyRoomSummary } from './studyRoom';
+import {
+  DEFAULT_WATCH_LAYOUT_KEYS,
+  normalizeWatchLayoutKeys,
+  type WatchLayoutItemKey,
+  type WatchLayoutRow,
+} from './watchLayout';
 
 export type CareVideoItem = {
   id: string;
@@ -115,6 +121,18 @@ export async function listMemberGreetingVideos(sessionToken: string): Promise<Gr
   });
   if (error) throw new Error(parseRpcError(error.message));
   return (data || []) as GreetingVideoItem[];
+}
+
+export async function listMemberWatchLayout(sessionToken: string): Promise<WatchLayoutItemKey[]> {
+  try {
+    const { data, error } = await supabase.rpc('care_room_list_watch_layout', {
+      p_session_token: sessionToken,
+    });
+    if (error) throw error;
+    return normalizeWatchLayoutKeys((data || []) as WatchLayoutRow[]);
+  } catch {
+    return [...DEFAULT_WATCH_LAYOUT_KEYS];
+  }
 }
 
 export async function getMemberStudyRoom(sessionToken: string): Promise<StudyRoomSummary> {
@@ -353,6 +371,23 @@ export async function adminDeleteGreetingVideo(slot: GreetingSlot) {
     .eq('slot_code', slot);
   if (error) throw new Error(error.message);
   await supabase.storage.from('care-videos').remove([row.storage_path]);
+}
+
+export async function adminListWatchLayout(): Promise<WatchLayoutItemKey[]> {
+  try {
+    const { data, error } = await supabase.rpc('care_admin_list_watch_layout');
+    if (error) throw error;
+    return normalizeWatchLayoutKeys((data || []) as WatchLayoutRow[]);
+  } catch {
+    return [...DEFAULT_WATCH_LAYOUT_KEYS];
+  }
+}
+
+export async function adminSaveWatchLayout(itemKeys: WatchLayoutItemKey[]) {
+  const { error } = await supabase.rpc('care_admin_save_watch_layout', {
+    p_item_keys: itemKeys,
+  });
+  if (error) throw new Error(parseRpcError(error.message));
 }
 
 export async function adminGetStudyRoomTitle(): Promise<string> {

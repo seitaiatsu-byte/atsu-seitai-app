@@ -11,14 +11,21 @@ import {
   listMemberStudyItems,
   listMemberSubRooms,
   listMemberVideos,
+  listMemberWatchLayout,
   logoutRoom,
   validateSession,
   type CareVideoItem,
 } from '../lib/careApi';
 import type { GreetingVideoItem } from '../lib/greetingVideos';
-import { formatVideoCount, isDietSubRoom, isLegacyExtraSubRoom, showsSubRoomNumber, type SubRoomItem } from '../lib/subRooms';
+import { formatVideoCount, showsSubRoomNumber, type SubRoomItem } from '../lib/subRooms';
 import { clearSession, loadSession, saveSession } from '../lib/session';
 import { DEFAULT_STUDY_ROOM_TITLE, studyItemTypeLabel, type StudyItem, type StudyRoomSummary } from '../lib/studyRoom';
+import {
+  DEFAULT_WATCH_LAYOUT_KEYS,
+  parseGreetingSlot,
+  parseSubRoomSlot,
+  type WatchLayoutItemKey,
+} from '../lib/watchLayout';
 
 type Props = {
   onLogout: (roomCode?: string) => void;
@@ -111,6 +118,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
   const [showStudyRoom, setShowStudyRoom] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [previewImageTitle, setPreviewImageTitle] = useState('');
+  const [watchLayout, setWatchLayout] = useState<WatchLayoutItemKey[]>([...DEFAULT_WATCH_LAYOUT_KEYS]);
   const [greetingVideos, setGreetingVideos] = useState<GreetingVideoItem[]>([]);
   const [subRooms, setSubRooms] = useState<SubRoomItem[]>([]);
   const [videos, setVideos] = useState<CareVideoItem[]>([]);
@@ -142,12 +150,14 @@ export default function RoomVideosPage({ onLogout }: Props) {
       const valid = await validateSession(token);
       saveSession(valid);
       setSession(valid);
-      const [greetings, rooms] = await Promise.all([
+      const [greetings, rooms, layout] = await Promise.all([
         listMemberGreetingVideos(token),
         listMemberSubRooms(token),
+        listMemberWatchLayout(token),
       ]);
       setGreetingVideos(greetings);
       setSubRooms(rooms);
+      setWatchLayout(layout);
       // 勉強部屋は未マイグレーションでも部屋全体を落とさない
       try {
         setStudyRoom(await getMemberStudyRoom(token));
@@ -275,12 +285,64 @@ export default function RoomVideosPage({ onLogout }: Props) {
   };
 
   const selectedSubRoom = selectedSlot !== null ? subRooms.find((s) => s.slot_number === selectedSlot) : null;
-  const greetingA = greetingVideos.find((g) => g.slot_code === 'A');
-  const greetingB = greetingVideos.find((g) => g.slot_code === 'B');
-  const greetingC = greetingVideos.find((g) => g.slot_code === 'C');
-  const numberedSubRooms = subRooms.filter((sr) => showsSubRoomNumber(sr.slot_number));
-  const dietSubRooms = subRooms.filter((sr) => isDietSubRoom(sr.slot_number));
-  const extraSubRooms = subRooms.filter((sr) => isLegacyExtraSubRoom(sr.slot_number));
+
+  const renderWatchEntry = (key: WatchLayoutItemKey) => {
+    if (key === 'study') {
+      if (!studyRoom) return null;
+      return (
+        <div key={key} className="space-y-4">
+          <ul className="space-y-3">
+            <li>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStudyRoom(true);
+                  setSelectedSlot(null);
+                  setVideos([]);
+                }}
+                className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors"
+              >
+                <div className="study-room-icon shrink-0">
+                  <BookOpen size={28} strokeWidth={2.25} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-lg sm:text-xl text-member-text leading-snug">
+                    {studyRoom.title || DEFAULT_STUDY_ROOM_TITLE}
+                  </p>
+                  <p className="text-sm member-text-accent font-bold mt-1">▶ タップして資料一覧へ</p>
+                </div>
+                <div className="sub-room-count shrink-0">
+                  <span className="sub-room-count-num">{Math.min(99, studyRoom.item_count)}件</span>
+                </div>
+              </button>
+            </li>
+          </ul>
+          <div className="study-room-divider" aria-hidden />
+        </div>
+      );
+    }
+
+    const greetingSlot = parseGreetingSlot(key);
+    if (greetingSlot) {
+      const greeting = greetingVideos.find((g) => g.slot_code === greetingSlot);
+      if (!greeting) return null;
+      return (
+        <ul key={key} className="space-y-3">
+          <GreetingVideoCard greeting={greeting} onPlay={(v) => void handlePlay(v)} />
+        </ul>
+      );
+    }
+
+    const slot = parseSubRoomSlot(key);
+    if (slot == null) return null;
+    const subRoom = subRooms.find((s) => s.slot_number === slot);
+    if (!subRoom) return null;
+    return (
+      <ul key={key} className="space-y-3">
+        <SubRoomCard subRoom={subRoom} onSelect={setSelectedSlot} />
+      </ul>
+    );
+  };
 
   if (!session) {
     return (
@@ -439,81 +501,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
             </ul>
           )
         ) : selectedSlot === null ? (
-          <>
-            {studyRoom && (
-              <div className="space-y-4">
-                <ul className="space-y-3">
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowStudyRoom(true);
-                        setSelectedSlot(null);
-                        setVideos([]);
-                      }}
-                      className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors"
-                    >
-                      <div className="study-room-icon shrink-0">
-                        <BookOpen size={28} strokeWidth={2.25} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-lg sm:text-xl text-member-text leading-snug">
-                          {studyRoom.title || DEFAULT_STUDY_ROOM_TITLE}
-                        </p>
-                        <p className="text-sm member-text-accent font-bold mt-1">▶ タップして資料一覧へ</p>
-                      </div>
-                      <div className="sub-room-count shrink-0">
-                        <span className="sub-room-count-num">{Math.min(99, studyRoom.item_count)}件</span>
-                      </div>
-                    </button>
-                  </li>
-                </ul>
-                <div className="study-room-divider" aria-hidden />
-              </div>
-            )}
-
-            {greetingA && (
-              <ul className="space-y-3">
-                <GreetingVideoCard greeting={greetingA} onPlay={(v) => void handlePlay(v)} />
-              </ul>
-            )}
-
-            {numberedSubRooms.length > 0 && (
-              <ul className="space-y-3">
-                {numberedSubRooms.map((sr) => (
-                  <SubRoomCard key={sr.slot_number} subRoom={sr} onSelect={setSelectedSlot} />
-                ))}
-              </ul>
-            )}
-
-            {greetingC && (
-              <ul className="space-y-3">
-                <GreetingVideoCard greeting={greetingC} onPlay={(v) => void handlePlay(v)} />
-              </ul>
-            )}
-
-            {dietSubRooms.length > 0 && (
-              <ul className="space-y-3">
-                {dietSubRooms.map((sr) => (
-                  <SubRoomCard key={sr.slot_number} subRoom={sr} onSelect={setSelectedSlot} />
-                ))}
-              </ul>
-            )}
-
-            {greetingB && (
-              <ul className="space-y-3">
-                <GreetingVideoCard greeting={greetingB} onPlay={(v) => void handlePlay(v)} />
-              </ul>
-            )}
-
-            {extraSubRooms.length > 0 && (
-              <ul className="space-y-3">
-                {extraSubRooms.map((sr) => (
-                  <SubRoomCard key={sr.slot_number} subRoom={sr} onSelect={setSelectedSlot} />
-                ))}
-              </ul>
-            )}
-          </>
+          <div className="space-y-3">{watchLayout.map((key) => renderWatchEntry(key))}</div>
         ) : videos.length === 0 ? (
           <div className="text-center py-10 px-4 member-card">
             <p className="font-bold text-xl text-member-text">この小部屋にはまだ動画がありません</p>
