@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { PlayCircle } from 'lucide-react';
+import { BookOpen, ExternalLink, FileText, Image, PlayCircle } from 'lucide-react';
 import VideoPlayer from '../components/VideoPlayer';
 import MemberBrandHeader from '../components/member/MemberBrandHeader';
 import MemberPageShell from '../components/member/MemberPageShell';
 import {
+  fetchMaterialUrl,
   fetchPlaybackUrl,
+  getMemberStudyRoom,
   listMemberGreetingVideos,
+  listMemberStudyItems,
   listMemberSubRooms,
   listMemberVideos,
   logoutRoom,
@@ -15,6 +18,7 @@ import {
 import type { GreetingVideoItem } from '../lib/greetingVideos';
 import { formatVideoCount, isDietSubRoom, isLegacyExtraSubRoom, showsSubRoomNumber, type SubRoomItem } from '../lib/subRooms';
 import { clearSession, loadSession, saveSession } from '../lib/session';
+import { DEFAULT_STUDY_ROOM_TITLE, studyItemTypeLabel, type StudyItem, type StudyRoomSummary } from '../lib/studyRoom';
 
 type Props = {
   onLogout: () => void;
@@ -102,6 +106,11 @@ function SubRoomCard({ subRoom, onSelect }: { subRoom: SubRoomItem; onSelect: (s
 
 export default function RoomVideosPage({ onLogout }: Props) {
   const [session, setSession] = useState(loadSession);
+  const [studyRoom, setStudyRoom] = useState<StudyRoomSummary | null>(null);
+  const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
+  const [showStudyRoom, setShowStudyRoom] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState('');
+  const [previewImageTitle, setPreviewImageTitle] = useState('');
   const [greetingVideos, setGreetingVideos] = useState<GreetingVideoItem[]>([]);
   const [subRooms, setSubRooms] = useState<SubRoomItem[]>([]);
   const [videos, setVideos] = useState<CareVideoItem[]>([]);
@@ -123,12 +132,14 @@ export default function RoomVideosPage({ onLogout }: Props) {
       const valid = await validateSession(token);
       saveSession(valid);
       setSession(valid);
-      const [greetings, rooms] = await Promise.all([
+      const [greetings, rooms, study] = await Promise.all([
         listMemberGreetingVideos(token),
         listMemberSubRooms(token),
+        getMemberStudyRoom(token),
       ]);
       setGreetingVideos(greetings);
       setSubRooms(rooms);
+      setStudyRoom(study);
     } catch (err) {
       clearSession();
       setSession(null);
@@ -155,6 +166,20 @@ export default function RoomVideosPage({ onLogout }: Props) {
     [sessionToken]
   );
 
+  const loadStudyItems = useCallback(async () => {
+    const token = sessionToken ?? loadSession()?.sessionToken;
+    if (!token) return;
+    setLoading(true);
+    setError('');
+    try {
+      setStudyItems(await listMemberStudyItems(token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '資料の読み込みに失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionToken]);
+
   useEffect(() => {
     if (!sessionToken) {
       window.location.href = '/';
@@ -168,6 +193,35 @@ export default function RoomVideosPage({ onLogout }: Props) {
       void loadVideosForSlot(selectedSlot);
     }
   }, [selectedSlot, loadVideosForSlot]);
+
+  useEffect(() => {
+    if (showStudyRoom) {
+      void loadStudyItems();
+    }
+  }, [showStudyRoom, loadStudyItems]);
+
+  const handleOpenStudyItem = async (item: StudyItem) => {
+    const token = sessionToken ?? loadSession()?.sessionToken;
+    if (!token) return;
+    setError('');
+    try {
+      if (item.item_type === 'link') {
+        if (!item.external_url) throw new Error('リンクがありません');
+        window.open(item.external_url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      const url = await fetchMaterialUrl(token, item.id);
+      if (item.item_type === 'pdf') {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      setPreviewImageUrl(url);
+      setPreviewImageTitle(item.title);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '資料を開けませんでした');
+    }
+  };
 
   const handlePlay = async (video: ActivePlayback) => {
     const token = sessionToken ?? loadSession()?.sessionToken;
@@ -215,23 +269,31 @@ export default function RoomVideosPage({ onLogout }: Props) {
       <MemberBrandHeader
         sticky
         title={
-          selectedSubRoom
-            ? `${session.memberName} さんの動画`
-            : `${session.memberName} さんの部屋`
+          showStudyRoom
+            ? studyRoom?.title || DEFAULT_STUDY_ROOM_TITLE
+            : selectedSubRoom
+              ? `${session.memberName} さんの動画`
+              : `${session.memberName} さんの部屋`
         }
         subtitle={
-          selectedSubRoom
-            ? selectedSubRoom.title
-            : '見たいカテゴリ（小部屋）を選んでください'
+          showStudyRoom
+            ? '資料を選んでご覧ください'
+            : selectedSubRoom
+              ? selectedSubRoom.title
+              : '見たいカテゴリ（小部屋）を選んでください'
         }
       >
         <div className="flex flex-wrap gap-2">
-          {selectedSlot !== null && !activeVideo && (
+          {(selectedSlot !== null || showStudyRoom) && !activeVideo && (
             <button
               type="button"
               onClick={() => {
                 setSelectedSlot(null);
                 setVideos([]);
+                setShowStudyRoom(false);
+                setStudyItems([]);
+                setPreviewImageUrl('');
+                setPreviewImageTitle('');
               }}
               className="member-btn-secondary px-4 py-2.5 text-base"
             >
@@ -246,6 +308,25 @@ export default function RoomVideosPage({ onLogout }: Props) {
           </button>
         </div>
       </MemberBrandHeader>
+
+      {previewImageUrl && (
+        <div className="bg-member-gold-deep">
+          <img src={previewImageUrl} alt={previewImageTitle} className="w-full max-h-[70vh] object-contain bg-black" />
+          <div className="px-4 py-3 bg-member-gold-deep text-white flex items-center gap-2 border-t border-white/10">
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewImageUrl('');
+                setPreviewImageTitle('');
+              }}
+              className="member-btn-secondary px-3 py-2 text-base shrink-0 !text-member-gold-deep"
+            >
+              ← 一覧へ
+            </button>
+            <p className="text-base font-bold truncate flex-1">{previewImageTitle}</p>
+          </div>
+        </div>
+      )}
 
       {activeVideo && (
         <div className="bg-member-gold-deep">
@@ -279,8 +360,79 @@ export default function RoomVideosPage({ onLogout }: Props) {
 
         {loading ? (
           <p className="text-center member-text-muted text-lg py-12">読み込んでいます…</p>
+        ) : showStudyRoom ? (
+          studyItems.length === 0 ? (
+            <div className="text-center py-10 px-4 member-card">
+              <p className="font-bold text-xl text-member-text">まだ資料がありません</p>
+              <p className="text-base member-text-muted mt-3 leading-relaxed">
+                スタッフが資料を追加するまでお待ちください。
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {studyItems.map((item) => {
+                const Icon =
+                  item.item_type === 'link' ? ExternalLink : item.item_type === 'image' ? Image : FileText;
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => void handleOpenStudyItem(item)}
+                      className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors"
+                    >
+                      <div className="member-icon-badge w-12 h-12 shrink-0">
+                        <Icon size={28} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold member-text-accent">{studyItemTypeLabel(item.item_type)}</p>
+                        <p className="font-bold text-lg sm:text-xl text-member-text leading-snug mt-0.5">
+                          {item.title}
+                        </p>
+                        <p className="text-sm member-text-accent font-bold mt-1">
+                          {item.item_type === 'link'
+                            ? '▶ タップして記事を開く'
+                            : item.item_type === 'pdf'
+                              ? '▶ タップしてPDFを開く'
+                              : '▶ タップして画像を見る'}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )
         ) : selectedSlot === null ? (
           <>
+            {studyRoom && (
+              <ul className="space-y-3">
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowStudyRoom(true);
+                      setSelectedSlot(null);
+                      setVideos([]);
+                    }}
+                    className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors"
+                  >
+                    <div className="member-icon-badge w-12 h-12 shrink-0">
+                      <BookOpen size={28} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-lg sm:text-xl text-member-text leading-snug">
+                        {studyRoom.title || DEFAULT_STUDY_ROOM_TITLE}
+                      </p>
+                      <p className="text-sm member-text-accent font-bold mt-1">▶ タップして資料一覧へ</p>
+                    </div>
+                    <div className="sub-room-count shrink-0">
+                      <span className="sub-room-count-num">{Math.min(99, studyRoom.item_count)}件</span>
+                    </div>
+                  </button>
+                </li>
+              </ul>
+            )}
+
             {greetingA && (
               <ul className="space-y-3">
                 <GreetingVideoCard greeting={greetingA} onPlay={(v) => void handlePlay(v)} />

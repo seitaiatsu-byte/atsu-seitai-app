@@ -3,6 +3,7 @@ import type { GreetingSlot, GreetingVideoItem, GreetingVideoRow } from './greeti
 import { DEFAULT_GREETING_TITLES } from './greetingVideos';
 import type { SubRoomItem } from './subRooms';
 import type { CareSession } from './session';
+import { DEFAULT_STUDY_ROOM_TITLE, type StudyItem, type StudyItemRow, type StudyRoomSummary } from './studyRoom';
 
 export type CareVideoItem = {
   id: string;
@@ -104,6 +105,43 @@ export async function listMemberGreetingVideos(sessionToken: string): Promise<Gr
   });
   if (error) throw new Error(parseRpcError(error.message));
   return (data || []) as GreetingVideoItem[];
+}
+
+export async function getMemberStudyRoom(sessionToken: string): Promise<StudyRoomSummary> {
+  const { data, error } = await supabase.rpc('care_room_get_study_room', {
+    p_session_token: sessionToken,
+  });
+  if (error) throw new Error(parseRpcError(error.message));
+  const row = data as StudyRoomSummary;
+  return {
+    title: row?.title?.trim() || DEFAULT_STUDY_ROOM_TITLE,
+    item_count: row?.item_count ?? 0,
+  };
+}
+
+export async function listMemberStudyItems(sessionToken: string): Promise<StudyItem[]> {
+  const { data, error } = await supabase.rpc('care_room_list_study_items', {
+    p_session_token: sessionToken,
+  });
+  if (error) throw new Error(parseRpcError(error.message));
+  return (data || []) as StudyItem[];
+}
+
+export async function fetchMaterialUrl(sessionToken: string, itemId: string): Promise<string> {
+  const base = functionsBaseUrl();
+  const res = await fetch(`${base}/care-material-access`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({ session_token: sessionToken, item_id: itemId }),
+  });
+  const json = (await res.json()) as { signed_url?: string; error?: string };
+  if (!res.ok || !json.signed_url) {
+    throw new Error(json.error || '資料URLの取得に失敗しました');
+  }
+  return json.signed_url;
 }
 
 export async function logoutRoom(sessionToken: string) {
@@ -305,6 +343,120 @@ export async function adminDeleteGreetingVideo(slot: GreetingSlot) {
     .eq('slot_code', slot);
   if (error) throw new Error(error.message);
   await supabase.storage.from('care-videos').remove([row.storage_path]);
+}
+
+export async function adminGetStudyRoomTitle(): Promise<string> {
+  const { data, error } = await supabase.from('care_study_settings').select('title').eq('id', 1).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.title?.trim() || DEFAULT_STUDY_ROOM_TITLE;
+}
+
+export async function adminUpdateStudyRoomTitle(title: string) {
+  const trimmed = title.trim() || DEFAULT_STUDY_ROOM_TITLE;
+  const { error } = await supabase
+    .from('care_study_settings')
+    .upsert({ id: 1, title: trimmed, updated_at: new Date().toISOString() });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminListStudyItems(): Promise<StudyItemRow[]> {
+  const { data, error } = await supabase
+    .from('care_study_items')
+    .select('*')
+    .order('sort_order', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []) as StudyItemRow[];
+}
+
+export async function adminCreateStudyLink(title: string, externalUrl: string) {
+  const url = externalUrl.trim();
+  if (!title.trim()) throw new Error('タイトルを入力してください');
+  if (!url) throw new Error('URLを入力してください');
+  if (!/^https?:\/\//i.test(url)) throw new Error('URLは http:// または https:// で始めてください');
+
+  const { error } = await supabase.from('care_study_items').insert({
+    item_type: 'link',
+    title: title.trim(),
+    external_url: url,
+    is_published: true,
+    sort_order: Date.now() % 1000000000,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminUploadStudyFile(itemType: 'image' | 'pdf', title: string, file: File) {
+  if (!title.trim()) throw new Error('タイトルを入力してください');
+  if (!file) throw new Error('ファイルを選択してください');
+  if (file.size > 50 * 1024 * 1024) throw new Error('ファイルは50MB以下にしてください');
+
+  const ext = file.name.split('.').pop()?.toLowerCase() || (itemType === 'pdf' ? 'pdf' : 'jpg');
+  const itemId = crypto.randomUUID();
+  const storagePath = `${itemType}/${itemId}.${ext}`;
+
+  const { error: upErr } = await supabase.storage.from('care-materials').upload(storagePath, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: file.type || (itemType === 'pdf' ? 'application/pdf' : 'image/jpeg'),
+  });
+  if (upErr) throw new Error(upErr.message);
+
+  const { error: dbErr } = await supabase.from('care_study_items').insert({
+    id: itemId,
+    item_type: itemType,
+    title: title.trim() || file.name,
+    storage_path: storagePath,
+    file_size: file.size,
+    is_published: true,
+    sort_order: Date.now() % 1000000000,
+  });
+  if (dbErr) {
+    await supabase.storage.from('care-materials').remove([storagePath]);
+    throw new Error(dbErr.message);
+  }
+}
+
+export async function adminUpdateStudyItem(
+  itemId: string,
+  patch: Partial<Pick<StudyItemRow, 'title' | 'external_url' | 'is_published' | 'sort_order'>>
+) {
+  const update: Record<string, string | number | boolean | null> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (patch.title !== undefined) update.title = patch.title.trim() || '資料';
+  if (patch.external_url !== undefined) {
+    const url = patch.external_url?.trim() || null;
+    if (url && !/^https?:\/\//i.test(url)) throw new Error('URLは http:// または https:// で始めてください');
+    update.external_url = url;
+  }
+  if (patch.is_published !== undefined) update.is_published = patch.is_published;
+  if (patch.sort_order !== undefined) update.sort_order = patch.sort_order;
+
+  const { error } = await supabase.from('care_study_items').update(update).eq('id', itemId);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminDeleteStudyItem(item: StudyItemRow) {
+  const { error } = await supabase.from('care_study_items').delete().eq('id', item.id);
+  if (error) throw new Error(error.message);
+  if (item.storage_path) {
+    await supabase.storage.from('care-materials').remove([item.storage_path]);
+  }
+}
+
+export async function adminMoveStudyItem(itemId: string, direction: 'up' | 'down') {
+  const items = await adminListStudyItems();
+  const index = items.findIndex((i) => i.id === itemId);
+  if (index < 0) return;
+  const swapWith = direction === 'up' ? index - 1 : index + 1;
+  if (swapWith < 0 || swapWith >= items.length) return;
+
+  const a = items[index];
+  const b = items[swapWith];
+  await Promise.all([
+    adminUpdateStudyItem(a.id, { sort_order: b.sort_order }),
+    adminUpdateStudyItem(b.id, { sort_order: a.sort_order }),
+  ]);
 }
 
 export async function adminUpdateVideoSubRoom(videoId: string, subRoomSlot: number) {
