@@ -1,5 +1,9 @@
 import type { ReactNode } from 'react';
 
+/** 書き出し実寸（枠はみ出し防止のため HTML 寸法も一致させる） */
+const BANNER_WIDTH = 2000;
+const BANNER_HEIGHT = 668;
+
 type Props = {
   /** バナー下の補足（入室・動画ページ用） */
   title?: string;
@@ -18,8 +22,8 @@ export default function MemberBrandHeader({ title, subtitle, children, sticky }:
           src="/member-header-banner.png"
           alt="あつ整体院 会員専用コンテンツサイト あなたの健康スイッチがONになる部屋"
           className="member-site-banner"
-          width={1200}
-          height={400}
+          width={BANNER_WIDTH}
+          height={BANNER_HEIGHT}
         />
       </div>
 

@@ -79,16 +79,22 @@ body {
 
 .member-site-banner-wrap {
   position: relative;
-  background: var(--member-camel);
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  background: #dcd198;
   line-height: 0;
 }
 
 .member-site-banner {
   display: block;
   width: 100%;
+  max-width: 100%;
   height: auto;
+  aspect-ratio: 2000 / 668;
   object-fit: contain;
   object-position: center;
+  vertical-align: top;
 }
 
 .member-site-subheader {
@@ -435,8 +441,14 @@ body {
     mix-blend-mode: normal;
   }
 
+  .member-manual-a4 .member-site-banner-wrap {
+    overflow: hidden;
+  }
+
   .member-manual-a4 .member-site-banner {
-    max-height: 48mm;
+    max-height: 42mm;
+    width: 100%;
+    height: auto;
     object-fit: contain;
   }
 
