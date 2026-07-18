@@ -79,174 +79,16 @@ body {
 
 .member-site-banner-wrap {
   position: relative;
-  background: #dcd198;
-  line-height: normal;
+  background: var(--member-camel);
+  line-height: 0;
 }
 
 .member-site-banner {
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  max-width: 42rem;
-  margin: 0 auto;
-  padding: 0.85rem 0.9rem 0.8rem;
-  background: #dcd198;
-  font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
-}
-
-.member-site-banner-watermarks {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  user-select: none;
-  overflow: hidden;
-}
-
-/* PNGの四角い下地を円で切り、金色地に溶かす */
-.member-site-banner-wm {
-  position: absolute;
-  display: block;
-  width: 10rem;
-  height: 10rem;
-  border-radius: 50%;
-  overflow: hidden;
-  opacity: 0.14;
-  mix-blend-mode: multiply;
-  -webkit-mask-image: radial-gradient(circle at center, #000 66%, transparent 68%);
-  mask-image: radial-gradient(circle at center, #000 66%, transparent 68%);
-}
-
-.member-site-banner-wm img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border: 0;
-  outline: 0;
-  background: transparent;
-}
-
-.member-site-banner-wm-a {
-  top: -1.5rem;
-  left: 42%;
-  transform: rotate(-6deg);
-}
-
-.member-site-banner-wm-b {
-  right: -1.75rem;
-  bottom: -2.25rem;
-  width: 12rem;
-  height: 12rem;
-  opacity: 0.12;
-  transform: rotate(10deg);
-}
-
-.member-site-banner-inner {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-}
-
-.member-site-banner-brand {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 5.35rem;
-}
-
-.member-site-banner-logo-wrap {
-  display: block;
-  width: 4.85rem;
-  height: 4.85rem;
-  border-radius: 50%;
-  overflow: hidden;
-  background: transparent;
-  -webkit-mask-image: radial-gradient(circle at center, #000 68%, transparent 70%);
-  mask-image: radial-gradient(circle at center, #000 68%, transparent 70%);
-}
-
-.member-site-banner-logo {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  mix-blend-mode: multiply;
-}
-
-.member-site-banner-clinic {
-  margin: 0.3rem 0 0;
-  font-size: 0.98rem;
-  font-weight: 900;
-  letter-spacing: 0.02em;
-  color: #4a3a24;
-  line-height: 1.1;
-  white-space: nowrap;
-}
-
-.member-site-banner-titles {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-}
-
-.member-site-banner-title-svg {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 5.6rem;
-  overflow: visible;
-}
-
-.member-site-banner-tagline {
-  position: relative;
-  z-index: 1;
-  margin: 0.55rem 0 0;
-  text-align: center;
-  font-size: clamp(0.95rem, 3.7vw, 1.18rem);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: #1a1510;
-  line-height: 1.35;
-}
-
-.member-site-banner-on {
-  color: #dc2626;
-  font-weight: 900;
-  letter-spacing: 0.03em;
-}
-
-@media (min-width: 480px) {
-  .member-site-banner {
-    padding: 1.05rem 1.25rem 0.95rem;
-  }
-
-  .member-site-banner-brand {
-    width: 6.1rem;
-  }
-
-  .member-site-banner-logo-wrap {
-    width: 5.55rem;
-    height: 5.55rem;
-  }
-
-  .member-site-banner-clinic {
-    font-size: 1.08rem;
-  }
-
-  .member-site-banner-inner {
-    gap: 0.85rem;
-  }
-
-  .member-site-banner-title-svg {
-    max-height: 6.4rem;
-  }
+  object-fit: contain;
+  object-position: center;
 }
 
 .member-site-subheader {
@@ -479,7 +321,6 @@ body {
 
 .member-manual-flyer .member-site-banner {
   max-height: none;
-  max-width: none;
 }
 
 .member-print-header {
@@ -595,29 +436,8 @@ body {
   }
 
   .member-manual-a4 .member-site-banner {
-    max-height: none;
-    max-width: none;
-    padding: 4mm 5mm;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .member-manual-a4 .member-site-banner-logo {
-    width: 22mm;
-    height: 22mm;
-  }
-
-  .member-manual-a4 .member-site-banner-title-svg {
-    max-height: 22mm;
-  }
-
-  .member-manual-a4 .member-site-banner-logo-wrap {
-    width: 20mm;
-    height: 20mm;
-  }
-
-  .member-manual-a4 .member-site-banner-tagline {
-    font-size: 3.6mm;
+    max-height: 48mm;
+    object-fit: contain;
   }
 
   .member-print-header {
