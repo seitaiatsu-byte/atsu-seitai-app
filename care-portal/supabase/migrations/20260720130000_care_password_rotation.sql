@@ -497,9 +497,10 @@ BEGIN
           updated_at = now();
   END LOOP;
 
-  -- 間隔変更を既存ルームの次回更新日に反映
+  -- 間隔変更を既存ルームの次回更新日に反映（WHERE 必須：safeupdate 対策）
   UPDATE care_member_rooms r
-  SET next_password_rotation_at = care_compute_next_password_rotation(r.password_updated_at, r.program_tier);
+  SET next_password_rotation_at = care_compute_next_password_rotation(r.password_updated_at, r.program_tier)
+  WHERE r.id IS NOT NULL;
 END;
 $$;
 

@@ -203,6 +203,10 @@ export default function AdminProgramRulesSection() {
 
       <div className="bg-white rounded-xl border p-4 space-y-3">
         <p className="text-sm font-bold text-slate-700">確認プレビュー</p>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          会員にどのプログラムを付けるか決める前のシミュレーションです。下の A〜E
+          を押すと、「そのプログラムの人が開ける枠／鍵付きの枠」がすぐ分かります。保存ボタンではありません。
+        </p>
         <div className="flex flex-wrap gap-2">
           {PROGRAM_TIER_CODES.map((tier) => (
             <button
