@@ -21,7 +21,7 @@ export default function HomePage({ onOpenAdminLogin, onOpenStaffManual, onOpenMe
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="bg-indigo-800 text-white px-4 py-6">
+      <header className="app-page-header bg-indigo-800 text-white pb-6">
         <div className="max-w-3xl mx-auto">
           <p className="text-indigo-200 text-sm">あつ整体院</p>
           <h1 className="font-bold text-xl sm:text-2xl mt-1">{STAFF_RECEPTION_INTRO.title}</h1>

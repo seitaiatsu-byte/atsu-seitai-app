@@ -21,7 +21,7 @@ export default function MemberGuidePage({ memberName, roomCode, roomUrl }: Props
 
   return (
     <MemberPageShell className="member-manual-a4 member-guide-print" noWatermark>
-      <div className="no-print sticky top-0 z-30 border-b border-amber-300 bg-amber-50 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="no-print app-sticky-bar border-b border-amber-300 bg-amber-50 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-bold text-amber-950">{MEMBER_MANUAL_PURPOSE.staffBanner}</p>
           <p className="text-xs text-amber-800 mt-0.5">対象：{displayName} — 印刷して渡してください</p>

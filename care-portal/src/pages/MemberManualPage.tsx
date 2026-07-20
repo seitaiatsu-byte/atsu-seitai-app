@@ -11,7 +11,7 @@ import { MEMBER_GUIDE_STEPS, MEMBER_MANUAL_PURPOSE } from '../lib/memberGuide';
 export default function MemberManualPage() {
   return (
     <MemberPageShell className="member-manual-flyer member-manual-a4 member-guide-print" noWatermark>
-      <div className="no-print sticky top-0 z-30 border-b border-amber-300 bg-amber-50 px-4 py-3">
+      <div className="no-print app-sticky-bar border-b border-amber-300 bg-amber-50">
         <p className="text-sm font-bold text-amber-950">{MEMBER_MANUAL_PURPOSE.staffBanner}</p>
         <p className="text-xs text-amber-800 mt-1 leading-relaxed">{MEMBER_MANUAL_PURPOSE.staffDetail}</p>
         <div className="mt-3 flex flex-wrap gap-2">

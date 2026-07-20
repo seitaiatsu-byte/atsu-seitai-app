@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Award, Copy, DoorOpen, LogOut, Plus, QrCode, Search, Trash2, X } from 'lucide-react';
 import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
+import AdminPageHeader from '../../components/layout/AdminPageHeader';
 import ProgramAccessPreview from '../../components/admin/ProgramAccessPreview';
 import {
   adminCreateRoom,
@@ -215,15 +216,20 @@ export default function AdminRoomsPage({
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="bg-indigo-700 text-white px-4 py-3 flex items-center justify-between">
-        <div>
-          <h1 className="font-bold">会員ルーム管理</h1>
-          <p className="text-xs text-indigo-200">{rooms.length} 部屋</p>
-        </div>
-        <button type="button" onClick={() => void handleLogout()} className="p-2 rounded-lg hover:bg-indigo-600">
-          <LogOut size={18} />
-        </button>
-      </header>
+      <AdminPageHeader
+        title="会員ルーム管理"
+        subtitle={`${rooms.length} 部屋`}
+        right={
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            className="app-touch-target rounded-lg hover:bg-indigo-600 shrink-0"
+            aria-label="ログアウト"
+          >
+            <LogOut size={18} />
+          </button>
+        }
+      />
 
       <main className="max-w-3xl mx-auto p-4 space-y-4">
         <button
@@ -397,12 +403,12 @@ export default function AdminRoomsPage({
             className="w-full max-w-lg bg-white rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 flex items-center justify-between border-b bg-white px-4 py-3 rounded-t-2xl">
+            <div className="app-sticky-bar flex items-center justify-between border-b bg-white rounded-t-2xl">
               <p className="font-bold text-slate-800">{qrRoom.member_name} さんのQR</p>
               <button
                 type="button"
                 onClick={() => setQrRoom(null)}
-                className="p-2 rounded-lg hover:bg-slate-100"
+                className="app-touch-target rounded-lg hover:bg-slate-100"
                 aria-label="閉じる"
               >
                 <X size={18} />

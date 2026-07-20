@@ -30,7 +30,7 @@ export default function MemberBrandHeader({ title, subtitle, children, sticky }:
 
       {hasSub && (
         <div className="member-site-subheader">
-          <div className="max-w-lg mx-auto px-4 py-4">
+          <div className="max-w-lg mx-auto px-4 py-4 safe-area-x">
             {title && <h1 className="member-brand-title font-bold text-lg sm:text-xl leading-tight">{title}</h1>}
             {subtitle && <p className="member-brand-subtitle text-sm sm:text-base mt-1.5 leading-relaxed">{subtitle}</p>}
             {children && <div className="mt-3">{children}</div>}

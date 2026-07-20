@@ -599,7 +599,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
       </MemberBrandHeader>
 
       {session.staffPreview && (
-        <div className="bg-indigo-700 text-white px-4 py-3">
+        <div className="bg-indigo-700 text-white px-4 py-3 safe-area-x">
           <div className="max-w-2xl mx-auto flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <p className="text-sm font-bold flex-1">
               スタッフ確認中：{session.memberName} さんの部屋（会員と同じ見え方）

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Eye, KeyRound, Pencil, Printer, Save, Trash2, Upload, Video } from 'lucide-react';
+import { Eye, KeyRound, Pencil, Printer, Save, Trash2, Upload, Video } from 'lucide-react';
+import AdminPageHeader from '../../components/layout/AdminPageHeader';
 import AdminRoomGreetingOverrideSection from '../../components/admin/AdminRoomGreetingOverrideSection';
 import AdminStudyRoomSection from '../../components/admin/AdminStudyRoomSection';
 import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
@@ -318,7 +319,7 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
     return (
       <div className="p-6 text-center">
         <p>ルームが見つかりません</p>
-        <button type="button" onClick={onBack} className="mt-4 underline">
+        <button type="button" onClick={onBack} className="app-nav-back mt-4 text-indigo-700 underline">
           戻る
         </button>
       </div>
@@ -327,14 +328,12 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
 
   return (
     <div className="min-h-screen bg-slate-100 pb-10">
-      <header className="bg-indigo-700 text-white px-4 py-3">
-        <button type="button" onClick={onBack} className="flex items-center gap-1 text-sm text-indigo-200 mb-1">
-          <ArrowLeft size={16} />
-          一覧へ
-        </button>
-        <h1 className="font-bold text-lg">{room.member_name}</h1>
-        <p className="text-xs text-indigo-200 font-mono">{room.room_code}</p>
-      </header>
+      <AdminPageHeader
+        onBack={onBack}
+        backLabel="一覧へ"
+        title={room.member_name}
+        subtitle={<span className="font-mono">{room.room_code}</span>}
+      />
 
       <main className="max-w-3xl mx-auto p-4 space-y-4">
         <section className="bg-white rounded-2xl border p-4 space-y-3">

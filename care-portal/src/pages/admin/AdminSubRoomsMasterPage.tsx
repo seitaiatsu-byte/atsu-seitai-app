@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Save, Trash2, Upload, Video } from 'lucide-react';
+import { Save, Trash2, Upload, Video } from 'lucide-react';
+import AdminPageHeader from '../../components/layout/AdminPageHeader';
 import AdminProgramRulesSection from '../../components/admin/AdminProgramRulesSection';
 import AdminStudyRoomSection from '../../components/admin/AdminStudyRoomSection';
 import AdminWatchLayoutSection from '../../components/admin/AdminWatchLayoutSection';
@@ -191,16 +192,11 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
 
   return (
     <div className="min-h-screen bg-slate-100 pb-10">
-      <header className="bg-indigo-700 text-white px-4 py-3">
-        <button type="button" onClick={onBack} className="flex items-center gap-1 text-sm text-indigo-200 mb-1">
-          <ArrowLeft size={16} />
-          ルーム一覧へ
-        </button>
-        <h1 className="font-bold text-lg">マスター設定</h1>
-        <p className="text-xs text-indigo-200 mt-1">
-          表示順・プログラムA〜E・鍵ルール・勉強部屋・挨拶動画・小部屋名は全会員ルームに共通で反映されます
-        </p>
-      </header>
+      <AdminPageHeader
+        onBack={onBack}
+        title="マスター設定"
+        subtitle="表示順・プログラムA〜E・鍵ルール・勉強部屋・挨拶動画・小部屋名は全会員ルームに共通で反映されます"
+      />
 
       <main className="max-w-3xl mx-auto p-4 space-y-6">
         <AdminWatchLayoutSection key={`layout-${layoutRefreshKey}`} />

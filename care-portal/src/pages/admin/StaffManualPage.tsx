@@ -12,9 +12,9 @@ export default function StaffManualPage({ onGoLogin, onGoHome }: Props) {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="bg-indigo-800 text-white px-4 py-5">
+      <header className="app-page-header bg-indigo-800 text-white pb-5">
         <div className="max-w-3xl mx-auto flex items-center gap-2">
-          <Shield size={24} />
+          <Shield size={24} className="shrink-0" aria-hidden />
           <div>
             <h1 className="font-bold text-lg sm:text-xl">スタッフ向け・操作マニュアル</h1>
             <p className="text-indigo-200 text-sm mt-0.5">会員への渡し方から管理画面の操作まで</p>

@@ -58,14 +58,14 @@ export default function AdminLoginPage({ onLoggedIn, onOpenManual }: Props) {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-5 bg-slate-100">
+      <div className="min-h-screen flex items-center justify-center p-5 app-screen-pad bg-slate-100">
         <p className="text-slate-500 text-sm">確認中…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-5 bg-slate-100">
+    <div className="min-h-screen flex items-center justify-center p-5 app-screen-pad bg-slate-100">
       <form onSubmit={(e) => void handleSubmit(e)} className="w-full max-w-md bg-white rounded-2xl shadow-lg border p-6">
         <div className="flex items-center gap-2 text-indigo-700 mb-4">
           <Shield size={22} />

@@ -4,7 +4,60 @@
 
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* iOS/Android notch — keep top navigation tappable */
+.app-page-header {
+  padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
+
+.app-sticky-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  padding-bottom: 0.75rem;
+}
+
+.app-nav-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 44px;
+  margin-left: -0.5rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.5rem;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-nav-back:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.app-touch-target {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-screen-pad {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-x {
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
 }
 
 /* ── 会員向けテーマ：淡いキャメル × ゴールド（ティールはアクセントのみ） ── */
@@ -77,6 +130,10 @@ body {
   position: relative;
 }
 
+.member-site-header.sticky {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 .member-site-banner-wrap {
   position: relative;
   width: 100%;
@@ -142,7 +199,8 @@ body {
 }
 
 .member-btn-primary {
-  @apply font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50;
+  @apply inline-flex items-center justify-center font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50;
+  min-height: 44px;
   background: var(--member-teal);
   color: #fff;
 }
@@ -152,7 +210,8 @@ body {
 }
 
 .member-btn-secondary {
-  @apply font-bold rounded-xl border transition-colors;
+  @apply inline-flex items-center justify-center font-bold rounded-xl border transition-colors;
+  min-height: 44px;
   background: rgba(250, 244, 232, 0.95);
   color: var(--member-gold-deep);
   border-color: rgba(168, 143, 97, 0.42);
