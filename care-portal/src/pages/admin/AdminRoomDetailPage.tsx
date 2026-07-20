@@ -11,6 +11,7 @@ import {
   adminListGreetingVideos,
   adminListProgramDefs,
   adminListProgramRules,
+  adminListRoomPasswordHistory,
   adminListRoomVideos,
   adminListRooms,
   adminListSubRoomMaster,
@@ -24,6 +25,7 @@ import {
   adminUploadVideo,
   type CareRoomRow,
   type CareRoomVideoRow,
+  type RoomPasswordHistoryRow,
 } from '../../lib/careApi';
 import { DEFAULT_GREETING_TITLES, type GreetingSlot } from '../../lib/greetingVideos';
 import { buildRoomCodeFromCustomerNumber } from '../../lib/memberGuide';
@@ -48,6 +50,7 @@ function formatSize(bytes: number | null) {
 export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoom }: Props) {
   const [room, setRoom] = useState<CareRoomRow | null>(null);
   const [videos, setVideos] = useState<CareRoomVideoRow[]>([]);
+  const [passwordHistory, setPasswordHistory] = useState<RoomPasswordHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPassword, setNewPassword] = useState('');
   const [editMemberName, setEditMemberName] = useState('');
@@ -98,6 +101,11 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
         setProgramConfirmed(false);
       }
       setVideos(await adminListRoomVideos(roomId));
+      try {
+        setPasswordHistory(await adminListRoomPasswordHistory(roomId));
+      } catch {
+        setPasswordHistory([]);
+      }
       setProgramRules(rules);
       setProgramDefs(defs);
       setLayoutKeys(layout);
@@ -388,7 +396,15 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
           <MemberRoomQrCard memberName={room.member_name} roomCode={room.room_code} />
           <p className="text-xs text-slate-500">
             入室パス最終更新: {new Date(room.password_updated_at).toLocaleString('ja-JP')}
+            {room.next_password_rotation_at
+              ? ` ／ 次回自動更新: ${new Date(room.next_password_rotation_at).toLocaleDateString('ja-JP')}`
+              : ' ／ 自動更新なし'}
           </p>
+          {passwordHistory[0] && (
+            <p className="text-sm font-bold text-slate-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              現在の入室パス: <span className="font-mono text-lg tracking-widest">{passwordHistory[0].password_plain}</span>
+            </p>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             <a
               href={`/guide?member=${encodeURIComponent(room.member_name)}&room=${encodeURIComponent(room.room_code)}`}
@@ -416,13 +432,16 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
             <KeyRound size={18} />
             入室パス変更
           </h2>
-          <p className="text-xs text-slate-500 mb-2">変更すると会員は新しいパスで再入室が必要です（既存セッションは無効化）</p>
+          <p className="text-xs text-slate-500 mb-2">
+            手で変えることもできます（履歴に残ります）。期限が来ると自動で4桁に変わり、会員は新しいパスを聞いて入り直します。
+          </p>
           <div className="flex gap-2">
             <input
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="新しい入室パス"
+              placeholder="新しい入室パス（4桁など）"
               className="flex-1 px-3 py-2 rounded-lg border"
+              inputMode="numeric"
             />
             <button
               type="button"
@@ -431,6 +450,35 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
             >
               変更
             </button>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-sm font-bold text-slate-700 mb-2">パスワード履歴（聞かれたらここを見る）</p>
+            {passwordHistory.length === 0 ? (
+              <p className="text-xs text-slate-500">
+                まだ履歴がありません。これから設定・自動更新したパスがここに残ります（過去にハッシュだけだった分は復元できません）。
+              </p>
+            ) : (
+              <ul className="space-y-2 max-h-56 overflow-y-auto">
+                {passwordHistory.map((h, i) => (
+                  <li
+                    key={h.id}
+                    className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${
+                      i === 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-mono font-bold tracking-widest text-base">{h.password_plain}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {new Date(h.created_at).toLocaleString('ja-JP')} ·{' '}
+                        {h.source === 'initial' ? '初回' : h.source === 'auto' ? '自動更新' : '手入力'}
+                        {i === 0 ? ' · 現在' : ''}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </section>
 

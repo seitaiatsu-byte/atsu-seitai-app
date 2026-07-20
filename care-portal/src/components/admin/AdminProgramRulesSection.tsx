@@ -102,9 +102,14 @@ export default function AdminProgramRulesSection() {
     setSavingNames(true);
     try {
       await adminSaveProgramDefs(
-        defs.map((d) => ({ code: d.code, display_name: d.display_name.trim() || d.code }))
+        defs.map((d) => ({
+          code: d.code,
+          display_name: d.display_name.trim() || d.code,
+          password_interval_months:
+            typeof d.password_interval_months === 'number' ? d.password_interval_months : 3,
+        }))
       );
-      alert('プログラム名を保存しました');
+      alert('プログラム名とパス更新期間を保存しました');
       await load();
     } catch (err) {
       alert(err instanceof Error ? err.message : '保存に失敗しました');
@@ -142,7 +147,7 @@ export default function AdminProgramRulesSection() {
 
       <div className="bg-white rounded-xl border p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-bold text-slate-700">プログラム名（変更可）</p>
+          <p className="text-sm font-bold text-slate-700">プログラム名とパス更新期間</p>
           <button
             type="button"
             disabled={savingNames}
@@ -150,12 +155,15 @@ export default function AdminProgramRulesSection() {
             className="inline-flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-50"
           >
             <Save size={14} />
-            {savingNames ? '保存中…' : '名前を保存'}
+            {savingNames ? '保存中…' : '保存'}
           </button>
         </div>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          期間（月）ごとに入室パスが自動で4桁数字に変わります。会員は新しいパスをスタッフに聞いて入り直します。0にすると自動更新しません。
+        </p>
         <ul className="space-y-2">
           {defs.map((d) => (
-            <li key={d.code} className="flex items-center gap-2">
+            <li key={d.code} className="flex flex-wrap items-center gap-2">
               <span className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-800 font-bold flex items-center justify-center text-sm shrink-0">
                 {d.code}
               </span>
@@ -166,9 +174,28 @@ export default function AdminProgramRulesSection() {
                     prev.map((x) => (x.code === d.code ? { ...x, display_name: e.target.value } : x))
                   )
                 }
-                className="flex-1 px-3 py-2 rounded-lg border text-sm"
+                className="flex-1 min-w-[8rem] px-3 py-2 rounded-lg border text-sm"
                 placeholder={`プログラム${d.code}`}
               />
+              <label className="flex items-center gap-1 text-xs font-bold text-slate-600 shrink-0">
+                <input
+                  type="number"
+                  min={0}
+                  max={120}
+                  value={d.password_interval_months ?? 3}
+                  onChange={(e) =>
+                    setDefs((prev) =>
+                      prev.map((x) =>
+                        x.code === d.code
+                          ? { ...x, password_interval_months: Math.max(0, Number(e.target.value) || 0) }
+                          : x
+                      )
+                    )
+                  }
+                  className="w-16 px-2 py-2 rounded-lg border text-sm"
+                />
+                ヶ月
+              </label>
             </li>
           ))}
         </ul>

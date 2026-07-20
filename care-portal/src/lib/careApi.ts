@@ -46,8 +46,16 @@ export type CareRoomRow = {
   program_tier: ProgramTier;
   is_active: boolean;
   password_updated_at: string;
+  next_password_rotation_at?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type RoomPasswordHistoryRow = {
+  id: string;
+  password_plain: string;
+  source: 'initial' | 'manual' | 'auto';
+  created_at: string;
 };
 
 export type CareRoomVideoRow = CareVideoItem & {
@@ -318,10 +326,15 @@ export async function isStaffUser(): Promise<boolean> {
 }
 
 export async function adminListRooms(): Promise<CareRoomRow[]> {
+  await supabase.rpc('care_admin_rotate_due_passwords').then(
+    () => undefined,
+    () => undefined
+  );
+
   const withTier = await supabase
     .from('care_member_rooms')
     .select(
-      'id, room_code, member_name, customer_number, program_tier, is_active, password_updated_at, created_at, updated_at'
+      'id, room_code, member_name, customer_number, program_tier, is_active, password_updated_at, next_password_rotation_at, created_at, updated_at'
     )
     .order('member_name');
 
@@ -399,6 +412,11 @@ export async function adminUpdateRoom(
 
 export async function adminListProgramDefs(): Promise<ProgramDef[]> {
   try {
+    await supabase.rpc('care_admin_rotate_due_passwords').then(
+      () => undefined,
+      () => undefined
+    );
+
     const { data, error } = await supabase.rpc('care_admin_list_program_defs');
     if (error) throw error;
     const rows = (data || []) as ProgramDef[];
@@ -409,6 +427,8 @@ export async function adminListProgramDefs(): Promise<ProgramDef[]> {
         code,
         display_name: found?.display_name?.trim() || code,
         sort_order: found?.sort_order,
+        password_interval_months:
+          typeof found?.password_interval_months === 'number' ? found.password_interval_months : 3,
         updated_at: found?.updated_at,
       };
     });
@@ -417,11 +437,21 @@ export async function adminListProgramDefs(): Promise<ProgramDef[]> {
   }
 }
 
-export async function adminSaveProgramDefs(defs: { code: ProgramTier; display_name: string }[]) {
+export async function adminSaveProgramDefs(
+  defs: { code: ProgramTier; display_name: string; password_interval_months?: number }[]
+) {
   const { error } = await supabase.rpc('care_admin_save_program_defs', {
     p_defs: defs,
   });
   if (error) throw new Error(parseRpcError(error.message));
+}
+
+export async function adminListRoomPasswordHistory(roomId: string): Promise<RoomPasswordHistoryRow[]> {
+  const { data, error } = await supabase.rpc('care_admin_list_room_password_history', {
+    p_room_id: roomId,
+  });
+  if (error) throw new Error(parseRpcError(error.message));
+  return (data || []) as RoomPasswordHistoryRow[];
 }
 
 export async function adminListProgramRules(): Promise<ProgramItemRule[]> {

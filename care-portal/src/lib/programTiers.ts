@@ -7,6 +7,8 @@ export type ProgramDef = {
   code: ProgramTier;
   display_name: string;
   sort_order?: number;
+  /** 入室パス自動更新の間隔（月）。0 で自動更新なし */
+  password_interval_months?: number;
   updated_at?: string;
 };
 
@@ -28,6 +30,7 @@ export const DEFAULT_PROGRAM_DEFS: ProgramDef[] = PROGRAM_TIER_CODES.map((code, 
   code,
   display_name: code,
   sort_order: i + 1,
+  password_interval_months: 3,
 }));
 
 export function isProgramTier(value: unknown): value is ProgramTier {

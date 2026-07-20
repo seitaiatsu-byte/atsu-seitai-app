@@ -303,6 +303,9 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
                       </p>
                       <p className="text-[11px] text-slate-400 mt-1">
                         パス更新: {new Date(r.password_updated_at).toLocaleDateString('ja-JP')}
+                        {r.next_password_rotation_at
+                          ? ` ／ 次回自動: ${new Date(r.next_password_rotation_at).toLocaleDateString('ja-JP')}`
+                          : ''}
                         {!r.is_active && <span className="ml-2 text-red-600 font-bold">停止中</span>}
                       </p>
                     </div>
