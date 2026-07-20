@@ -1,7 +1,7 @@
 {
-  "name": "あつ整体院 セルフケア動画",
+  "name": "あつ整体院",
   "short_name": "あつ整体院",
-  "description": "会員専用セルフケア動画ポータル",
+  "description": "あつ整体院 会員専用動画",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
