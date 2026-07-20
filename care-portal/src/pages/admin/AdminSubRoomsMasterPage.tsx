@@ -3,6 +3,7 @@ import { ArrowLeft, Save, Trash2, Upload, Video } from 'lucide-react';
 import AdminProgramRulesSection from '../../components/admin/AdminProgramRulesSection';
 import AdminStudyRoomSection from '../../components/admin/AdminStudyRoomSection';
 import AdminWatchLayoutSection from '../../components/admin/AdminWatchLayoutSection';
+import AdminWatchTopTitleSection from '../../components/admin/AdminWatchTopTitleSection';
 import {
   adminDeleteGreetingVideo,
   adminListGreetingVideos,
@@ -179,7 +180,9 @@ export default function AdminSubRoomsMasterPage({ onBack }: Props) {
       <main className="max-w-3xl mx-auto p-4 space-y-6">
         <AdminWatchLayoutSection />
         <AdminProgramRulesSection />
-        <AdminStudyRoomSection />
+        <AdminWatchTopTitleSection />
+        <AdminStudyRoomSection roomKey="study" />
+        <AdminStudyRoomSection roomKey="study2" />
 
         {loading ? (
           <p className="text-center text-slate-500 py-12">読み込み中…</p>

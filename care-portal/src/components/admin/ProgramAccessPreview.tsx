@@ -23,6 +23,7 @@ type Props = {
   defs: ProgramDef[];
   layoutKeys: WatchLayoutItemKey[];
   studyTitle?: string;
+  study2Title?: string;
   greetingTitles?: Partial<Record<GreetingSlot, string>>;
   subRoomTitles?: Record<number, string>;
   requireConfirm?: boolean;
@@ -37,6 +38,7 @@ export default function ProgramAccessPreview({
   defs,
   layoutKeys,
   studyTitle,
+  study2Title,
   greetingTitles,
   subRoomTitles,
   requireConfirm = false,
@@ -97,7 +99,7 @@ export default function ProgramAccessPreview({
                 <span className="min-w-0">
                   <span className="font-bold">{watchLayoutKindLabel(key)}</span>
                   {' · '}
-                  {watchLayoutLabel(key, { studyTitle, greetingTitles, subRoomTitles })}
+                  {watchLayoutLabel(key, { studyTitle, study2Title, greetingTitles, subRoomTitles })}
                 </span>
               </li>
             );

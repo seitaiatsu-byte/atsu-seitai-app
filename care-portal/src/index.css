@@ -351,14 +351,18 @@ body {
 
 .study-room-divider {
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--member-gold-soft, #c4ae82) 15%,
-    var(--member-gold-soft, #c4ae82) 85%,
-    transparent 100%
-  );
-  opacity: 0.85;
+  background: #8a7a58;
+  opacity: 1;
+}
+
+.watch-top-title {
+  margin: 0.35rem 0 0.15rem;
+  padding: 0.35rem 0.15rem;
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--member-text, #3d3428);
+  text-align: center;
 }
 
 .sub-room-num {

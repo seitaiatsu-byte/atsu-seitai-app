@@ -8,7 +8,7 @@ import {
   adminSaveWatchLayout,
 } from '../../lib/careApi';
 import { DEFAULT_GREETING_TITLES, type GreetingSlot } from '../../lib/greetingVideos';
-import { DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
+import { DEFAULT_STUDY2_ROOM_TITLE, DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
 import { DEFAULT_SUB_ROOM_TITLES, SUB_ROOM_COUNT } from '../../lib/subRooms';
 import {
   watchLayoutKindLabel,
@@ -19,6 +19,7 @@ import {
 export default function AdminWatchLayoutSection() {
   const [keys, setKeys] = useState<WatchLayoutItemKey[]>([]);
   const [studyTitle, setStudyTitle] = useState(DEFAULT_STUDY_ROOM_TITLE);
+  const [study2Title, setStudy2Title] = useState(DEFAULT_STUDY2_ROOM_TITLE);
   const [greetingTitles, setGreetingTitles] = useState<Partial<Record<GreetingSlot, string>>>({});
   const [subRoomTitles, setSubRoomTitles] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
@@ -27,14 +28,16 @@ export default function AdminWatchLayoutSection() {
   const load = async () => {
     setLoading(true);
     try {
-      const [layout, study, greetings, master] = await Promise.all([
+      const [layout, study, study2, greetings, master] = await Promise.all([
         adminListWatchLayout(),
-        adminGetStudyRoomTitle(),
+        adminGetStudyRoomTitle('study'),
+        adminGetStudyRoomTitle('study2'),
         adminListGreetingVideos(),
         adminListSubRoomMaster(),
       ]);
       setKeys(layout);
       setStudyTitle(study);
+      setStudy2Title(study2);
 
       const gTitles: Partial<Record<GreetingSlot, string>> = { ...DEFAULT_GREETING_TITLES };
       for (const g of greetings) gTitles[g.slot_code] = g.title;
@@ -117,7 +120,7 @@ export default function AdminWatchLayoutSection() {
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-indigo-700">{watchLayoutKindLabel(key)}</p>
               <p className="text-sm font-bold text-slate-800 mt-0.5 leading-snug line-clamp-2">
-                {watchLayoutLabel(key, { studyTitle, greetingTitles, subRoomTitles })}
+                {watchLayoutLabel(key, { studyTitle, study2Title, greetingTitles, subRoomTitles })}
               </p>
             </div>
             <div className="flex flex-col gap-1 shrink-0">

@@ -1,9 +1,13 @@
 import { DEFAULT_GREETING_TITLES, type GreetingSlot } from './greetingVideos';
-import { DEFAULT_STUDY_ROOM_TITLE } from './studyRoom';
+import {
+  DEFAULT_STUDY2_ROOM_TITLE,
+  DEFAULT_STUDY_ROOM_TITLE,
+  type StudyRoomKey,
+} from './studyRoom';
 import { DEFAULT_SUB_ROOM_TITLES, SUB_ROOM_COUNT, showsSubRoomNumber } from './subRooms';
 
 export type WatchLayoutItemKey =
-  | 'study'
+  | StudyRoomKey
   | `greeting_${GreetingSlot}`
   | `sub_${number}`;
 
@@ -13,9 +17,10 @@ export type WatchLayoutRow = {
   updated_at?: string;
 };
 
-/** 現行UIと同じ初期並び */
+/** 現行UIと同じ初期並び（勉強部屋の直後に勉強部屋②） */
 export const DEFAULT_WATCH_LAYOUT_KEYS: WatchLayoutItemKey[] = [
   'study',
+  'study2',
   'greeting_A',
   ...Array.from({ length: 12 }, (_, i) => `sub_${i + 1}` as WatchLayoutItemKey),
   'greeting_C',
@@ -26,8 +31,12 @@ export const DEFAULT_WATCH_LAYOUT_KEYS: WatchLayoutItemKey[] = [
   'sub_15',
 ];
 
+export function isStudyLayoutKey(key: string): key is StudyRoomKey {
+  return key === 'study' || key === 'study2';
+}
+
 export function isWatchLayoutItemKey(key: string): key is WatchLayoutItemKey {
-  if (key === 'study') return true;
+  if (isStudyLayoutKey(key)) return true;
   if (key === 'greeting_A' || key === 'greeting_B' || key === 'greeting_C') return true;
   const m = /^sub_(\d+)$/.exec(key);
   if (!m) return false;
@@ -53,11 +62,13 @@ export function watchLayoutLabel(
   key: string,
   opts?: {
     studyTitle?: string;
+    study2Title?: string;
     greetingTitles?: Partial<Record<GreetingSlot, string>>;
     subRoomTitles?: Record<number, string>;
   }
 ): string {
   if (key === 'study') return opts?.studyTitle?.trim() || DEFAULT_STUDY_ROOM_TITLE;
+  if (key === 'study2') return opts?.study2Title?.trim() || DEFAULT_STUDY2_ROOM_TITLE;
   const g = parseGreetingSlot(key);
   if (g) return opts?.greetingTitles?.[g] || DEFAULT_GREETING_TITLES[g];
   const slot = parseSubRoomSlot(key);
@@ -71,6 +82,7 @@ export function watchLayoutLabel(
 
 export function watchLayoutKindLabel(key: string): string {
   if (key === 'study') return '勉強部屋';
+  if (key === 'study2') return '勉強部屋②';
   const g = parseGreetingSlot(key);
   if (g) return `挨拶${g}`;
   const slot = parseSubRoomSlot(key);
@@ -85,7 +97,31 @@ export function normalizeWatchLayoutKeys(rows: WatchLayoutRow[]): WatchLayoutIte
     .map((r) => r.item_key)
     .filter(isWatchLayoutItemKey);
 
-  const seen = new Set(fromDb);
-  const missing = DEFAULT_WATCH_LAYOUT_KEYS.filter((k) => !seen.has(k));
-  return [...fromDb, ...missing];
+  if (fromDb.length === 0) return [...DEFAULT_WATCH_LAYOUT_KEYS];
+
+  const result = [...fromDb];
+  for (const key of DEFAULT_WATCH_LAYOUT_KEYS) {
+    if (result.includes(key)) continue;
+    const defaultIndex = DEFAULT_WATCH_LAYOUT_KEYS.indexOf(key);
+    let insertAt = result.length;
+    for (let i = defaultIndex - 1; i >= 0; i--) {
+      const prev = DEFAULT_WATCH_LAYOUT_KEYS[i];
+      const idx = result.indexOf(prev);
+      if (idx >= 0) {
+        insertAt = idx + 1;
+        break;
+      }
+    }
+    result.splice(insertAt, 0, key);
+  }
+  return result;
+}
+
+/** 勉強部屋グループの最後のキー（区切り線を1本だけ引く用） */
+export function lastStudyLayoutKey(keys: WatchLayoutItemKey[]): StudyRoomKey | null {
+  let last: StudyRoomKey | null = null;
+  for (const key of keys) {
+    if (isStudyLayoutKey(key)) last = key;
+  }
+  return last;
 }

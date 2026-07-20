@@ -25,7 +25,7 @@ import {
   type ProgramTier,
 } from '../../lib/programTiers';
 import { roomUrl } from '../../lib/session';
-import { DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
+import { DEFAULT_STUDY2_ROOM_TITLE, DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
 import { DEFAULT_SUB_ROOM_TITLES, SUB_ROOM_COUNT } from '../../lib/subRooms';
 import type { WatchLayoutItemKey } from '../../lib/watchLayout';
 
@@ -50,6 +50,7 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
   const [programDefs, setProgramDefs] = useState<ProgramDef[]>([]);
   const [layoutKeys, setLayoutKeys] = useState<WatchLayoutItemKey[]>([]);
   const [studyTitle, setStudyTitle] = useState(DEFAULT_STUDY_ROOM_TITLE);
+  const [study2Title, setStudy2Title] = useState(DEFAULT_STUDY2_ROOM_TITLE);
   const [greetingTitles, setGreetingTitles] = useState<Partial<Record<GreetingSlot, string>>>({});
   const [subRoomTitles, setSubRoomTitles] = useState<Record<number, string>>({});
   const [creating, setCreating] = useState(false);
@@ -62,12 +63,13 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
     try {
       const staff = await isStaffUser();
       if (!staff) throw new Error('スタッフ権限がありません');
-      const [roomRows, rules, defs, layout, study, greetings, master] = await Promise.all([
+      const [roomRows, rules, defs, layout, study, study2, greetings, master] = await Promise.all([
         adminListRooms(),
         adminListProgramRules(),
         adminListProgramDefs(),
         adminListWatchLayout(),
-        adminGetStudyRoomTitle(),
+        adminGetStudyRoomTitle('study'),
+        adminGetStudyRoomTitle('study2'),
         adminListGreetingVideos(),
         adminListSubRoomMaster(),
       ]);
@@ -76,6 +78,7 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
       setProgramDefs(defs);
       setLayoutKeys(layout);
       setStudyTitle(study);
+      setStudy2Title(study2);
       const gTitles: Partial<Record<GreetingSlot, string>> = { ...DEFAULT_GREETING_TITLES };
       for (const g of greetings) gTitles[g.slot_code] = g.title;
       setGreetingTitles(gTitles);
@@ -262,6 +265,7 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
               defs={programDefs}
               layoutKeys={layoutKeys}
               studyTitle={studyTitle}
+              study2Title={study2Title}
               greetingTitles={greetingTitles}
               subRoomTitles={subRoomTitles}
               requireConfirm

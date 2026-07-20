@@ -7,6 +7,7 @@ import {
   fetchMaterialUrl,
   fetchPlaybackUrl,
   getMemberStudyRoom,
+  getMemberWatchTopTitle,
   listMemberGreetingVideos,
   listMemberItemAccess,
   listMemberStudyItems,
@@ -21,9 +22,19 @@ import type { GreetingVideoItem } from '../lib/greetingVideos';
 import { LOCKED_ITEM_MESSAGE } from '../lib/programTiers';
 import { formatVideoCount, showsSubRoomNumber, type SubRoomItem } from '../lib/subRooms';
 import { clearSession, loadLastRoomCode, loadSession, rememberLastRoomCode, saveSession } from '../lib/session';
-import { DEFAULT_STUDY_ROOM_TITLE, studyItemTypeLabel, type StudyItem, type StudyRoomSummary } from '../lib/studyRoom';
+import {
+  DEFAULT_WATCH_TOP_TITLE,
+  STUDY_ROOM_KEYS,
+  defaultStudyRoomTitle,
+  studyItemTypeLabel,
+  type StudyItem,
+  type StudyRoomKey,
+  type StudyRoomSummary,
+} from '../lib/studyRoom';
 import {
   DEFAULT_WATCH_LAYOUT_KEYS,
+  isStudyLayoutKey,
+  lastStudyLayoutKey,
   parseGreetingSlot,
   parseSubRoomSlot,
   type WatchLayoutItemKey,
@@ -157,9 +168,10 @@ function SubRoomCard({
 
 export default function RoomVideosPage({ onLogout }: Props) {
   const [session, setSession] = useState(loadSession);
-  const [studyRoom, setStudyRoom] = useState<StudyRoomSummary | null>(null);
+  const [studyByKey, setStudyByKey] = useState<Partial<Record<StudyRoomKey, StudyRoomSummary>>>({});
+  const [activeStudyKey, setActiveStudyKey] = useState<StudyRoomKey | null>(null);
   const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
-  const [showStudyRoom, setShowStudyRoom] = useState(false);
+  const [watchTopTitle, setWatchTopTitle] = useState(DEFAULT_WATCH_TOP_TITLE);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [previewImageTitle, setPreviewImageTitle] = useState('');
   const [watchLayout, setWatchLayout] = useState<WatchLayoutItemKey[]>([...DEFAULT_WATCH_LAYOUT_KEYS]);
@@ -175,6 +187,9 @@ export default function RoomVideosPage({ onLogout }: Props) {
   const [playbackLoading, setPlaybackLoading] = useState(false);
 
   const sessionToken = session?.sessionToken;
+  const showStudyRoom = activeStudyKey !== null;
+  const activeStudyRoom = activeStudyKey ? studyByKey[activeStudyKey] : null;
+  const studySectionEndKey = useMemo(() => lastStudyLayoutKey(watchLayout), [watchLayout]);
 
   const isUnlocked = useCallback(
     (key: string) => itemUnlocked[key] !== false,
@@ -229,9 +244,26 @@ export default function RoomVideosPage({ onLogout }: Props) {
         setSession(next);
       }
       try {
-        setStudyRoom(await getMemberStudyRoom(token));
+        const [studyResults, topTitle] = await Promise.all([
+          Promise.all(
+            STUDY_ROOM_KEYS.map(async (key) => {
+              try {
+                return [key, await getMemberStudyRoom(token, key)] as const;
+              } catch {
+                return [key, null] as const;
+              }
+            })
+          ),
+          getMemberWatchTopTitle(token),
+        ]);
+        const next: Partial<Record<StudyRoomKey, StudyRoomSummary>> = {};
+        for (const [key, summary] of studyResults) {
+          if (summary) next[key] = summary;
+        }
+        setStudyByKey(next);
+        setWatchTopTitle(topTitle);
       } catch {
-        setStudyRoom(null);
+        setStudyByKey({});
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
@@ -287,23 +319,23 @@ export default function RoomVideosPage({ onLogout }: Props) {
 
   const loadStudyItems = useCallback(async () => {
     const token = sessionToken ?? loadSession()?.sessionToken;
-    if (!token) return;
-    if (unlockedMapReady && !isUnlocked('study')) {
+    if (!token || !activeStudyKey) return;
+    if (unlockedMapReady && !isUnlocked(activeStudyKey)) {
       setError(LOCKED_ITEM_MESSAGE);
-      setShowStudyRoom(false);
+      setActiveStudyKey(null);
       setStudyItems([]);
       return;
     }
     setLoading(true);
     setError('');
     try {
-      setStudyItems(await listMemberStudyItems(token));
+      setStudyItems(await listMemberStudyItems(token, activeStudyKey));
     } catch (err) {
       setError(err instanceof Error ? err.message : '資料の読み込みに失敗しました');
     } finally {
       setLoading(false);
     }
-  }, [sessionToken, unlockedMapReady, isUnlocked]);
+  }, [sessionToken, unlockedMapReady, isUnlocked, activeStudyKey]);
 
   useEffect(() => {
     if (!sessionToken) {
@@ -320,10 +352,10 @@ export default function RoomVideosPage({ onLogout }: Props) {
   }, [selectedSlot, loadVideosForSlot]);
 
   useEffect(() => {
-    if (showStudyRoom) {
+    if (activeStudyKey) {
       void loadStudyItems();
     }
-  }, [showStudyRoom, loadStudyItems]);
+  }, [activeStudyKey, loadStudyItems]);
 
   const handleOpenStudyItem = async (item: StudyItem) => {
     const token = sessionToken ?? loadSession()?.sessionToken;
@@ -410,8 +442,10 @@ export default function RoomVideosPage({ onLogout }: Props) {
   const renderWatchEntry = (key: WatchLayoutItemKey) => {
     const locked = !isUnlocked(key);
 
-    if (key === 'study') {
+    if (isStudyLayoutKey(key)) {
+      const studyRoom = studyByKey[key];
       if (!studyRoom) return null;
+      const isLastStudy = key === studySectionEndKey;
       return (
         <div key={key} className="space-y-4">
           <ul className="space-y-3">
@@ -421,7 +455,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
                 disabled={locked}
                 onClick={() => {
                   if (locked) return;
-                  setShowStudyRoom(true);
+                  setActiveStudyKey(key);
                   setSelectedSlot(null);
                   setVideos([]);
                 }}
@@ -440,7 +474,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
                       locked ? 'text-slate-500' : 'text-member-text'
                     }`}
                   >
-                    {studyRoom.title || DEFAULT_STUDY_ROOM_TITLE}
+                    {studyRoom.title || defaultStudyRoomTitle(key)}
                   </p>
                   <p className={`text-sm font-bold mt-1 ${locked ? 'text-slate-500' : 'member-text-accent'}`}>
                     {locked ? '鍵付き（プログラム対象外）' : '▶ タップして資料一覧へ'}
@@ -454,7 +488,12 @@ export default function RoomVideosPage({ onLogout }: Props) {
               </button>
             </li>
           </ul>
-          <div className="study-room-divider" aria-hidden />
+          {isLastStudy && (
+            <>
+              <div className="study-room-divider" aria-hidden />
+              {watchTopTitle.trim() ? <h2 className="watch-top-title">{watchTopTitle.trim()}</h2> : null}
+            </>
+          )}
         </div>
       );
     }
@@ -519,7 +558,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
         sticky
         title={
           showStudyRoom
-            ? studyRoom?.title || DEFAULT_STUDY_ROOM_TITLE
+            ? activeStudyRoom?.title || (activeStudyKey ? defaultStudyRoomTitle(activeStudyKey) : '')
             : selectedSubRoom
               ? `${session.memberName} さんの動画`
               : `${session.memberName} さんの部屋`
@@ -539,7 +578,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
               onClick={() => {
                 setSelectedSlot(null);
                 setVideos([]);
-                setShowStudyRoom(false);
+                setActiveStudyKey(null);
                 setStudyItems([]);
                 setPreviewImageUrl('');
                 setPreviewImageTitle('');

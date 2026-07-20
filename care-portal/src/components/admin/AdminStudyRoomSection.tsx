@@ -10,7 +10,13 @@ import {
   adminUpdateStudyRoomTitle,
   adminUploadStudyFile,
 } from '../../lib/careApi';
-import { DEFAULT_STUDY_ROOM_TITLE, studyItemTypeLabel, type StudyItemRow, type StudyItemType } from '../../lib/studyRoom';
+import {
+  defaultStudyRoomTitle,
+  studyItemTypeLabel,
+  type StudyItemRow,
+  type StudyItemType,
+  type StudyRoomKey,
+} from '../../lib/studyRoom';
 
 function formatSize(bytes: number | null) {
   if (!bytes) return '—';
@@ -18,8 +24,14 @@ function formatSize(bytes: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function AdminStudyRoomSection() {
-  const [roomTitle, setRoomTitle] = useState(DEFAULT_STUDY_ROOM_TITLE);
+type Props = {
+  roomKey?: StudyRoomKey;
+};
+
+export default function AdminStudyRoomSection({ roomKey = 'study' }: Props) {
+  const defaultTitle = defaultStudyRoomTitle(roomKey);
+  const sectionLabel = roomKey === 'study2' ? '勉強部屋②（赤いアイコン）' : '健康への勉強部屋（最上部）';
+  const [roomTitle, setRoomTitle] = useState(defaultTitle);
   const [items, setItems] = useState<StudyItemRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingTitle, setSavingTitle] = useState(false);
@@ -35,7 +47,10 @@ export default function AdminStudyRoomSection() {
   const load = async () => {
     setLoading(true);
     try {
-      const [title, list] = await Promise.all([adminGetStudyRoomTitle(), adminListStudyItems()]);
+      const [title, list] = await Promise.all([
+        adminGetStudyRoomTitle(roomKey),
+        adminListStudyItems(roomKey),
+      ]);
       setRoomTitle(title);
       setItems(list);
     } catch (err) {
@@ -47,12 +62,12 @@ export default function AdminStudyRoomSection() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [roomKey]);
 
   const handleSaveTitle = async () => {
     setSavingTitle(true);
     try {
-      await adminUpdateStudyRoomTitle(roomTitle);
+      await adminUpdateStudyRoomTitle(roomKey, roomTitle);
       alert('勉強部屋の名前を保存しました');
     } catch (err) {
       alert(err instanceof Error ? err.message : '保存に失敗しました');
@@ -65,13 +80,13 @@ export default function AdminStudyRoomSection() {
     setAdding(true);
     try {
       if (newType === 'link') {
-        await adminCreateStudyLink(newTitle, newUrl);
+        await adminCreateStudyLink(roomKey, newTitle, newUrl);
       } else {
         if (!newFile) {
           alert('ファイルを選択してください');
           return;
         }
-        await adminUploadStudyFile(newType, newTitle, newFile);
+        await adminUploadStudyFile(roomKey, newType, newTitle, newFile);
       }
       setNewTitle('');
       setNewUrl('');
@@ -112,11 +127,13 @@ export default function AdminStudyRoomSection() {
   return (
     <section className="space-y-3">
       <h2 className="font-bold text-slate-800 flex items-center gap-2">
-        <BookOpen size={18} className="text-indigo-600" />
-        健康への勉強部屋（最上部）
+        <BookOpen size={18} className="text-rose-500" />
+        {sectionLabel}
       </h2>
       <p className="text-xs text-slate-500 leading-relaxed">
-        会員の部屋一覧のいちばん上に表示されます。計画書・プログラムの目的・記事URLなどを置けます（全院共通）。
+        {roomKey === 'study2'
+          ? '会員画面で赤い本アイコンの2つ目の部屋として表示されます。名前・資料はここから編集できます（全院共通）。'
+          : '会員の部屋一覧のいちばん上に表示されます。計画書・プログラムの目的・記事URLなどを置けます（全院共通）。'}
       </p>
 
       <div className="bg-white rounded-xl border p-4 space-y-2">
@@ -125,7 +142,7 @@ export default function AdminStudyRoomSection() {
           value={roomTitle}
           onChange={(e) => setRoomTitle(e.target.value)}
           className="w-full px-3 py-2 rounded-lg border text-sm"
-          placeholder={DEFAULT_STUDY_ROOM_TITLE}
+          placeholder={defaultTitle}
         />
         <button
           type="button"
@@ -250,7 +267,7 @@ export default function AdminStudyRoomSection() {
                       <button
                         type="button"
                         disabled={index === 0}
-                        onClick={() => void adminMoveStudyItem(item.id, 'up').then(load)}
+                        onClick={() => void adminMoveStudyItem(roomKey, item.id, 'up').then(load)}
                         className="text-xs px-2 py-1 rounded border disabled:opacity-30"
                         title="上へ"
                       >
@@ -259,7 +276,7 @@ export default function AdminStudyRoomSection() {
                       <button
                         type="button"
                         disabled={index === items.length - 1}
-                        onClick={() => void adminMoveStudyItem(item.id, 'down').then(load)}
+                        onClick={() => void adminMoveStudyItem(roomKey, item.id, 'down').then(load)}
                         className="text-xs px-2 py-1 rounded border disabled:opacity-30"
                         title="下へ"
                       >

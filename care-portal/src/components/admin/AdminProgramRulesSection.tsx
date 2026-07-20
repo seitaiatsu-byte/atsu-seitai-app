@@ -20,7 +20,7 @@ import {
   type ProgramItemRule,
   type ProgramTier,
 } from '../../lib/programTiers';
-import { DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
+import { DEFAULT_STUDY2_ROOM_TITLE, DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
 import { DEFAULT_SUB_ROOM_TITLES, SUB_ROOM_COUNT } from '../../lib/subRooms';
 import {
   watchLayoutKindLabel,
@@ -33,6 +33,7 @@ export default function AdminProgramRulesSection() {
   const [rules, setRules] = useState<Record<string, ProgramTier[]>>({});
   const [defs, setDefs] = useState<ProgramDef[]>([]);
   const [studyTitle, setStudyTitle] = useState(DEFAULT_STUDY_ROOM_TITLE);
+  const [study2Title, setStudy2Title] = useState(DEFAULT_STUDY2_ROOM_TITLE);
   const [greetingTitles, setGreetingTitles] = useState<Partial<Record<GreetingSlot, string>>>({});
   const [subRoomTitles, setSubRoomTitles] = useState<Record<number, string>>({});
   const [previewTier, setPreviewTier] = useState<ProgramTier>('A');
@@ -43,17 +44,19 @@ export default function AdminProgramRulesSection() {
   const load = async () => {
     setLoading(true);
     try {
-      const [layout, programRules, programDefs, study, greetings, master] = await Promise.all([
+      const [layout, programRules, programDefs, study, study2, greetings, master] = await Promise.all([
         adminListWatchLayout(),
         adminListProgramRules(),
         adminListProgramDefs(),
-        adminGetStudyRoomTitle(),
+        adminGetStudyRoomTitle('study'),
+        adminGetStudyRoomTitle('study2'),
         adminListGreetingVideos(),
         adminListSubRoomMaster(),
       ]);
       setLayoutKeys(layout);
       setDefs(programDefs);
       setStudyTitle(study);
+      setStudy2Title(study2);
 
       const next: Record<string, ProgramTier[]> = {};
       for (const key of layout) next[key] = [...PROGRAM_TIER_CODES];
@@ -221,7 +224,7 @@ export default function AdminProgramRulesSection() {
               <div>
                 <p className="text-xs font-bold text-indigo-700">{watchLayoutKindLabel(key)}</p>
                 <p className="text-sm font-bold text-slate-800 mt-0.5 leading-snug line-clamp-2">
-                  {watchLayoutLabel(key, { studyTitle, greetingTitles, subRoomTitles })}
+                  {watchLayoutLabel(key, { studyTitle, study2Title, greetingTitles, subRoomTitles })}
                 </p>
                 <p className="text-[11px] text-slate-500 mt-1">
                   開ける区分にチェック（外すと鍵）

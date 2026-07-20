@@ -3,7 +3,14 @@ import type { GreetingSlot, GreetingVideoItem, GreetingVideoRow } from './greeti
 import { DEFAULT_GREETING_TITLES } from './greetingVideos';
 import type { SubRoomItem } from './subRooms';
 import { loadSession, type CareSession } from './session';
-import { DEFAULT_STUDY_ROOM_TITLE, type StudyItem, type StudyItemRow, type StudyRoomSummary } from './studyRoom';
+import {
+  DEFAULT_WATCH_TOP_TITLE,
+  defaultStudyRoomTitle,
+  type StudyItem,
+  type StudyItemRow,
+  type StudyRoomKey,
+  type StudyRoomSummary,
+} from './studyRoom';
 import {
   DEFAULT_PROGRAM_DEFS,
   isProgramTier,
@@ -221,24 +228,45 @@ export async function listMemberItemAccess(
   }
 }
 
-export async function getMemberStudyRoom(sessionToken: string): Promise<StudyRoomSummary> {
+export async function getMemberStudyRoom(
+  sessionToken: string,
+  roomKey: StudyRoomKey = 'study'
+): Promise<StudyRoomSummary> {
   const { data, error } = await supabase.rpc('care_room_get_study_room', {
     p_session_token: sessionToken,
+    p_room_key: roomKey,
   });
   if (error) throw new Error(parseRpcError(error.message));
   const row = data as StudyRoomSummary;
   return {
-    title: row?.title?.trim() || DEFAULT_STUDY_ROOM_TITLE,
+    title: row?.title?.trim() || defaultStudyRoomTitle(roomKey),
     item_count: row?.item_count ?? 0,
+    room_key: roomKey,
   };
 }
 
-export async function listMemberStudyItems(sessionToken: string): Promise<StudyItem[]> {
+export async function listMemberStudyItems(
+  sessionToken: string,
+  roomKey: StudyRoomKey = 'study'
+): Promise<StudyItem[]> {
   const { data, error } = await supabase.rpc('care_room_list_study_items', {
     p_session_token: sessionToken,
+    p_room_key: roomKey,
   });
   if (error) throw new Error(parseRpcError(error.message));
   return (data || []) as StudyItem[];
+}
+
+export async function getMemberWatchTopTitle(sessionToken: string): Promise<string> {
+  try {
+    const { data, error } = await supabase.rpc('care_room_get_watch_top_title', {
+      p_session_token: sessionToken,
+    });
+    if (error) throw error;
+    return (typeof data === 'string' ? data : '').trim() || DEFAULT_WATCH_TOP_TITLE;
+  } catch {
+    return DEFAULT_WATCH_TOP_TITLE;
+  }
 }
 
 export async function fetchMaterialUrl(sessionToken: string, itemId: string): Promise<string> {
@@ -549,31 +577,85 @@ export async function adminSaveWatchLayout(itemKeys: WatchLayoutItemKey[]) {
   if (error) throw new Error(parseRpcError(error.message));
 }
 
-export async function adminGetStudyRoomTitle(): Promise<string> {
-  const { data, error } = await supabase.from('care_study_settings').select('title').eq('id', 1).maybeSingle();
-  if (error) throw new Error(error.message);
-  return data?.title?.trim() || DEFAULT_STUDY_ROOM_TITLE;
-}
+const STUDY_SETTING_IDS: Record<StudyRoomKey, number> = { study: 1, study2: 2 };
 
-export async function adminUpdateStudyRoomTitle(title: string) {
-  const trimmed = title.trim() || DEFAULT_STUDY_ROOM_TITLE;
-  const { error } = await supabase
+export async function adminGetStudyRoomTitle(roomKey: StudyRoomKey = 'study'): Promise<string> {
+  const { data, error } = await supabase
     .from('care_study_settings')
-    .upsert({ id: 1, title: trimmed, updated_at: new Date().toISOString() });
+    .select('title')
+    .eq('room_key', roomKey)
+    .maybeSingle();
+  if (error) {
+    // room_key 列がまだない環境向けフォールバック
+    if (roomKey === 'study') {
+      const fallback = await supabase.from('care_study_settings').select('title').eq('id', 1).maybeSingle();
+      if (fallback.error) throw new Error(fallback.error.message);
+      return fallback.data?.title?.trim() || defaultStudyRoomTitle(roomKey);
+    }
+    throw new Error(error.message);
+  }
+  return data?.title?.trim() || defaultStudyRoomTitle(roomKey);
+}
+
+export async function adminUpdateStudyRoomTitle(roomKey: StudyRoomKey, title: string) {
+  const trimmed = title.trim() || defaultStudyRoomTitle(roomKey);
+  const { error } = await supabase.from('care_study_settings').upsert({
+    id: STUDY_SETTING_IDS[roomKey],
+    room_key: roomKey,
+    title: trimmed,
+    updated_at: new Date().toISOString(),
+  });
   if (error) throw new Error(error.message);
 }
 
-export async function adminListStudyItems(): Promise<StudyItemRow[]> {
+export async function adminGetWatchTopTitle(): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from('care_watch_ui_settings')
+      .select('top_title')
+      .eq('id', 1)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.top_title?.trim() || DEFAULT_WATCH_TOP_TITLE;
+  } catch {
+    return DEFAULT_WATCH_TOP_TITLE;
+  }
+}
+
+export async function adminUpdateWatchTopTitle(title: string) {
+  const trimmed = title.trim() || DEFAULT_WATCH_TOP_TITLE;
+  const { error } = await supabase.from('care_watch_ui_settings').upsert({
+    id: 1,
+    top_title: trimmed,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminListStudyItems(roomKey: StudyRoomKey = 'study'): Promise<StudyItemRow[]> {
   const { data, error } = await supabase
     .from('care_study_items')
     .select('*')
+    .eq('room_key', roomKey)
     .order('sort_order', { ascending: false })
     .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
+  if (error) {
+    // room_key 未適用時は study のみ全件
+    if (roomKey === 'study') {
+      const fallback = await supabase
+        .from('care_study_items')
+        .select('*')
+        .order('sort_order', { ascending: false })
+        .order('created_at', { ascending: false });
+      if (fallback.error) throw new Error(fallback.error.message);
+      return (fallback.data || []) as StudyItemRow[];
+    }
+    throw new Error(error.message);
+  }
   return (data || []) as StudyItemRow[];
 }
 
-export async function adminCreateStudyLink(title: string, externalUrl: string) {
+export async function adminCreateStudyLink(roomKey: StudyRoomKey, title: string, externalUrl: string) {
   const url = externalUrl.trim();
   if (!title.trim()) throw new Error('タイトルを入力してください');
   if (!url) throw new Error('URLを入力してください');
@@ -583,13 +665,19 @@ export async function adminCreateStudyLink(title: string, externalUrl: string) {
     item_type: 'link',
     title: title.trim(),
     external_url: url,
+    room_key: roomKey,
     is_published: true,
     sort_order: Date.now() % 1000000000,
   });
   if (error) throw new Error(error.message);
 }
 
-export async function adminUploadStudyFile(itemType: 'image' | 'pdf', title: string, file: File) {
+export async function adminUploadStudyFile(
+  roomKey: StudyRoomKey,
+  itemType: 'image' | 'pdf',
+  title: string,
+  file: File
+) {
   if (!title.trim()) throw new Error('タイトルを入力してください');
   if (!file) throw new Error('ファイルを選択してください');
   if (file.size > 50 * 1024 * 1024) throw new Error('ファイルは50MB以下にしてください');
@@ -611,6 +699,7 @@ export async function adminUploadStudyFile(itemType: 'image' | 'pdf', title: str
     title: title.trim() || file.name,
     storage_path: storagePath,
     file_size: file.size,
+    room_key: roomKey,
     is_published: true,
     sort_order: Date.now() % 1000000000,
   });
@@ -648,8 +737,12 @@ export async function adminDeleteStudyItem(item: StudyItemRow) {
   }
 }
 
-export async function adminMoveStudyItem(itemId: string, direction: 'up' | 'down') {
-  const items = await adminListStudyItems();
+export async function adminMoveStudyItem(
+  roomKey: StudyRoomKey,
+  itemId: string,
+  direction: 'up' | 'down'
+) {
+  const items = await adminListStudyItems(roomKey);
   const index = items.findIndex((i) => i.id === itemId);
   if (index < 0) return;
   const swapWith = direction === 'up' ? index - 1 : index + 1;

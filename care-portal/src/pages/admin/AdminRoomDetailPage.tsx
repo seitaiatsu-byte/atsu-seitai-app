@@ -27,7 +27,7 @@ import { DEFAULT_GREETING_TITLES, type GreetingSlot } from '../../lib/greetingVi
 import { buildRoomCodeFromCustomerNumber } from '../../lib/memberGuide';
 import { type ProgramDef, type ProgramItemRule, type ProgramTier } from '../../lib/programTiers';
 import { saveSession } from '../../lib/session';
-import { DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
+import { DEFAULT_STUDY2_ROOM_TITLE, DEFAULT_STUDY_ROOM_TITLE } from '../../lib/studyRoom';
 import { DEFAULT_SUB_ROOM_TITLES, SUB_ROOM_COUNT } from '../../lib/subRooms';
 import type { WatchLayoutItemKey } from '../../lib/watchLayout';
 
@@ -57,6 +57,7 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
   const [programDefs, setProgramDefs] = useState<ProgramDef[]>([]);
   const [layoutKeys, setLayoutKeys] = useState<WatchLayoutItemKey[]>([]);
   const [studyTitle, setStudyTitle] = useState(DEFAULT_STUDY_ROOM_TITLE);
+  const [study2Title, setStudy2Title] = useState(DEFAULT_STUDY2_ROOM_TITLE);
   const [greetingTitles, setGreetingTitles] = useState<Partial<Record<GreetingSlot, string>>>({});
   const [savingRoom, setSavingRoom] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -75,13 +76,14 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
   const load = async () => {
     setLoading(true);
     try {
-      const [rooms, master, rules, defs, layout, study, greetings] = await Promise.all([
+      const [rooms, master, rules, defs, layout, study, study2, greetings] = await Promise.all([
         adminListRooms(),
         adminListSubRoomMaster(),
         adminListProgramRules(),
         adminListProgramDefs(),
         adminListWatchLayout(),
-        adminGetStudyRoomTitle(),
+        adminGetStudyRoomTitle('study'),
+        adminGetStudyRoomTitle('study2'),
         adminListGreetingVideos(),
       ]);
       const found = rooms.find((r) => r.id === roomId) || null;
@@ -98,6 +100,7 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
       setProgramDefs(defs);
       setLayoutKeys(layout);
       setStudyTitle(study);
+      setStudy2Title(study2);
       const gTitles: Partial<Record<GreetingSlot, string>> = { ...DEFAULT_GREETING_TITLES };
       for (const g of greetings) gTitles[g.slot_code] = g.title;
       setGreetingTitles(gTitles);
@@ -340,6 +343,7 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
             defs={programDefs}
             layoutKeys={layoutKeys}
             studyTitle={studyTitle}
+            study2Title={study2Title}
             greetingTitles={greetingTitles}
             subRoomTitles={subRoomTitles}
             requireConfirm={room.program_tier !== editProgramTier}
