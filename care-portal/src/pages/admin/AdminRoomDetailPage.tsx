@@ -17,12 +17,14 @@ import {
   adminListSubRoomMaster,
   adminListWatchLayout,
   adminSetRoomPassword,
+  adminSignOut,
   adminStartRoomPreview,
   adminToggleVideoPublish,
   adminUpdateRoom,
   adminUpdateVideoMeta,
   adminUpdateVideoSubRoom,
   adminUploadVideo,
+  isStaffUser,
   type CareRoomRow,
   type CareRoomVideoRow,
   type RoomPasswordHistoryRow,
@@ -39,6 +41,7 @@ type Props = {
   roomId: string;
   onBack: () => void;
   onPreviewMemberRoom?: () => void;
+  onNeedLogin?: () => void;
 };
 
 function formatSize(bytes: number | null) {
@@ -47,7 +50,7 @@ function formatSize(bytes: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoom }: Props) {
+export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoom, onNeedLogin }: Props) {
   const [room, setRoom] = useState<CareRoomRow | null>(null);
   const [videos, setVideos] = useState<CareRoomVideoRow[]>([]);
   const [passwordHistory, setPasswordHistory] = useState<RoomPasswordHistoryRow[]>([]);
@@ -81,6 +84,16 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
   const load = async () => {
     setLoading(true);
     try {
+      const staff = await isStaffUser();
+      if (!staff) {
+        try {
+          await adminSignOut();
+        } catch {
+          /* ignore */
+        }
+        onNeedLogin?.();
+        return;
+      }
       const [rooms, master, rules, defs, layout, study, study2, greetings] = await Promise.all([
         adminListRooms(),
         adminListSubRoomMaster(),
@@ -121,7 +134,17 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
       }
       setSubRoomTitles(titles);
     } catch (err) {
-      alert(err instanceof Error ? err.message : '読み込みに失敗しました');
+      const message = err instanceof Error ? err.message : '読み込みに失敗しました';
+      if (message.includes('スタッフ権限') || message.includes('staff only')) {
+        try {
+          await adminSignOut();
+        } catch {
+          /* ignore */
+        }
+        onNeedLogin?.();
+        return;
+      }
+      alert(message);
     } finally {
       setLoading(false);
     }

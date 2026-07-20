@@ -8,9 +8,11 @@ import {
   adminDeleteGreetingVideo,
   adminListGreetingVideos,
   adminListSubRoomMaster,
+  adminSignOut,
   adminUpdateGreetingTitle,
   adminUpdateSubRoomTitle,
   adminUploadGreetingVideo,
+  isStaffUser,
 } from '../../lib/careApi';
 import { DEFAULT_GREETING_TITLES, type GreetingSlot, type GreetingVideoRow } from '../../lib/greetingVideos';
 import {
@@ -28,6 +30,7 @@ const GREETING_SLOT_HINTS: Record<GreetingSlot, string> = {
 
 type Props = {
   onBack: () => void;
+  onNeedLogin?: () => void;
 };
 
 function formatSize(bytes: number | null) {
@@ -36,7 +39,7 @@ function formatSize(bytes: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function AdminSubRoomsMasterPage({ onBack }: Props) {
+export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) {
   const [titles, setTitles] = useState<Record<number, string>>({});
   const [greetings, setGreetings] = useState<Record<GreetingSlot, GreetingVideoRow | null>>({
     A: null,
@@ -61,6 +64,16 @@ export default function AdminSubRoomsMasterPage({ onBack }: Props) {
   const load = async () => {
     setLoading(true);
     try {
+      const staff = await isStaffUser();
+      if (!staff) {
+        try {
+          await adminSignOut();
+        } catch {
+          /* ignore */
+        }
+        onNeedLogin?.();
+        return;
+      }
       const [rows, greetingRows] = await Promise.all([adminListSubRoomMaster(), adminListGreetingVideos()]);
       const map: Record<number, string> = {};
       for (let i = 1; i <= SUB_ROOM_COUNT; i++) {
@@ -84,7 +97,17 @@ export default function AdminSubRoomsMasterPage({ onBack }: Props) {
       setGreetings(greetMap);
       setGreetingTitles(greetTitles);
     } catch (err) {
-      alert(err instanceof Error ? err.message : '読み込みに失敗しました');
+      const message = err instanceof Error ? err.message : '読み込みに失敗しました';
+      if (message.includes('スタッフ権限') || message.includes('staff only')) {
+        try {
+          await adminSignOut();
+        } catch {
+          /* ignore */
+        }
+        onNeedLogin?.();
+        return;
+      }
+      alert(message);
     } finally {
       setLoading(false);
     }

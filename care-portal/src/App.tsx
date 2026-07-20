@@ -184,6 +184,10 @@ export default function App() {
             navigate('/');
             setRoute({ name: 'home' });
           }}
+          onNeedLogin={() => {
+            navigate('/admin/login');
+            setRoute({ name: 'admin-login' });
+          }}
         />
       );
     case 'admin-sub-rooms':
@@ -192,6 +196,10 @@ export default function App() {
           onBack={() => {
             navigate('/admin/rooms');
             setRoute({ name: 'admin-rooms' });
+          }}
+          onNeedLogin={() => {
+            navigate('/admin/login');
+            setRoute({ name: 'admin-login' });
           }}
         />
       );
@@ -206,6 +214,10 @@ export default function App() {
           onPreviewMemberRoom={() => {
             navigate('/watch');
             setRoute({ name: 'room-videos' });
+          }}
+          onNeedLogin={() => {
+            navigate('/admin/login');
+            setRoute({ name: 'admin-login' });
           }}
         />
       );

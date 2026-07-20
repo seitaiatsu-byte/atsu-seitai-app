@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LogIn, Shield } from 'lucide-react';
 import { adminSignIn, isStaffUser } from '../../lib/careApi';
 import { supabase } from '../../lib/supabase';
@@ -12,7 +12,30 @@ export default function AdminLoginPage({ onLoggedIn, onOpenManual }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const staff = await isStaffUser();
+        if (!cancelled && staff) {
+          onLoggedIn();
+          return;
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // 初回マウント時のみ：すでにスタッフなら管理画面へ
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +55,14 @@ export default function AdminLoginPage({ onLoggedIn, onOpenManual }: Props) {
       setLoading(false);
     }
   };
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-5 bg-slate-100">
+        <p className="text-slate-500 text-sm">確認中…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-5 bg-slate-100">

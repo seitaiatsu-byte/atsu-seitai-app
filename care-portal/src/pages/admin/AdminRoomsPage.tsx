@@ -33,9 +33,15 @@ type Props = {
   onOpenRoom: (roomId: string) => void;
   onOpenSubRoomsMaster: () => void;
   onLogout: () => void;
+  onNeedLogin: () => void;
 };
 
-export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLogout }: Props) {
+export default function AdminRoomsPage({
+  onOpenRoom,
+  onOpenSubRoomsMaster,
+  onLogout,
+  onNeedLogin,
+}: Props) {
   const [rooms, setRooms] = useState<CareRoomRow[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -56,13 +62,23 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState('');
   const [qrRoom, setQrRoom] = useState<CareRoomRow | null>(null);
+  const [redirectingLogin, setRedirectingLogin] = useState(false);
 
   const load = async () => {
     setLoading(true);
     setError('');
     try {
       const staff = await isStaffUser();
-      if (!staff) throw new Error('スタッフ権限がありません');
+      if (!staff) {
+        setRedirectingLogin(true);
+        try {
+          await adminSignOut();
+        } catch {
+          /* ignore */
+        }
+        onNeedLogin();
+        return;
+      }
       const [roomRows, rules, defs, layout, study, study2, greetings, master] = await Promise.all([
         adminListRooms(),
         adminListProgramRules(),
@@ -89,7 +105,18 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
       for (const m of master) sTitles[m.slot_number] = m.title;
       setSubRoomTitles(sTitles);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '読み込みに失敗しました');
+      const message = err instanceof Error ? err.message : '読み込みに失敗しました';
+      if (message.includes('スタッフ権限') || message.includes('staff only')) {
+        setRedirectingLogin(true);
+        try {
+          await adminSignOut();
+        } catch {
+          /* ignore */
+        }
+        onNeedLogin();
+        return;
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -175,6 +202,16 @@ export default function AdminRoomsPage({ onOpenRoom, onOpenSubRoomsMaster, onLog
     await adminSignOut();
     onLogout();
   };
+
+  if (redirectingLogin || (loading && rooms.length === 0 && !error)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 p-6">
+        <p className="text-slate-500 text-sm">
+          {redirectingLogin ? 'ログイン画面へ移動しています…' : '読み込み中…'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-100">
