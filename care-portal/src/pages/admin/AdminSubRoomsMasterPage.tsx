@@ -24,8 +24,8 @@ import {
 
 const GREETING_SLOT_HINTS: Record<GreetingSlot, string> = {
   A: '部屋トップに表示',
-  C: '⑫の直後に表示',
-  B: 'ダイエット枠の後・⑬⑭⑮の直前に表示',
+  B: '⑫の直後に表示',
+  C: 'ダイエット枠の後・⑬⑭⑮の直前に表示',
 };
 
 type Props = {
@@ -224,12 +224,9 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
               <ul className="space-y-3">
                 {(['A', 'B', 'C'] as GreetingSlot[]).map((slot) => {
                   const row = greetings[slot];
-                  const title = (greetingTitles[slot] || '').trim();
+                  const title = (greetingTitles[slot] || DEFAULT_GREETING_TITLES[slot] || '').trim();
                   const bare = `挨拶動画${slot}`;
-                  const heading =
-                    title && title !== bare && title !== DEFAULT_GREETING_TITLES[slot]
-                      ? `${bare}（${title}）`
-                      : bare;
+                  const heading = title && title !== bare ? `${bare}（${title}）` : bare;
                   return (
                     <li key={slot} className="bg-white rounded-xl border p-4">
                       <div className="flex items-start gap-3">

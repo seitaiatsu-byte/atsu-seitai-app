@@ -131,12 +131,9 @@ export default function AdminRoomGreetingOverrideSection({ roomId }: Props) {
           const masterRow = master[slot];
           const overrideRow = overrides[slot];
           const hasOverride = Boolean(overrideRow?.storage_path && overrideRow.is_published);
-          const title = (titles[slot] || '').trim();
+          const title = (titles[slot] || DEFAULT_GREETING_TITLES[slot] || '').trim();
           const bare = `挨拶動画${slot}`;
-          const heading =
-            title && title !== bare && title !== DEFAULT_GREETING_TITLES[slot]
-              ? `${bare}（${title}）`
-              : bare;
+          const heading = title && title !== bare ? `${bare}（${title}）` : bare;
           return (
             <li key={slot} className="bg-white rounded-xl border p-4 space-y-3">
               <div className="flex items-start gap-3">

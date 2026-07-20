@@ -17,15 +17,15 @@ export type WatchLayoutRow = {
   updated_at?: string;
 };
 
-/** 現行UIと同じ初期並び（勉強部屋の直後に勉強部屋②） */
+/** 初期並び：勉強部屋 → 挨拶A/B/C（上から順）→ 小部屋 */
 export const DEFAULT_WATCH_LAYOUT_KEYS: WatchLayoutItemKey[] = [
   'study',
   'study2',
   'greeting_A',
   ...Array.from({ length: 12 }, (_, i) => `sub_${i + 1}` as WatchLayoutItemKey),
-  'greeting_C',
-  ...Array.from({ length: 5 }, (_, i) => `sub_${16 + i}` as WatchLayoutItemKey),
   'greeting_B',
+  ...Array.from({ length: 5 }, (_, i) => `sub_${16 + i}` as WatchLayoutItemKey),
+  'greeting_C',
   'sub_13',
   'sub_14',
   'sub_15',
@@ -90,9 +90,10 @@ export function watchLayoutKindLabel(
   if (key === 'study2') return '勉強部屋②';
   const g = parseGreetingSlot(key);
   if (g) {
-    const title = opts?.greetingTitles?.[g]?.trim() || '';
+    const title = (opts?.greetingTitles?.[g] || DEFAULT_GREETING_TITLES[g] || '').trim();
     const bare = `挨拶動画${g}`;
-    if (title && title !== bare && title !== DEFAULT_GREETING_TITLES[g]) {
+    // 編集名があるとき：挨拶動画A（編集した名前）／初期名のままなら挨拶動画B
+    if (title && title !== bare) {
       return `${bare}（${title}）`;
     }
     return bare;
