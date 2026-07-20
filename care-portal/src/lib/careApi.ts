@@ -4,6 +4,7 @@ import { DEFAULT_GREETING_TITLES } from './greetingVideos';
 import type { SubRoomItem } from './subRooms';
 import { loadSession, type CareSession } from './session';
 import {
+  DEFAULT_VIDEO_TITLE,
   DEFAULT_WATCH_TOP_TITLE,
   defaultStudyRoomTitle,
   type StudyItem,
@@ -495,7 +496,7 @@ export async function adminUpdateVideoMeta(
   patch: Partial<Pick<CareRoomVideoRow, 'title' | 'description'>>
 ) {
   const update: Record<string, string> = {};
-  if (patch.title !== undefined) update.title = patch.title.trim() || 'セルフケア動画';
+  if (patch.title !== undefined) update.title = patch.title.trim() || DEFAULT_VIDEO_TITLE;
   if (patch.description !== undefined) update.description = patch.description.trim();
   const { error } = await supabase.from('care_room_videos').update(update).eq('id', videoId);
   if (error) throw new Error(error.message);

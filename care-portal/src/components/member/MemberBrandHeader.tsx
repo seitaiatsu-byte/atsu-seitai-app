@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { CLINIC_DISPLAY_NAME } from '../../lib/studyRoom';
 
 /** 書き出し実寸（枠はみ出し防止のため HTML 寸法も一致させる） */
 const BANNER_WIDTH = 2000;
@@ -20,7 +21,7 @@ export default function MemberBrandHeader({ title, subtitle, children, sticky }:
       <div className="member-site-banner-wrap">
         <img
           src="/member-header-banner.png"
-          alt="あつ整体院 会員専用コンテンツサイト あなたの健康スイッチがONになる部屋"
+          alt={CLINIC_DISPLAY_NAME}
           className="member-site-banner"
           width={BANNER_WIDTH}
           height={BANNER_HEIGHT}

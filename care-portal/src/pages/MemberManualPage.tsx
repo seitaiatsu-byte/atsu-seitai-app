@@ -56,7 +56,7 @@ export default function MemberManualPage() {
         </div>
 
         <footer className="text-center text-xs member-text-muted pt-4 border-t border-member-gold-soft/40 print:block manual-a4-section">
-          あつ整体院 会員専用セルフケア動画
+          あつ整体院
         </footer>
       </main>
 

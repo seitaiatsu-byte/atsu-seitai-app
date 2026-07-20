@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { Link2, LogIn, PlayCircle, QrCode, Smartphone } from 'lucide-react';
 import { MEMBER_GUIDE_STEPS } from '../../lib/memberGuide';
+import { CLINIC_DISPLAY_NAME } from '../../lib/studyRoom';
 
 function ArrowDown() {
   return (
@@ -121,11 +122,11 @@ export default function MemberStepIllustrations() {
             <div className="p-2 space-y-2">
               <div className="manual-illust-video-row flex items-center gap-2 border rounded-lg p-2 bg-member-camel-card">
                 <PlayCircle size={20} className="text-member-teal shrink-0" />
-                <span className="text-xs font-bold">セルフケア動画①</span>
+                <span className="text-xs font-bold">{CLINIC_DISPLAY_NAME}</span>
               </div>
               <div className="manual-illust-video-row flex items-center gap-2 border rounded-lg p-2 opacity-60">
                 <PlayCircle size={20} className="shrink-0" />
-                <span className="text-xs">セルフケア動画②</span>
+                <span className="text-xs">{CLINIC_DISPLAY_NAME}</span>
               </div>
               <p className="text-[10px] text-member-teal font-bold text-center">▶ タップして再生</p>
             </div>

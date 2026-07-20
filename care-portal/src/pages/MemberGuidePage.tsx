@@ -42,7 +42,7 @@ export default function MemberGuidePage({ memberName, roomCode, roomUrl }: Props
       </div>
 
       <article className="max-w-[210mm] mx-auto p-6 sm:p-10 print:p-8 manual-a4-content">
-        <MemberPrintHeader title="セルフケア動画の見方" subtitle={`対象：${displayName}`} />
+        <MemberPrintHeader subtitle={`対象：${displayName}`} />
 
         <section className="mb-8 member-card p-5 sm:p-6 manual-a4-section">
           <div className="space-y-4 text-lg leading-relaxed">
@@ -93,7 +93,7 @@ export default function MemberGuidePage({ memberName, roomCode, roomUrl }: Props
         </div>
 
         <footer className="text-center text-sm member-text-muted pt-6 mt-8 border-t border-member-gold-soft/40">
-          あつ整体院 会員専用セルフケア動画
+          あつ整体院
         </footer>
       </article>
     </MemberPageShell>

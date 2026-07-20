@@ -23,6 +23,7 @@ import { LOCKED_ITEM_MESSAGE } from '../lib/programTiers';
 import { formatVideoCount, showsSubRoomNumber, type SubRoomItem } from '../lib/subRooms';
 import { clearSession, loadLastRoomCode, loadSession, rememberLastRoomCode, saveSession } from '../lib/session';
 import {
+  DEFAULT_VIDEO_TITLE,
   DEFAULT_WATCH_TOP_TITLE,
   STUDY_ROOM_KEYS,
   defaultStudyRoomTitle,
@@ -732,7 +733,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
               <li key={v.id}>
                 <button
                   type="button"
-                  onClick={() => void handlePlay({ id: v.id, title: v.title || 'セルフケア動画', kind: 'room' })}
+                  onClick={() => void handlePlay({ id: v.id, title: v.title || DEFAULT_VIDEO_TITLE, kind: 'room' })}
                   className="member-card w-full text-left px-4 py-4 flex items-center gap-4 hover:border-member-gold/45 active:bg-member-camel-light/50 min-h-[5rem] transition-colors"
                 >
                   <div className="member-icon-badge w-12 h-12">
@@ -740,7 +741,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-lg sm:text-xl text-member-text leading-snug">
-                      {v.title || 'セルフケア動画'}
+                      {v.title || DEFAULT_VIDEO_TITLE}
                     </p>
                     <p className="text-base member-text-muted mt-1">{formatDate(v.uploaded_at)}</p>
                     <p className="text-sm member-text-accent font-bold mt-1">▶ タップして再生</p>

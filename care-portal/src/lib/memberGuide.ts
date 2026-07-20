@@ -52,7 +52,7 @@ export type ManualFlowStep = {
 
 export const MEMBER_SITE_PURPOSE = {
   title: 'このサイトは何のため？',
-  body: 'あつ整体院の会員さんが、ご自宅などで「あなた専用のセルフケア動画」を安全に見るためのサイトです。お一人ひとりだけが見られる動画をお届けします。',
+  body: 'あつ整体院の会員さんが、ご自宅などで「あなた専用の動画」を安全に見るためのサイトです。お一人ひとりだけが見られる動画をお届けします。',
 };
 
 export const MEMBER_ENTRY_EXPLAIN = {

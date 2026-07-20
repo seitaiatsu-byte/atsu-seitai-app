@@ -1,6 +1,8 @@
+export const CLINIC_DISPLAY_NAME = 'あつ整体院';
 export const DEFAULT_STUDY_ROOM_TITLE = '健康への勉強部屋';
 export const DEFAULT_STUDY2_ROOM_TITLE = 'もうひとつの勉強部屋';
-export const DEFAULT_WATCH_TOP_TITLE = 'セルフケア動画';
+export const DEFAULT_WATCH_TOP_TITLE = CLINIC_DISPLAY_NAME;
+export const DEFAULT_VIDEO_TITLE = '動画';
 
 export type StudyRoomKey = 'study' | 'study2';
 
