@@ -20,7 +20,7 @@ import {
 import type { GreetingVideoItem } from '../lib/greetingVideos';
 import { LOCKED_ITEM_MESSAGE } from '../lib/programTiers';
 import { formatVideoCount, showsSubRoomNumber, type SubRoomItem } from '../lib/subRooms';
-import { clearSession, loadSession, saveSession } from '../lib/session';
+import { clearSession, loadLastRoomCode, loadSession, rememberLastRoomCode, saveSession } from '../lib/session';
 import { DEFAULT_STUDY_ROOM_TITLE, studyItemTypeLabel, type StudyItem, type StudyRoomSummary } from '../lib/studyRoom';
 import {
   DEFAULT_WATCH_LAYOUT_KEYS,
@@ -184,8 +184,10 @@ export default function RoomVideosPage({ onLogout }: Props) {
   const unlockedMapReady = useMemo(() => Object.keys(itemUnlocked).length > 0, [itemUnlocked]);
 
   const goToRoomLogin = useCallback((roomCode?: string) => {
-    const code = roomCode?.trim() || loadSession()?.roomCode?.trim();
+    const code =
+      roomCode?.trim() || loadSession()?.roomCode?.trim() || loadLastRoomCode() || undefined;
     if (code) {
+      rememberLastRoomCode(code);
       window.location.href = `/r/${encodeURIComponent(code)}`;
       return;
     }
@@ -240,8 +242,9 @@ export default function RoomVideosPage({ onLogout }: Props) {
         message.includes('inactive') ||
         message.includes('credentials');
       if (isAuthError) {
-        const roomCode = existing?.roomCode;
+        const roomCode = existing?.roomCode || loadLastRoomCode() || undefined;
         const adminRoomId = existing?.adminRoomId;
+        if (roomCode) rememberLastRoomCode(roomCode);
         clearSession();
         setSession(null);
         if (existing?.staffPreview && adminRoomId) {
@@ -479,18 +482,32 @@ export default function RoomVideosPage({ onLogout }: Props) {
   };
 
   if (!session) {
+    const lastRoomCode = loadLastRoomCode();
     return (
       <MemberPageShell>
-        <MemberBrandHeader title="入室し直してください" subtitle="お渡しの専用リンクから開いてください" />
-        <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
+        <MemberBrandHeader title="入室し直してください" subtitle="パスワードを入れ直して部屋へ入れます" />
+        <main className="flex-1 p-4 max-w-2xl mx-auto w-full space-y-4">
           {error && (
             <div className="rounded-xl bg-red-50 border-2 border-red-200 text-red-900 text-base px-4 py-4 leading-relaxed">
               {error}
             </div>
           )}
-          <p className="text-base member-text-muted mt-4 leading-relaxed">
-            トップページ（スタッフ案内）ではなく、お渡しした <strong>/r/顧客番号</strong> のリンクから入ります。
+          <p className="text-base member-text-muted leading-relaxed">
+            入室の有効期限は<strong>ログインから30日間</strong>です。切れたときは、もう一度パスワードを入れてください。
           </p>
+          {lastRoomCode ? (
+            <button
+              type="button"
+              onClick={() => goToRoomLogin(lastRoomCode)}
+              className="member-btn-primary w-full py-4 text-lg"
+            >
+              ログイン画面へ（パスワード入力）
+            </button>
+          ) : (
+            <p className="text-base member-text-muted leading-relaxed">
+              お渡しした <strong>/r/顧客番号</strong> のリンクから開き直してください。
+            </p>
+          )}
         </main>
       </MemberPageShell>
     );
