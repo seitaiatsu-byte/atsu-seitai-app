@@ -191,10 +191,10 @@ export default function AdminSubRoomsMasterPage({ onBack }: Props) {
             <section className="space-y-3">
               <h2 className="font-bold text-slate-800 flex items-center gap-2">
                 <Video size={18} className="text-indigo-600" />
-                挨拶動画（A / C / B）
+                挨拶動画①（A / C / B・全会員共通）
               </h2>
               <p className="text-xs text-slate-500 leading-relaxed">
-                A→⑫→C→ダイエット5枠→B→⑬⑭⑮ の順で会員画面に表示されます。
+                全員に表示される共通の挨拶動画です。個人ごとに違う動画を見せたい場合は、各会員の部屋編集で②を上げてください。
               </p>
               <ul className="space-y-3">
                 {(['A', 'C', 'B'] as GreetingSlot[]).map((slot) => {

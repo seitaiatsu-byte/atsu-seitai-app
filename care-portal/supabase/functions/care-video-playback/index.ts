@@ -69,17 +69,32 @@ Deno.serve(async (req) => {
     let itemKey: string | null = null;
 
     if (videoKind === 'greeting') {
-      const { data: greeting, error: greetErr } = await admin
-        .from('care_greeting_videos')
-        .select('id, slot_code, storage_path, is_published')
+      // 個人②を優先、なければマスター①
+      const { data: override } = await admin
+        .from('care_room_greeting_overrides')
+        .select('id, slot_code, storage_path, is_published, room_id')
         .eq('id', videoId)
         .maybeSingle();
 
-      if (greetErr || !greeting || !greeting.is_published || !greeting.storage_path) {
-        return json({ error: 'video not found' }, 404);
+      if (override) {
+        if (override.room_id !== sess.room_id || !override.is_published || !override.storage_path) {
+          return json({ error: 'video not found' }, 404);
+        }
+        storagePath = override.storage_path;
+        itemKey = `greeting_${override.slot_code}`;
+      } else {
+        const { data: greeting, error: greetErr } = await admin
+          .from('care_greeting_videos')
+          .select('id, slot_code, storage_path, is_published')
+          .eq('id', videoId)
+          .maybeSingle();
+
+        if (greetErr || !greeting || !greeting.is_published || !greeting.storage_path) {
+          return json({ error: 'video not found' }, 404);
+        }
+        storagePath = greeting.storage_path;
+        itemKey = `greeting_${greeting.slot_code}`;
       }
-      storagePath = greeting.storage_path;
-      itemKey = `greeting_${greeting.slot_code}`;
     } else {
       const { data: video, error: vidErr } = await admin
         .from('care_room_videos')

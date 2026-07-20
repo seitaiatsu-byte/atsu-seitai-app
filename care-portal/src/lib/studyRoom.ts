@@ -36,6 +36,7 @@ export type StudyItemRow = {
   created_at: string;
   updated_at: string;
   room_key?: StudyRoomKey;
+  member_room_id?: string | null;
 };
 
 export function defaultStudyRoomTitle(roomKey: StudyRoomKey): string {

@@ -60,10 +60,27 @@ Deno.serve(async (req) => {
 
     const memberTier = normalizeTier(room.program_tier as string | undefined);
 
+    const { data: item, error: itemErr } = await admin
+      .from('care_study_items')
+      .select('id, item_type, storage_path, is_published, room_key, member_room_id')
+      .eq('id', itemId)
+      .maybeSingle();
+
+    if (itemErr || !item || !item.is_published || !item.storage_path) {
+      return json({ error: 'material not found' }, 404);
+    }
+    if (item.member_room_id && item.member_room_id !== sess.room_id) {
+      return json({ error: 'forbidden' }, 403);
+    }
+    if (item.item_type !== 'image' && item.item_type !== 'pdf') {
+      return json({ error: 'not a file material' }, 400);
+    }
+
+    const studyKey = item.room_key === 'study2' ? 'study2' : 'study';
     const { data: rule } = await admin
       .from('care_program_item_rules')
       .select('allowed_tiers')
-      .eq('item_key', 'study')
+      .eq('item_key', studyKey)
       .maybeSingle();
 
     if (rule) {
@@ -73,19 +90,6 @@ Deno.serve(async (req) => {
       if (allowed && allowed.length > 0 && !allowed.includes(memberTier)) {
         return json({ error: 'このプログラムでは資料を開けません' }, 403);
       }
-    }
-
-    const { data: item, error: itemErr } = await admin
-      .from('care_study_items')
-      .select('id, item_type, storage_path, is_published')
-      .eq('id', itemId)
-      .maybeSingle();
-
-    if (itemErr || !item || !item.is_published || !item.storage_path) {
-      return json({ error: 'material not found' }, 404);
-    }
-    if (item.item_type !== 'image' && item.item_type !== 'pdf') {
-      return json({ error: 'not a file material' }, 400);
     }
 
     const { data: signed, error: signErr } = await admin.storage

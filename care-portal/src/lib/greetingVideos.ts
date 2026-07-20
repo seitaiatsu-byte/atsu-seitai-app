@@ -13,11 +13,24 @@ export type GreetingVideoItem = {
   title: string;
   has_video: boolean;
   uploaded_at: string | null;
+  is_room_override?: boolean;
 };
 
 export type GreetingVideoRow = GreetingVideoItem & {
   storage_path: string | null;
   file_size: number | null;
   is_published: boolean;
+  updated_at: string;
+};
+
+export type RoomGreetingOverrideRow = {
+  room_id: string;
+  slot_code: GreetingSlot;
+  id: string;
+  title: string;
+  storage_path: string | null;
+  file_size: number | null;
+  is_published: boolean;
+  uploaded_at: string | null;
   updated_at: string;
 };

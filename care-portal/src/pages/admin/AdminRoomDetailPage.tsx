@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Eye, KeyRound, Pencil, Printer, Save, Trash2, Upload, Video } from 'lucide-react';
+import AdminRoomGreetingOverrideSection from '../../components/admin/AdminRoomGreetingOverrideSection';
+import AdminStudyRoomSection from '../../components/admin/AdminStudyRoomSection';
 import MemberRoomQrCard from '../../components/admin/MemberRoomQrCard';
 import ProgramAccessPreview from '../../components/admin/ProgramAccessPreview';
 import {
@@ -430,6 +432,17 @@ export default function AdminRoomDetailPage({ roomId, onBack, onPreviewMemberRoo
               変更
             </button>
           </div>
+        </section>
+
+        <section className="bg-white rounded-2xl border p-4 space-y-6">
+          <AdminStudyRoomSection roomKey="study" memberRoomId={roomId} />
+          <div className="border-t pt-6">
+            <AdminStudyRoomSection roomKey="study2" memberRoomId={roomId} />
+          </div>
+        </section>
+
+        <section className="bg-white rounded-2xl border p-4">
+          <AdminRoomGreetingOverrideSection roomId={roomId} />
         </section>
 
         <section className="bg-white rounded-2xl border p-4">

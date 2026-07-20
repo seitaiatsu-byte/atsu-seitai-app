@@ -26,11 +26,20 @@ function formatSize(bytes: number | null) {
 
 type Props = {
   roomKey?: StudyRoomKey;
+  /** 指定すると個人部屋専用の資料のみ編集（マスター共通は触らない） */
+  memberRoomId?: string;
 };
 
-export default function AdminStudyRoomSection({ roomKey = 'study' }: Props) {
+export default function AdminStudyRoomSection({ roomKey = 'study', memberRoomId }: Props) {
   const defaultTitle = defaultStudyRoomTitle(roomKey);
-  const sectionLabel = roomKey === 'study2' ? '勉強部屋②（赤いアイコン）' : '健康への勉強部屋（最上部）';
+  const isRoomScoped = Boolean(memberRoomId);
+  const sectionLabel = isRoomScoped
+    ? roomKey === 'study2'
+      ? 'この会員の勉強部屋②に資料を追加'
+      : 'この会員の勉強部屋①に資料を追加'
+    : roomKey === 'study2'
+      ? '勉強部屋②（赤いアイコン）'
+      : '健康への勉強部屋（最上部）';
   const [roomTitle, setRoomTitle] = useState(defaultTitle);
   const [items, setItems] = useState<StudyItemRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +58,7 @@ export default function AdminStudyRoomSection({ roomKey = 'study' }: Props) {
     try {
       const [title, list] = await Promise.all([
         adminGetStudyRoomTitle(roomKey),
-        adminListStudyItems(roomKey),
+        adminListStudyItems(roomKey, memberRoomId || null),
       ]);
       setRoomTitle(title);
       setItems(list);
@@ -62,7 +71,7 @@ export default function AdminStudyRoomSection({ roomKey = 'study' }: Props) {
 
   useEffect(() => {
     void load();
-  }, [roomKey]);
+  }, [roomKey, memberRoomId]);
 
   const handleSaveTitle = async () => {
     setSavingTitle(true);
@@ -80,13 +89,13 @@ export default function AdminStudyRoomSection({ roomKey = 'study' }: Props) {
     setAdding(true);
     try {
       if (newType === 'link') {
-        await adminCreateStudyLink(roomKey, newTitle, newUrl);
+        await adminCreateStudyLink(roomKey, newTitle, newUrl, memberRoomId || null);
       } else {
         if (!newFile) {
           alert('ファイルを選択してください');
           return;
         }
-        await adminUploadStudyFile(roomKey, newType, newTitle, newFile);
+        await adminUploadStudyFile(roomKey, newType, newTitle, newFile, memberRoomId || null);
       }
       setNewTitle('');
       setNewUrl('');
@@ -131,11 +140,14 @@ export default function AdminStudyRoomSection({ roomKey = 'study' }: Props) {
         {sectionLabel}
       </h2>
       <p className="text-xs text-slate-500 leading-relaxed">
-        {roomKey === 'study2'
-          ? '会員画面で赤い本アイコンの2つ目の部屋として表示されます。名前・資料はここから編集できます（全院共通）。'
-          : '会員の部屋一覧のいちばん上に表示されます。計画書・プログラムの目的・記事URLなどを置けます（全院共通）。'}
+        {isRoomScoped
+          ? 'ここに追加した資料は、この会員の部屋だけに表示されます（マスター共通の資料はそのまま残ります）。'
+          : roomKey === 'study2'
+            ? '会員画面で赤い本アイコンの2つ目の部屋として表示されます。名前・資料はここから編集できます（全院共通）。'
+            : '会員の部屋一覧のいちばん上に表示されます。計画書・プログラムの目的・記事URLなどを置けます（全院共通）。'}
       </p>
 
+      {!isRoomScoped && (
       <div className="bg-white rounded-xl border p-4 space-y-2">
         <label className="text-xs font-bold text-slate-500">部屋の名前</label>
         <input
@@ -154,6 +166,13 @@ export default function AdminStudyRoomSection({ roomKey = 'study' }: Props) {
           {savingTitle ? '保存中…' : '名前を保存'}
         </button>
       </div>
+      )}
+
+      {isRoomScoped && (
+        <p className="text-xs text-slate-600 bg-slate-50 border rounded-lg px-3 py-2">
+          部屋名（共通）：<span className="font-bold">{roomTitle}</span>
+        </p>
+      )}
 
       <div className="bg-white rounded-xl border p-4 space-y-3">
         <h3 className="text-sm font-bold text-slate-700">資料を追加</h3>
@@ -267,7 +286,7 @@ export default function AdminStudyRoomSection({ roomKey = 'study' }: Props) {
                       <button
                         type="button"
                         disabled={index === 0}
-                        onClick={() => void adminMoveStudyItem(roomKey, item.id, 'up').then(load)}
+                        onClick={() => void adminMoveStudyItem(roomKey, item.id, 'up', memberRoomId || null).then(load)}
                         className="text-xs px-2 py-1 rounded border disabled:opacity-30"
                         title="上へ"
                       >
@@ -276,7 +295,7 @@ export default function AdminStudyRoomSection({ roomKey = 'study' }: Props) {
                       <button
                         type="button"
                         disabled={index === items.length - 1}
-                        onClick={() => void adminMoveStudyItem(roomKey, item.id, 'down').then(load)}
+                        onClick={() => void adminMoveStudyItem(roomKey, item.id, 'down', memberRoomId || null).then(load)}
                         className="text-xs px-2 py-1 rounded border disabled:opacity-30"
                         title="下へ"
                       >

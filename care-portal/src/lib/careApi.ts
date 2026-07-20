@@ -1,5 +1,5 @@
 import { functionsBaseUrl, supabase } from './supabase';
-import type { GreetingSlot, GreetingVideoItem, GreetingVideoRow } from './greetingVideos';
+import type { GreetingSlot, GreetingVideoItem, GreetingVideoRow, RoomGreetingOverrideRow } from './greetingVideos';
 import { DEFAULT_GREETING_TITLES } from './greetingVideos';
 import type { SubRoomItem } from './subRooms';
 import { loadSession, type CareSession } from './session';
@@ -632,16 +632,27 @@ export async function adminUpdateWatchTopTitle(title: string) {
   if (error) throw new Error(error.message);
 }
 
-export async function adminListStudyItems(roomKey: StudyRoomKey = 'study'): Promise<StudyItemRow[]> {
-  const { data, error } = await supabase
+export async function adminListStudyItems(
+  roomKey: StudyRoomKey = 'study',
+  memberRoomId?: string | null
+): Promise<StudyItemRow[]> {
+  let query = supabase
     .from('care_study_items')
     .select('*')
     .eq('room_key', roomKey)
     .order('sort_order', { ascending: false })
     .order('created_at', { ascending: false });
+
+  if (memberRoomId) {
+    query = query.eq('member_room_id', memberRoomId);
+  } else {
+    query = query.is('member_room_id', null);
+  }
+
+  const { data, error } = await query;
   if (error) {
-    // room_key 未適用時は study のみ全件
-    if (roomKey === 'study') {
+    // member_room_id / room_key 未適用時は study マスターのみ全件
+    if (!memberRoomId && roomKey === 'study') {
       const fallback = await supabase
         .from('care_study_items')
         .select('*')
@@ -655,7 +666,12 @@ export async function adminListStudyItems(roomKey: StudyRoomKey = 'study'): Prom
   return (data || []) as StudyItemRow[];
 }
 
-export async function adminCreateStudyLink(roomKey: StudyRoomKey, title: string, externalUrl: string) {
+export async function adminCreateStudyLink(
+  roomKey: StudyRoomKey,
+  title: string,
+  externalUrl: string,
+  memberRoomId?: string | null
+) {
   const url = externalUrl.trim();
   if (!title.trim()) throw new Error('タイトルを入力してください');
   if (!url) throw new Error('URLを入力してください');
@@ -666,6 +682,7 @@ export async function adminCreateStudyLink(roomKey: StudyRoomKey, title: string,
     title: title.trim(),
     external_url: url,
     room_key: roomKey,
+    member_room_id: memberRoomId || null,
     is_published: true,
     sort_order: Date.now() % 1000000000,
   });
@@ -676,7 +693,8 @@ export async function adminUploadStudyFile(
   roomKey: StudyRoomKey,
   itemType: 'image' | 'pdf',
   title: string,
-  file: File
+  file: File,
+  memberRoomId?: string | null
 ) {
   if (!title.trim()) throw new Error('タイトルを入力してください');
   if (!file) throw new Error('ファイルを選択してください');
@@ -684,7 +702,9 @@ export async function adminUploadStudyFile(
 
   const ext = file.name.split('.').pop()?.toLowerCase() || (itemType === 'pdf' ? 'pdf' : 'jpg');
   const itemId = crypto.randomUUID();
-  const storagePath = `${itemType}/${itemId}.${ext}`;
+  const storagePath = memberRoomId
+    ? `room/${memberRoomId}/${itemType}/${itemId}.${ext}`
+    : `${itemType}/${itemId}.${ext}`;
 
   const { error: upErr } = await supabase.storage.from('care-materials').upload(storagePath, file, {
     cacheControl: '3600',
@@ -700,6 +720,7 @@ export async function adminUploadStudyFile(
     storage_path: storagePath,
     file_size: file.size,
     room_key: roomKey,
+    member_room_id: memberRoomId || null,
     is_published: true,
     sort_order: Date.now() % 1000000000,
   });
@@ -740,9 +761,10 @@ export async function adminDeleteStudyItem(item: StudyItemRow) {
 export async function adminMoveStudyItem(
   roomKey: StudyRoomKey,
   itemId: string,
-  direction: 'up' | 'down'
+  direction: 'up' | 'down',
+  memberRoomId?: string | null
 ) {
-  const items = await adminListStudyItems(roomKey);
+  const items = await adminListStudyItems(roomKey, memberRoomId);
   const index = items.findIndex((i) => i.id === itemId);
   if (index < 0) return;
   const swapWith = direction === 'up' ? index - 1 : index + 1;
@@ -754,6 +776,77 @@ export async function adminMoveStudyItem(
     adminUpdateStudyItem(a.id, { sort_order: b.sort_order }),
     adminUpdateStudyItem(b.id, { sort_order: a.sort_order }),
   ]);
+}
+
+export async function adminListRoomGreetingOverrides(roomId: string): Promise<RoomGreetingOverrideRow[]> {
+  const { data, error } = await supabase
+    .from('care_room_greeting_overrides')
+    .select('*')
+    .eq('room_id', roomId);
+  if (error) throw new Error(error.message);
+  return (data || []) as RoomGreetingOverrideRow[];
+}
+
+export async function adminUploadRoomGreetingOverride(
+  roomId: string,
+  slot: GreetingSlot,
+  file: File,
+  title: string
+) {
+  if (!file) throw new Error('動画ファイルを選択してください');
+  if (file.size > 500 * 1024 * 1024) throw new Error('ファイルは500MB以下にしてください');
+
+  const existing = (await adminListRoomGreetingOverrides(roomId)).find((r) => r.slot_code === slot);
+  const oldPath = existing?.storage_path || null;
+  const videoId = existing?.id || crypto.randomUUID();
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
+  const storagePath = `greeting-override/${roomId}/${slot}/${videoId}.${ext}`;
+
+  const { error: upErr } = await supabase.storage.from('care-videos').upload(storagePath, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: file.type || 'video/mp4',
+  });
+  if (upErr) throw new Error(upErr.message);
+
+  const payload = {
+    room_id: roomId,
+    slot_code: slot,
+    id: videoId,
+    title: title.trim() || DEFAULT_GREETING_TITLES[slot],
+    storage_path: storagePath,
+    file_size: file.size,
+    is_published: true,
+    uploaded_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase.from('care_room_greeting_overrides').upsert(payload, {
+    onConflict: 'room_id,slot_code',
+  });
+  if (error) {
+    await supabase.storage.from('care-videos').remove([storagePath]);
+    throw new Error(error.message);
+  }
+  if (oldPath && oldPath !== storagePath) {
+    await supabase.storage.from('care-videos').remove([oldPath]);
+  }
+}
+
+export async function adminDeleteRoomGreetingOverride(roomId: string, slot: GreetingSlot) {
+  const rows = await adminListRoomGreetingOverrides(roomId);
+  const row = rows.find((r) => r.slot_code === slot);
+  if (!row) return;
+
+  const { error } = await supabase
+    .from('care_room_greeting_overrides')
+    .delete()
+    .eq('room_id', roomId)
+    .eq('slot_code', slot);
+  if (error) throw new Error(error.message);
+  if (row.storage_path) {
+    await supabase.storage.from('care-videos').remove([row.storage_path]);
+  }
 }
 
 export async function adminUpdateVideoSubRoom(videoId: string, subRoomSlot: number) {
