@@ -127,10 +127,16 @@ export default function AdminRoomGreetingOverrideSection({ roomId }: Props) {
       </p>
 
       <ul className="space-y-3">
-        {(['A', 'C', 'B'] as GreetingSlot[]).map((slot) => {
+        {(['A', 'B', 'C'] as GreetingSlot[]).map((slot) => {
           const masterRow = master[slot];
           const overrideRow = overrides[slot];
           const hasOverride = Boolean(overrideRow?.storage_path && overrideRow.is_published);
+          const title = (titles[slot] || '').trim();
+          const bare = `挨拶動画${slot}`;
+          const heading =
+            title && title !== bare && title !== DEFAULT_GREETING_TITLES[slot]
+              ? `${bare}（${title}）`
+              : bare;
           return (
             <li key={slot} className="bg-white rounded-xl border p-4 space-y-3">
               <div className="flex items-start gap-3">
@@ -138,7 +144,8 @@ export default function AdminRoomGreetingOverrideSection({ roomId }: Props) {
                   {slot}
                 </span>
                 <div className="min-w-0 flex-1 space-y-2">
-                  <p className="text-xs font-bold text-indigo-700">{SLOT_HINT[slot]}</p>
+                  <p className="text-sm font-bold text-indigo-800">{heading}</p>
+                  <p className="text-xs font-bold text-slate-500">{SLOT_HINT[slot]}（個人上書き）</p>
                   <p className="text-xs text-slate-500">
                     ①マスター：
                     {masterRow?.storage_path && masterRow.is_published

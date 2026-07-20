@@ -80,11 +80,23 @@ export function watchLayoutLabel(
   return key;
 }
 
-export function watchLayoutKindLabel(key: string): string {
+export function watchLayoutKindLabel(
+  key: string,
+  opts?: {
+    greetingTitles?: Partial<Record<GreetingSlot, string>>;
+  }
+): string {
   if (key === 'study') return '勉強部屋';
   if (key === 'study2') return '勉強部屋②';
   const g = parseGreetingSlot(key);
-  if (g) return `挨拶${g}`;
+  if (g) {
+    const title = opts?.greetingTitles?.[g]?.trim() || '';
+    const bare = `挨拶動画${g}`;
+    if (title && title !== bare && title !== DEFAULT_GREETING_TITLES[g]) {
+      return `${bare}（${title}）`;
+    }
+    return bare;
+  }
   const slot = parseSubRoomSlot(key);
   if (slot != null) return showsSubRoomNumber(slot) ? `小部屋${slot}` : `枠${slot}`;
   return '項目';

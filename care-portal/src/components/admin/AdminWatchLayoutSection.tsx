@@ -96,7 +96,7 @@ export default function AdminWatchLayoutSection() {
         会員画面の表示順
       </h2>
       <p className="text-xs text-slate-500 leading-relaxed">
-        勉強部屋・挨拶A/C/B・小部屋20枠の並びを上下で入れ替え、「表示順を保存」で全会員ルームに反映されます。
+        勉強部屋・挨拶A/B/C・小部屋20枠の並びを上下で入れ替え、「表示順を保存」で全会員ルームに反映されます。
       </p>
 
       <div className="flex justify-end">
@@ -118,7 +118,9 @@ export default function AdminWatchLayoutSection() {
               {index + 1}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-indigo-700">{watchLayoutKindLabel(key)}</p>
+              <p className="text-xs font-bold text-indigo-700">
+                {watchLayoutKindLabel(key, { greetingTitles })}
+              </p>
               <p className="text-sm font-bold text-slate-800 mt-0.5 leading-snug line-clamp-2">
                 {watchLayoutLabel(key, { studyTitle, study2Title, greetingTitles, subRoomTitles })}
               </p>

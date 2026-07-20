@@ -60,6 +60,7 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
   const [saving, setSaving] = useState<number | null>(null);
   const [greetingSaving, setGreetingSaving] = useState<GreetingSlot | null>(null);
   const [greetingUploading, setGreetingUploading] = useState<GreetingSlot | null>(null);
+  const [layoutRefreshKey, setLayoutRefreshKey] = useState(0);
 
   const load = async () => {
     setLoading(true);
@@ -144,6 +145,7 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
     try {
       await adminUpdateGreetingTitle(slot, title);
       await load();
+      setLayoutRefreshKey((n) => n + 1);
       alert(`挨拶動画${slot}のタイトルを保存しました`);
     } catch (err) {
       alert(err instanceof Error ? err.message : '保存に失敗しました');
@@ -201,8 +203,8 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
       </header>
 
       <main className="max-w-3xl mx-auto p-4 space-y-6">
-        <AdminWatchLayoutSection />
-        <AdminProgramRulesSection />
+        <AdminWatchLayoutSection key={`layout-${layoutRefreshKey}`} />
+        <AdminProgramRulesSection key={`rules-${layoutRefreshKey}`} />
         <AdminWatchTopTitleSection />
         <AdminStudyRoomSection roomKey="study" />
         <AdminStudyRoomSection roomKey="study2" />
@@ -214,14 +216,20 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
             <section className="space-y-3">
               <h2 className="font-bold text-slate-800 flex items-center gap-2">
                 <Video size={18} className="text-indigo-600" />
-                挨拶動画①（A / C / B・全会員共通）
+                挨拶動画①（A / B / C・全会員共通）
               </h2>
               <p className="text-xs text-slate-500 leading-relaxed">
                 全員に表示される共通の挨拶動画です。個人ごとに違う動画を見せたい場合は、各会員の部屋編集で②を上げてください。
               </p>
               <ul className="space-y-3">
-                {(['A', 'C', 'B'] as GreetingSlot[]).map((slot) => {
+                {(['A', 'B', 'C'] as GreetingSlot[]).map((slot) => {
                   const row = greetings[slot];
+                  const title = (greetingTitles[slot] || '').trim();
+                  const bare = `挨拶動画${slot}`;
+                  const heading =
+                    title && title !== bare && title !== DEFAULT_GREETING_TITLES[slot]
+                      ? `${bare}（${title}）`
+                      : bare;
                   return (
                     <li key={slot} className="bg-white rounded-xl border p-4">
                       <div className="flex items-start gap-3">
@@ -229,7 +237,8 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
                           {slot}
                         </span>
                         <div className="flex-1 min-w-0 space-y-3">
-                          <p className="text-xs text-indigo-700 font-bold">{GREETING_SLOT_HINTS[slot]}</p>
+                          <p className="text-sm font-bold text-indigo-800">{heading}</p>
+                          <p className="text-xs text-slate-500">{GREETING_SLOT_HINTS[slot]}</p>
                           <div>
                             <label className="text-xs font-bold text-slate-500">表示タイトル</label>
                             <input

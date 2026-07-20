@@ -249,7 +249,9 @@ export default function AdminProgramRulesSection() {
               }`}
             >
               <div>
-                <p className="text-xs font-bold text-indigo-700">{watchLayoutKindLabel(key)}</p>
+                <p className="text-xs font-bold text-indigo-700">
+                  {watchLayoutKindLabel(key, { greetingTitles })}
+                </p>
                 <p className="text-sm font-bold text-slate-800 mt-0.5 leading-snug line-clamp-2">
                   {watchLayoutLabel(key, { studyTitle, study2Title, greetingTitles, subRoomTitles })}
                 </p>

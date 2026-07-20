@@ -97,7 +97,7 @@ export default function ProgramAccessPreview({
                   <Lock size={12} className="shrink-0 mt-0.5 text-slate-400" />
                 )}
                 <span className="min-w-0">
-                  <span className="font-bold">{watchLayoutKindLabel(key)}</span>
+                  <span className="font-bold">{watchLayoutKindLabel(key, { greetingTitles })}</span>
                   {' · '}
                   {watchLayoutLabel(key, { studyTitle, study2Title, greetingTitles, subRoomTitles })}
                 </span>
