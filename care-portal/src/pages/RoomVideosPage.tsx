@@ -73,7 +73,7 @@ function GreetingVideoCard({
   const label = (zoneLabel || DEFAULT_GREETING_ZONE_LABEL).trim() || DEFAULT_GREETING_ZONE_LABEL;
 
   return (
-    <li className="greeting-item">
+    <li className={`greeting-item ${pending || locked ? 'greeting-item--aside' : ''}`}>
       <button
         type="button"
         disabled={locked || !greeting.has_video}
@@ -81,7 +81,7 @@ function GreetingVideoCard({
           if (locked || !greeting.has_video) return;
           onPlay({ id: greeting.id, title: greeting.title, kind: 'greeting' });
         }}
-        className={`greeting-wrap w-full text-left transition-[filter] ${
+        className={`greeting-wrap w-full text-left ${
           locked
             ? 'greeting-wrap--locked cursor-not-allowed'
             : pending
@@ -92,15 +92,13 @@ function GreetingVideoCard({
         <div className="greeting-head">
           <div className={`greeting-mascot ${locked ? 'greeting-mascot--locked' : ''}`} aria-hidden>
             {locked ? (
-              <Lock size={20} strokeWidth={2.25} />
+              <Lock size={22} strokeWidth={2.25} />
             ) : (
-              <img src="/greeting-mascot.png?v=3" alt="" className="greeting-mascot-img" />
+              <img src="/greeting-mascot.png?v=4" alt="" className="greeting-mascot-img" draggable={false} />
             )}
           </div>
           <span className={`greeting-slot ${locked ? 'greeting-slot--locked' : ''}`}>{greeting.slot_code}</span>
           <span className={`greeting-zone-name ${locked ? '!text-slate-500' : ''}`}>{label}</span>
-          {pending ? <span className="greeting-pending">（準備中です）</span> : null}
-          {locked ? <span className="greeting-pending">鍵付き</span> : null}
         </div>
 
         <div className="greeting-card">
@@ -108,13 +106,43 @@ function GreetingVideoCard({
           <div className={`greeting-hint ${locked ? '!text-slate-400' : ''}`}>
             {!locked ? (
               <span className="greeting-tap-icon" aria-hidden>
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M9.5 11.5V7.2a1.2 1.2 0 0 1 2.4 0v6.1" strokeLinecap="round" />
-                  <path d="M11.9 13.3V10a1.15 1.15 0 0 1 2.3 0v3.6" strokeLinecap="round" />
-                  <path d="M14.2 13.6v-2.1a1.1 1.1 0 0 1 2.2 0v2.4" strokeLinecap="round" />
-                  <path d="M9.5 14.2v1.6c0 2.2 1.5 4 3.6 4.2 2.4.2 4.4-1.7 4.4-4.1v-2" strokeLinecap="round" />
-                  <path d="M9.5 13.2c-1.1.2-2 .9-2.3 1.9-.5 1.5.4 2.9 1.6 3.5" strokeLinecap="round" />
-                  <path d="M15.2 5.2l.7-1.3M17.3 6.4l1.2-.8M13.4 4.6l-.2-1.4" strokeLinecap="round" />
+                <svg viewBox="0 0 28 28" width="18" height="18" fill="none">
+                  <path
+                    d="M11.2 13.2V8.1a1.45 1.45 0 0 1 2.9 0v7.2"
+                    stroke="#5b6570"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M14.1 15.3V11a1.35 1.35 0 1 1 2.7 0v4.5"
+                    stroke="#5b6570"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M16.8 15.8v-2.4a1.25 1.25 0 1 1 2.5 0v2.8"
+                    stroke="#5b6570"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M11.2 16.2v1.5c0 2.5 1.7 4.5 4.1 4.7 2.7.3 5-1.9 5-4.6v-2.1"
+                    stroke="#5b6570"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M11.2 15.1c-1.3.3-2.3 1.1-2.6 2.2-.5 1.6.4 3.1 1.8 3.8"
+                    stroke="#5b6570"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M17.2 6.1l.8-1.5M19.6 7.4l1.4-.9M15.2 5.4l-.2-1.5"
+                    stroke="#5b6570"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  />
                 </svg>
               </span>
             ) : null}
@@ -122,6 +150,8 @@ function GreetingVideoCard({
           </div>
         </div>
       </button>
+      {pending ? <span className="greeting-aside">（準備中です）</span> : null}
+      {locked ? <span className="greeting-aside">鍵付き</span> : null}
     </li>
   );
 }
