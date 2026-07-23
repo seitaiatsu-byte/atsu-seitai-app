@@ -532,12 +532,16 @@ export default function RoomVideosPage({ onLogout }: Props) {
                 <p className="study-room-zone-label">全員向け</p>
                 <ul className="space-y-3">{cards}</ul>
               </section>
-              {endsSection && (
-                <>
+              {endsSection &&
+                (watchTopTitle.trim() ? (
+                  <div className="watch-top-title-wrap">
+                    <div className="watch-top-title-ornament" aria-hidden />
+                    <h2 className="watch-top-title">{watchTopTitle.trim()}</h2>
+                    <div className="watch-top-title-ornament" aria-hidden />
+                  </div>
+                ) : (
                   <div className="study-room-divider" aria-hidden />
-                  {watchTopTitle.trim() ? <h2 className="watch-top-title">{watchTopTitle.trim()}</h2> : null}
-                </>
-              )}
+                ))}
             </div>
           );
         }
