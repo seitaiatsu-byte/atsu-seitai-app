@@ -70,7 +70,7 @@ export default function AdminWatchTopTitleSection() {
         会員画面の見出し文言
       </h2>
       <p className="text-xs text-slate-500 leading-relaxed">
-        TOPタイトルと、あいさつ枠の「🅰〜」の後ろの文言を編集できます（全院共通）。
+        TOPタイトルと、あいさつカードの顔の横の文言を編集できます（全院共通）。
       </p>
       <div className="bg-white rounded-xl border p-4 space-y-2">
         <label className="text-xs font-bold text-slate-500">TOPタイトル</label>
@@ -91,14 +91,16 @@ export default function AdminWatchTopTitleSection() {
         </button>
       </div>
       <div className="bg-white rounded-xl border p-4 space-y-2">
-        <label className="text-xs font-bold text-slate-500">あいさつ枠の文言（🅰の後ろ）</label>
+        <label className="text-xs font-bold text-slate-500">顔の横の文言（枠の外・上部）</label>
         <input
           value={greetingLabel}
           onChange={(e) => setGreetingLabel(e.target.value)}
           className="w-full px-3 py-2 rounded-lg border text-sm"
           placeholder={DEFAULT_GREETING_ZONE_LABEL}
         />
-        <p className="text-[11px] text-slate-500">表示例：🅰{greetingLabel.trim() || DEFAULT_GREETING_ZONE_LABEL}</p>
+        <p className="text-[11px] text-slate-500">
+          あいさつカードの顔の真横に出ます。枠内の2行タイトルは「小部屋マスター → 挨拶動画」で Enter 改行して編集できます。
+        </p>
         <button
           type="button"
           disabled={savingGreeting}

@@ -69,84 +69,33 @@ function GreetingVideoCard({
   onPlay: (video: ActivePlayback) => void;
 }) {
   const { text: titleText } = parseSubRoomTitle(greeting.title);
-  const pending = !locked && !greeting.has_video;
   const label = (zoneLabel || DEFAULT_GREETING_ZONE_LABEL).trim() || DEFAULT_GREETING_ZONE_LABEL;
+  const canPlay = !locked && greeting.has_video;
 
   return (
-    <li className={`greeting-item ${pending || locked ? 'greeting-item--aside' : ''}`}>
+    <li className="greeting-item">
       <button
         type="button"
-        disabled={locked || !greeting.has_video}
+        disabled={!canPlay}
         onClick={() => {
-          if (locked || !greeting.has_video) return;
+          if (!canPlay) return;
           onPlay({ id: greeting.id, title: greeting.title, kind: 'greeting' });
         }}
         className={`greeting-shell ${
           locked
             ? 'greeting-shell--locked cursor-not-allowed'
-            : pending
-              ? 'greeting-shell--pending cursor-not-allowed'
-              : 'hover:brightness-[0.985] active:brightness-[0.97]'
+            : canPlay
+              ? 'hover:brightness-[0.99] active:brightness-[0.97]'
+              : 'greeting-shell--disabled cursor-not-allowed'
         }`}
       >
-        <img src="/greeting-shell.png?v=2" alt="" className="greeting-shell-bg" draggable={false} />
-
-        <div className="greeting-shell-topline">
-          <span className={`greeting-slot ${locked ? 'greeting-slot--locked' : ''}`}>{greeting.slot_code}</span>
-          <span className={`greeting-zone-name ${locked ? '!text-slate-500' : ''}`}>{label}</span>
-        </div>
-
-        <div className="greeting-shell-body">
-          <p className={`greeting-title ${locked ? '!text-slate-500' : ''}`}>{titleText}</p>
-          <div className={`greeting-hint ${locked ? '!text-slate-400' : ''}`}>
-            {!locked ? (
-              <span className="greeting-tap-icon" aria-hidden>
-                <svg viewBox="0 0 28 28" width="18" height="18" fill="none">
-                  <path
-                    d="M11.2 13.2V8.1a1.45 1.45 0 0 1 2.9 0v7.2"
-                    stroke="#5b6570"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M14.1 15.3V11a1.35 1.35 0 1 1 2.7 0v4.5"
-                    stroke="#5b6570"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M16.8 15.8v-2.4a1.25 1.25 0 1 1 2.5 0v2.8"
-                    stroke="#5b6570"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M11.2 16.2v1.5c0 2.5 1.7 4.5 4.1 4.7 2.7.3 5-1.9 5-4.6v-2.1"
-                    stroke="#5b6570"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M11.2 15.1c-1.3.3-2.3 1.1-2.6 2.2-.5 1.6.4 3.1 1.8 3.8"
-                    stroke="#5b6570"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M17.2 6.1l.8-1.5M19.6 7.4l1.4-.9M15.2 5.4l-.2-1.5"
-                    stroke="#5b6570"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </span>
-            ) : null}
-            <span>{locked ? 'プログラム対象外' : 'タップしてください'}</span>
-          </div>
-        </div>
+        <img src="/greeting-shell.png?v=3" alt="" className="greeting-shell-bg" draggable={false} />
+        <p className={`greeting-head-label ${locked ? '!text-slate-500' : ''}`}>{label}</p>
+        <p className={`greeting-title ${locked ? '!text-slate-500' : ''}`}>{titleText}</p>
+        <span className={`greeting-play ${!canPlay ? 'greeting-play--off' : ''}`} aria-hidden>
+          {locked ? <Lock size={18} className="text-slate-500" /> : <span className="greeting-play-triangle" />}
+        </span>
       </button>
-      {pending ? <span className="greeting-aside">（準備中です）</span> : null}
-      {locked ? <span className="greeting-aside">鍵付き</span> : null}
     </li>
   );
 }
