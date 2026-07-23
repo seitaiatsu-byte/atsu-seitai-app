@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { getR2Config, isR2Path, presignR2Get, toR2Key } from '../_shared/r2.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -129,6 +130,15 @@ Deno.serve(async (req) => {
           return json({ error: 'このプログラムでは再生できません' }, 403);
         }
       }
+    }
+
+    if (isR2Path(storagePath!)) {
+      const r2 = getR2Config();
+      if (!r2) {
+        return json({ error: 'R2 が未設定のためこの動画を再生できません' }, 500);
+      }
+      const signedUrl = await presignR2Get(r2, toR2Key(storagePath!), 3600);
+      return json({ signed_url: signedUrl }, 200);
     }
 
     const { data: signed, error: signErr } = await admin.storage

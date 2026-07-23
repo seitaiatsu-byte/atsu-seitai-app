@@ -1,0 +1,151 @@
+【Cloudflare R2 動画置き場セットアップ（イチから）】
+
+会員データ・ログインは今までどおり Supabase。
+変わるのは「動画ファイルの箱」だけです。
+所要時間の目安: 15〜25分
+
+準備するもの
+・パソコンのブラウザ
+・メールアドレス（Cloudflare用。新規でOK）
+・すでに使っている Supabase「Atsu-System」に入れること
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+① Cloudflare アカウントを作る
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. ブラウザで開く
+   https://dash.cloudflare.com/sign-up
+
+2. メールとパスワードで登録し、メール認証する
+
+3. ログインできたらOK（「サイトを追加」はスキップしてよい）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+② R2 を有効にする
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 左メニューで 「R2オブジェクトストレージ」 または 「R2」 を押す
+   （英語UIなら “R2 Object Storage”）
+
+2. 初回だけ「購入 / Purchase」や同意のボタンが出ることがある
+   → 無料枠がある。カード登録を求められたら画面の案内に従う
+     （従量課金。保存が10GBを超えた分だけ少額）
+
+3. R2 のトップ画面が出たらOK
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+③ 動画用バケットを作る
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 「バケットを作成 / Create bucket」
+
+2. バケット名を正確に入れる（コピペ推奨）:
+   care-videos
+
+3. ロケーションはデフォルトのままでOK
+
+4. 「作成 / Create」
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+④ CORS を設定する（これを忘れるとアップ失敗）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 作ったバケット care-videos を開く
+
+2. 「設定 / Settings」タブ
+
+3. 「CORSポリシー / CORS Policy」を編集
+
+4. 次をそのまま貼り付けて保存:
+
+[
+  {
+    "AllowedOrigins": [
+      "https://atsu-care-portal.vercel.app",
+      "http://localhost:5173"
+    ],
+    "AllowedMethods": ["GET", "PUT", "HEAD", "DELETE"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag", "Content-Length"],
+    "MaxAgeSeconds": 3600
+  }
+]
+
+※ 独自ドメインで運営している場合は、その https://〜 も AllowedOrigins に追加
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⑤ APIトークン（鍵）を作る
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. R2 の概要画面に戻り 「APIを管理 / Manage R2 API Tokens」
+
+2. 「APIトークンを作成 / Create API token」
+
+3. 権限:
+   ・オブジェクト読み取りと書き込み（Object Read & Write）
+   ・適用先: バケット care-videos だけ、またはアカウント全体
+
+4. 作成後、次の3つをメモ帳に控える（秘密のキーは後から再表示できない）
+   ・Access Key ID
+   ・Secret Access Key
+   ・Account ID（画面上に表示。Cloudflare右サイドやR2概要にもある）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⑥ Supabase に鍵を登録する
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. https://supabase.com/dashboard を開く
+
+2. プロジェクト 「Atsu-System」 を開く
+
+3. 左メニュー 「Edge Functions」 → 「Secrets」（または Project Settings → Edge Functions → Secrets）
+
+4. 次の名前で、⑤で控えた値を1つずつ追加する
+
+   名前: R2_ACCOUNT_ID
+   値: （Account ID）
+
+   名前: R2_ACCESS_KEY_ID
+   値: （Access Key ID）
+
+   名前: R2_SECRET_ACCESS_KEY
+   値: （Secret Access Key）
+
+   名前: R2_BUCKET_NAME
+   値: care-videos
+
+5. 保存
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⑦ Edge Function をデプロイする（こちらで案内・代行可）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+パソコンに Supabase CLI が入っている場合（care-portal フォルダで）:
+
+  npx supabase functions deploy care-video-upload --project-ref gkpyqnkrsntozquwnxhw
+  npx supabase functions deploy care-video-playback --project-ref gkpyqnkrsntozquwnxhw
+
+ログインを求められたらブラウザで許可する。
+
+※ フロント（Vercel）の再デプロイも必要。コード反映後に行う。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⑧ 動作確認
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. https://atsu-care-portal.vercel.app/admin/login にスタッフログイン
+
+2. 挨拶動画A に 100MB超の動画をアップロード
+
+3. 成功したら会員画面で再生できるか確認
+
+うまくいかないとき
+・CORS の AllowedOrigins に本番URLが入っているか
+・Secrets の名前のスペル（R2_ACCOUNT_ID など）が完全一致か
+・バケット名が care-videos か
+・⑤の Secret を間違えてコピーしていないか（作り直してOK）
+
+完了後
+・新しい動画は R2 に保存されます
+・会員・タイトル・公開設定は今までどおり Supabase です
+・古い（小さい）動画が Supabase 側に残っていても再生は継続できます

@@ -332,6 +332,115 @@ export async function fetchPlaybackUrl(
   return json.signed_url;
 }
 
+const R2_PATH_PREFIX = 'r2:';
+const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
+
+function isR2StoragePath(path: string): boolean {
+  return path.startsWith(R2_PATH_PREFIX);
+}
+
+async function getStaffAccessToken(): Promise<string> {
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session?.access_token) {
+    throw new Error('スタッフとしてログインしてください');
+  }
+  return data.session.access_token;
+}
+
+/** R2 が設定されていれば R2、未設定なら従来の Supabase Storage */
+async function uploadCareVideoObject(storagePath: string, file: File): Promise<string> {
+  if (file.size > MAX_VIDEO_BYTES) {
+    throw new Error('ファイルは500MB以下にしてください');
+  }
+
+  const contentType = file.type || 'video/mp4';
+  const token = await getStaffAccessToken();
+  const base = functionsBaseUrl();
+  const res = await fetch(`${base}/care-video-upload`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      action: 'presign',
+      storage_path: storagePath,
+      content_type: contentType,
+    }),
+  });
+
+  if (res.status === 503) {
+    const { error: upErr } = await supabase.storage.from('care-videos').upload(storagePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType,
+    });
+    if (upErr) {
+      const mb = (file.size / (1024 * 1024)).toFixed(1);
+      const msg = upErr.message || '';
+      if (/exceeded the maximum allowed size|maximum allowed size|Payload too large|413/i.test(msg)) {
+        throw new Error(
+          `ファイルが大きすぎます（${mb}MB）。Cloudflare R2 の設定がまだの場合は、案内どおり設定してください。`
+        );
+      }
+      throw new Error(upErr.message);
+    }
+    return storagePath;
+  }
+
+  const json = (await res.json()) as {
+    upload_url?: string;
+    storage_path?: string;
+    content_type?: string;
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok || !json.upload_url || !json.storage_path) {
+    throw new Error(json.message || json.error || 'アップロードURLの取得に失敗しました');
+  }
+
+  const put = await fetch(json.upload_url, {
+    method: 'PUT',
+    headers: { 'Content-Type': json.content_type || contentType },
+    body: file,
+  });
+  if (!put.ok) {
+    const text = await put.text().catch(() => '');
+    throw new Error(`動画のアップロードに失敗しました（${put.status}）${text ? `: ${text.slice(0, 120)}` : ''}`);
+  }
+  return json.storage_path;
+}
+
+async function removeCareVideoObject(storagePath: string | null | undefined) {
+  if (!storagePath) return;
+  if (isR2StoragePath(storagePath)) {
+    try {
+      const token = await getStaffAccessToken();
+      await fetch(`${functionsBaseUrl()}/care-video-upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ action: 'delete', storage_path: storagePath }),
+      });
+    } catch {
+      // best-effort
+    }
+    return;
+  }
+  await supabase.storage.from('care-videos').remove([storagePath]);
+}
+
+async function removeCareVideoObjects(paths: string[]) {
+  const unique = [...new Set(paths.filter(Boolean))];
+  for (const p of unique) {
+    await removeCareVideoObject(p);
+  }
+}
+
 export async function isStaffUser(): Promise<boolean> {
   const { data, error } = await supabase.rpc('care_is_staff');
   if (error) return false;
@@ -497,7 +606,7 @@ export async function adminDeleteRoom(roomId: string) {
   const videos = await adminListRoomVideos(roomId);
   const paths = videos.map((v) => v.storage_path).filter(Boolean);
   if (paths.length > 0) {
-    await supabase.storage.from('care-videos').remove(paths);
+    await removeCareVideoObjects(paths);
   }
   const { error } = await supabase.from('care_member_rooms').delete().eq('id', roomId);
   if (error) throw new Error(error.message);
@@ -554,20 +663,11 @@ export async function adminUploadGreetingVideo(slot: GreetingSlot, file: File, t
   const row = existing.find((g) => g.slot_code === slot);
   const oldPath = row?.storage_path;
 
-  const { error: upErr } = await supabase.storage.from('care-videos').upload(storagePath, file, {
-    cacheControl: '3600',
-    upsert: false,
-    contentType: file.type || 'video/mp4',
-  });
-  if (upErr) {
-    const mb = (file.size / (1024 * 1024)).toFixed(1);
-    const msg = upErr.message || '';
-    if (/exceeded the maximum allowed size|maximum allowed size|Payload too large|413/i.test(msg)) {
-      throw new Error(
-        `ファイルが大きすぎます（${mb}MB）。Supabase の care-videos バケット上限を 500MB に上げてから再試行してください。`
-      );
-    }
-    throw new Error(upErr.message);
+  let uploadedPath: string;
+  try {
+    uploadedPath = await uploadCareVideoObject(storagePath, file);
+  } catch (e) {
+    throw e instanceof Error ? e : new Error('アップロードに失敗しました');
   }
 
   const { error: dbErr } = await supabase
@@ -575,7 +675,7 @@ export async function adminUploadGreetingVideo(slot: GreetingSlot, file: File, t
     .update({
       id: videoId,
       title: title.trim() || DEFAULT_GREETING_TITLES[slot],
-      storage_path: storagePath,
+      storage_path: uploadedPath,
       file_size: file.size,
       is_published: true,
       uploaded_at: new Date().toISOString(),
@@ -584,12 +684,12 @@ export async function adminUploadGreetingVideo(slot: GreetingSlot, file: File, t
     .eq('slot_code', slot);
 
   if (dbErr) {
-    await supabase.storage.from('care-videos').remove([storagePath]);
+    await removeCareVideoObject(uploadedPath);
     throw new Error(dbErr.message);
   }
 
-  if (oldPath && oldPath !== storagePath) {
-    await supabase.storage.from('care-videos').remove([oldPath]);
+  if (oldPath && oldPath !== uploadedPath) {
+    await removeCareVideoObject(oldPath);
   }
 }
 
@@ -609,7 +709,7 @@ export async function adminDeleteGreetingVideo(slot: GreetingSlot) {
     })
     .eq('slot_code', slot);
   if (error) throw new Error(error.message);
-  await supabase.storage.from('care-videos').remove([row.storage_path]);
+  await removeCareVideoObject(row.storage_path);
 }
 
 export async function adminListWatchLayout(): Promise<WatchLayoutItemKey[]> {
@@ -885,7 +985,6 @@ export async function adminUploadRoomGreetingOverride(
   title: string
 ) {
   if (!file) throw new Error('動画ファイルを選択してください');
-  if (file.size > 500 * 1024 * 1024) throw new Error('ファイルは500MB以下にしてください');
 
   const existing = (await adminListRoomGreetingOverrides(roomId)).find((r) => r.slot_code === slot);
   const oldPath = existing?.storage_path || null;
@@ -893,19 +992,14 @@ export async function adminUploadRoomGreetingOverride(
   const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
   const storagePath = `greeting-override/${roomId}/${slot}/${videoId}.${ext}`;
 
-  const { error: upErr } = await supabase.storage.from('care-videos').upload(storagePath, file, {
-    cacheControl: '3600',
-    upsert: false,
-    contentType: file.type || 'video/mp4',
-  });
-  if (upErr) throw new Error(upErr.message);
+  const uploadedPath = await uploadCareVideoObject(storagePath, file);
 
   const payload = {
     room_id: roomId,
     slot_code: slot,
     id: videoId,
     title: title.trim() || DEFAULT_GREETING_TITLES[slot],
-    storage_path: storagePath,
+    storage_path: uploadedPath,
     file_size: file.size,
     is_published: true,
     uploaded_at: new Date().toISOString(),
@@ -916,11 +1010,11 @@ export async function adminUploadRoomGreetingOverride(
     onConflict: 'room_id,slot_code',
   });
   if (error) {
-    await supabase.storage.from('care-videos').remove([storagePath]);
+    await removeCareVideoObject(uploadedPath);
     throw new Error(error.message);
   }
-  if (oldPath && oldPath !== storagePath) {
-    await supabase.storage.from('care-videos').remove([oldPath]);
+  if (oldPath && oldPath !== uploadedPath) {
+    await removeCareVideoObject(oldPath);
   }
 }
 
@@ -936,7 +1030,7 @@ export async function adminDeleteRoomGreetingOverride(roomId: string, slot: Gree
     .eq('slot_code', slot);
   if (error) throw new Error(error.message);
   if (row.storage_path) {
-    await supabase.storage.from('care-videos').remove([row.storage_path]);
+    await removeCareVideoObject(row.storage_path);
   }
 }
 
@@ -957,12 +1051,7 @@ export async function adminUploadVideo(
   const videoId = crypto.randomUUID();
   const storagePath = `${roomId}/${videoId}.${ext}`;
 
-  const { error: upErr } = await supabase.storage.from('care-videos').upload(storagePath, file, {
-    cacheControl: '3600',
-    upsert: false,
-    contentType: file.type || 'video/mp4',
-  });
-  if (upErr) throw new Error(upErr.message);
+  const uploadedPath = await uploadCareVideoObject(storagePath, file);
 
   const { data, error } = await supabase
     .from('care_room_videos')
@@ -971,7 +1060,7 @@ export async function adminUploadVideo(
       room_id: roomId,
       title: meta.title.trim() || file.name,
       description: meta.description?.trim() || '',
-      storage_path: storagePath,
+      storage_path: uploadedPath,
       file_size: file.size,
       sort_order: meta.sortOrder ?? 0,
       sub_room_slot: meta.subRoomSlot ?? 1,
@@ -981,7 +1070,7 @@ export async function adminUploadVideo(
     .single();
 
   if (error) {
-    await supabase.storage.from('care-videos').remove([storagePath]);
+    await removeCareVideoObject(uploadedPath);
     throw new Error(error.message);
   }
   return data.id as string;
@@ -995,7 +1084,7 @@ export async function adminToggleVideoPublish(videoId: string, isPublished: bool
 export async function adminDeleteVideo(video: CareRoomVideoRow) {
   const { error: dbErr } = await supabase.from('care_room_videos').delete().eq('id', video.id);
   if (dbErr) throw new Error(dbErr.message);
-  await supabase.storage.from('care-videos').remove([video.storage_path]);
+  await removeCareVideoObject(video.storage_path);
 }
 
 export async function adminSignIn(email: string, password: string) {
