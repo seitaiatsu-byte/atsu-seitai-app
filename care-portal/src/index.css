@@ -737,7 +737,7 @@ body {
 }
 
 .watch-section-divider {
-  height: 3rem;
+  height: 4.2rem;
   display: flex;
   align-items: center;
   justify-content: stretch;
@@ -780,7 +780,10 @@ body {
   padding: 0.7rem 0.85rem 0.75rem 0.7rem;
   border-radius: 0.95rem;
   background: #f7e9b8;
-  box-shadow: 0 1px 2px rgba(61, 52, 40, 0.08);
+  border: 2.5px solid #e0b84a;
+  box-shadow:
+    0 0 0 1px rgba(255, 236, 170, 0.85) inset,
+    0 1px 2px rgba(61, 52, 40, 0.08);
 }
 
 .watch-bridge-banner-logo {
