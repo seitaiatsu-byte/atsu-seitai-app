@@ -527,90 +527,36 @@ body {
 .greeting-item {
   position: relative;
   overflow: visible;
-  margin: 0;
-  width: 100%;
+  margin-top: 0.55rem;
+  margin-left: 0.45rem;
 }
 
-.greeting-shell {
-  appearance: none;
-  -webkit-appearance: none;
+.greeting-card {
   position: relative;
-  display: block;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent !important;
-  box-shadow: none !important;
-  color: inherit;
-  aspect-ratio: 1024 / 535;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.7rem;
+  padding: 1rem 1rem 0.85rem;
   overflow: visible;
+  min-height: auto;
+  background: #fff4e8 !important;
+  border: 2px solid #e08a3c !important;
+  box-shadow: 0 1px 2px rgba(176, 98, 40, 0.12);
 }
 
-.greeting-shell--locked,
-.greeting-shell--disabled {
-  opacity: 0.78;
-  filter: grayscale(0.35);
+.greeting-card--locked,
+.greeting-card--disabled {
+  background: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+  opacity: 0.75;
+  filter: grayscale(1);
 }
 
-.greeting-shell-bg {
+.greeting-mascot {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center center;
-  display: block;
-  pointer-events: none;
-  user-select: none;
-}
-
-/* 顔の真横・枠の外上部（編集：マスター「あいさつ枠の文言」） */
-.greeting-head-label {
-  position: absolute;
-  left: 26%;
-  top: 8%;
-  z-index: 2;
-  margin: 0;
-  max-width: 68%;
-  font-size: clamp(0.95rem, 3.8vw, 1.15rem);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: #1a4595;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  pointer-events: none;
-}
-
-/* 枠内・中央の2行太字（編集：各あいさつタイトル／Enter改行） */
-.greeting-title {
-  position: absolute;
-  left: 10%;
-  right: 8%;
-  top: 38%;
-  z-index: 2;
-  margin: 0;
-  font-size: clamp(0.98rem, 3.8vw, 1.15rem);
-  font-weight: 800;
-  line-height: 1.4;
-  letter-spacing: 0.01em;
-  color: #111;
-  text-align: center;
-  white-space: pre-line;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  max-height: calc(1.4em * 2);
-  overflow: hidden;
-  pointer-events: none;
-}
-
-/* 青い枠の左下に再生▶ */
-.greeting-play {
-  position: absolute;
-  left: 7.5%;
-  bottom: 14%;
+  top: -0.55rem;
+  left: -0.55rem;
   z-index: 3;
   width: 2.35rem;
   height: 2.35rem;
@@ -618,24 +564,41 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--member-teal, #2f8c95);
-  box-shadow: 0 1px 2px rgba(47, 140, 149, 0.28);
-  pointer-events: none;
+  overflow: hidden;
+  background: #fff8f1;
+  border: 2px solid #e08a3c;
+  box-shadow: 0 1px 3px rgba(176, 98, 40, 0.18);
+  color: #9a5a28;
 }
 
-.greeting-play--off {
-  background: #cbd5e1;
-  box-shadow: none;
+.greeting-mascot--locked {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #64748b;
 }
 
-.greeting-play-triangle {
+.greeting-mascot-img {
+  width: 118%;
+  height: 118%;
+  object-fit: cover;
+  object-position: center 12%;
   display: block;
-  width: 0;
-  height: 0;
-  margin-left: 0.12rem;
-  border-style: solid;
-  border-width: 0.4rem 0 0.4rem 0.68rem;
-  border-color: transparent transparent transparent #fff;
+  background: transparent;
+}
+
+.greeting-card .sub-room-title {
+  padding-left: 1.55rem;
+  max-height: calc(1.4em * 2);
+  min-height: calc(1.4em * 2);
+}
+
+.greeting-play-btn {
+  background: #e08a3c;
+  box-shadow: 0 1px 2px rgba(176, 98, 40, 0.28);
+}
+
+.greeting-card .sub-room-action-text {
+  color: #c45f12;
 }
 
 .study-room-divider {

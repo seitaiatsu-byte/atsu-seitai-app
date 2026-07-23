@@ -6,7 +6,6 @@ import MemberPageShell from '../components/member/MemberPageShell';
 import {
   fetchMaterialUrl,
   fetchPlaybackUrl,
-  getMemberGreetingZoneLabel,
   getMemberStudyRoom,
   getMemberWatchTopTitle,
   listMemberGreetingVideos,
@@ -20,7 +19,6 @@ import {
   type CareVideoItem,
 } from '../lib/careApi';
 import type { GreetingVideoItem } from '../lib/greetingVideos';
-import { DEFAULT_GREETING_ZONE_LABEL } from '../lib/greetingVideos';
 import { LOCKED_ITEM_MESSAGE } from '../lib/programTiers';
 import { formatVideoCount, showsSubRoomNumber, parseSubRoomTitle, subRoomTitleAlignClass, type SubRoomItem } from '../lib/subRooms';
 import { clearSession, loadLastRoomCode, loadSession, rememberLastRoomCode, saveSession } from '../lib/session';
@@ -60,16 +58,13 @@ function formatDate(iso: string) {
 function GreetingVideoCard({
   greeting,
   locked,
-  zoneLabel,
   onPlay,
 }: {
   greeting: GreetingVideoItem;
   locked?: boolean;
-  zoneLabel: string;
   onPlay: (video: ActivePlayback) => void;
 }) {
-  const { text: titleText } = parseSubRoomTitle(greeting.title);
-  const label = (zoneLabel || DEFAULT_GREETING_ZONE_LABEL).trim() || DEFAULT_GREETING_ZONE_LABEL;
+  const { align, text: titleText } = parseSubRoomTitle(greeting.title);
   const canPlay = !locked && greeting.has_video;
 
   return (
@@ -81,20 +76,34 @@ function GreetingVideoCard({
           if (!canPlay) return;
           onPlay({ id: greeting.id, title: greeting.title, kind: 'greeting' });
         }}
-        className={`greeting-shell ${
+        className={`greeting-card member-card w-full text-left transition-colors ${
           locked
-            ? 'greeting-shell--locked cursor-not-allowed'
+            ? 'greeting-card--locked cursor-not-allowed'
             : canPlay
               ? 'hover:brightness-[0.99] active:brightness-[0.97]'
-              : 'greeting-shell--disabled cursor-not-allowed'
+              : 'greeting-card--disabled cursor-not-allowed'
         }`}
       >
-        <img src="/greeting-shell.png?v=3" alt="" className="greeting-shell-bg" draggable={false} />
-        <p className={`greeting-head-label ${locked ? '!text-slate-500' : ''}`}>{label}</p>
-        <p className={`greeting-title ${locked ? '!text-slate-500' : ''}`}>{titleText}</p>
-        <span className={`greeting-play ${!canPlay ? 'greeting-play--off' : ''}`} aria-hidden>
-          {locked ? <Lock size={18} className="text-slate-500" /> : <span className="greeting-play-triangle" />}
-        </span>
+        <div className={`greeting-mascot ${locked ? 'greeting-mascot--locked' : ''}`} aria-hidden>
+          {locked ? (
+            <Lock size={16} strokeWidth={2.25} />
+          ) : (
+            <img src="/greeting-mascot.png?v=5" alt="" className="greeting-mascot-img" draggable={false} />
+          )}
+        </div>
+        <p className={`sub-room-title ${subRoomTitleAlignClass(align)} ${locked ? '!text-slate-500' : ''}`}>
+          {titleText}
+        </p>
+        <div className="sub-room-action-row">
+          <div className="sub-room-action-center">
+            <div className={`sub-room-play greeting-play-btn shrink-0 ${!canPlay ? 'sub-room-play--locked' : ''}`} aria-hidden>
+              {locked ? <Lock size={22} className="text-slate-500" /> : <span className="sub-room-play-triangle" />}
+            </div>
+            <p className={`sub-room-action-text ${locked ? '!text-slate-500' : ''}`}>
+              {locked ? '鍵付き（プログラム対象外）' : greeting.has_video ? 'タップして中をみる' : '準備中です'}
+            </p>
+          </div>
+        </div>
       </button>
     </li>
   );
@@ -161,7 +170,6 @@ export default function RoomVideosPage({ onLogout }: Props) {
   const [activeStudyKey, setActiveStudyKey] = useState<StudyRoomKey | null>(null);
   const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
   const [watchTopTitle, setWatchTopTitle] = useState(DEFAULT_WATCH_TOP_TITLE);
-  const [greetingZoneLabel, setGreetingZoneLabel] = useState(DEFAULT_GREETING_ZONE_LABEL);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [previewImageTitle, setPreviewImageTitle] = useState('');
   const [watchLayout, setWatchLayout] = useState<WatchLayoutItemKey[]>([...DEFAULT_WATCH_LAYOUT_KEYS]);
@@ -234,7 +242,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
         setSession(next);
       }
       try {
-        const [studyResults, topTitle, zoneLabel] = await Promise.all([
+        const [studyResults, topTitle] = await Promise.all([
           Promise.all(
             STUDY_ROOM_KEYS.map(async (key) => {
               try {
@@ -245,7 +253,6 @@ export default function RoomVideosPage({ onLogout }: Props) {
             })
           ),
           getMemberWatchTopTitle(token),
-          getMemberGreetingZoneLabel(token),
         ]);
         const next: Partial<Record<StudyRoomKey, StudyRoomSummary>> = {};
         for (const [key, summary] of studyResults) {
@@ -253,7 +260,6 @@ export default function RoomVideosPage({ onLogout }: Props) {
         }
         setStudyByKey(next);
         setWatchTopTitle(topTitle);
-        setGreetingZoneLabel(zoneLabel);
       } catch {
         setStudyByKey({});
       }
@@ -547,7 +553,6 @@ export default function RoomVideosPage({ onLogout }: Props) {
                     key={gKey}
                     greeting={greeting}
                     locked={!isUnlocked(gKey)}
-                    zoneLabel={greetingZoneLabel}
                     onPlay={(v) => void handlePlay(v)}
                   />
                 );
