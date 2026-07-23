@@ -529,12 +529,33 @@ export default function RoomVideosPage({ onLogout }: Props) {
                   <div className="watch-top-title-wrap">
                     <div className="watch-top-title-gap">
                       <div className="watch-top-title-ornament" aria-hidden />
-                      <img
-                        src="/watch-bridge-banner.png?v=2"
-                        alt="何をやれば正解か分からない。結局1人だとやめちゃう。将来の体に不安がある、そんなあなたへ"
-                        className="watch-bridge-banner"
-                        draggable={false}
-                      />
+                      <div className="watch-bridge-banner-card">
+                        <img
+                          src="/clinic-logo.png"
+                          alt="a2 ReCONDITIONING STATION"
+                          className="watch-bridge-banner-logo"
+                          width={96}
+                          height={96}
+                          draggable={false}
+                        />
+                        <div className="watch-bridge-banner-copy">
+                          <p className="watch-bridge-line">
+                            <span className="watch-bridge-bullet" aria-hidden>
+                              ▶
+                            </span>
+                            何をやれば
+                            <span className="watch-bridge-accent">“正解”</span>
+                            か分からない
+                          </p>
+                          <p className="watch-bridge-line">
+                            <span className="watch-bridge-bullet" aria-hidden>
+                              ▶
+                            </span>
+                            結局1人だと…やめちゃう
+                          </p>
+                          <p className="watch-bridge-closing">将来の体に不安がある、そんなあなたへ</p>
+                        </div>
+                      </div>
                     </div>
                     <div className="watch-top-title-bubble">
                       <h2 className="watch-top-title">{watchTopTitle.trim()}</h2>
