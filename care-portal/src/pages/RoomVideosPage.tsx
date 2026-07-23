@@ -527,8 +527,14 @@ export default function RoomVideosPage({ onLogout }: Props) {
               {endsSection &&
                 (watchTopTitle.trim() ? (
                   <div className="watch-top-title-wrap">
-                    <div className="watch-top-title-gap" aria-hidden>
-                      <div className="watch-top-title-ornament" />
+                    <div className="watch-top-title-gap">
+                      <div className="watch-top-title-ornament" aria-hidden />
+                      <img
+                        src="/watch-bridge-banner.png"
+                        alt="何をやれば正解か分からない。結局1人だとやめちゃう。将来の体に不安がある、そんなあなたへ"
+                        className="watch-bridge-banner"
+                        draggable={false}
+                      />
                     </div>
                     <div className="watch-top-title-bubble">
                       <h2 className="watch-top-title">{watchTopTitle.trim()}</h2>
