@@ -668,43 +668,47 @@ export default function RoomVideosPage({ onLogout }: Props) {
       )}
 
       {previewImageUrl && (
-        <div className="bg-member-gold-deep">
+        <div className="bg-[#1a5c63]">
           <img src={previewImageUrl} alt={previewImageTitle} className="w-full max-h-[70vh] object-contain bg-black" />
-          <div className="px-4 py-3 bg-member-gold-deep text-white flex items-center gap-2 border-t border-white/10">
+          <div className="px-4 py-3 bg-[#1a5c63] text-white flex items-start gap-3 border-t border-white/15">
             <button
               type="button"
               onClick={() => {
                 setPreviewImageUrl('');
                 setPreviewImageTitle('');
               }}
-              className="member-btn-secondary px-3 py-2 text-base shrink-0 !text-member-gold-deep"
+              className="shrink-0 rounded-lg bg-pink-100 text-member-text font-black text-base px-3.5 py-2.5 leading-none shadow-sm border border-pink-200"
             >
-              ← 一覧へ
+              ✖　もどる
             </button>
-            <p className="text-base font-bold truncate flex-1">{previewImageTitle}</p>
+            <p className="text-base sm:text-lg font-bold leading-snug flex-1 line-clamp-2 min-w-0 pt-0.5">
+              {previewImageTitle}
+            </p>
           </div>
         </div>
       )}
 
       {activeVideo && (
-        <div className="bg-member-gold-deep">
+        <div className="bg-[#1a5c63]">
           {playbackLoading ? (
             <div className="aspect-video flex items-center justify-center text-white text-lg">動画を準備しています…</div>
           ) : playbackUrl ? (
             <VideoPlayer src={playbackUrl} title={activeVideo.title} />
           ) : null}
-          <div className="px-4 py-3 bg-member-gold-deep text-white flex items-center gap-2 border-t border-white/10">
+          <div className="px-4 py-3 bg-[#1a5c63] text-white flex items-start gap-3 border-t border-white/15">
             <button
               type="button"
               onClick={() => {
                 setActiveVideo(null);
                 setPlaybackUrl('');
               }}
-              className="member-btn-secondary px-3 py-2 text-base shrink-0 !text-member-gold-deep"
+              className="shrink-0 rounded-lg bg-pink-100 text-member-text font-black text-base px-3.5 py-2.5 leading-none shadow-sm border border-pink-200"
             >
-              ← 一覧へ
+              ✖　もどる
             </button>
-            <p className="text-base font-bold truncate flex-1">{activeVideo.title}</p>
+            <p className="text-base sm:text-lg font-bold leading-snug flex-1 line-clamp-2 min-w-0 pt-0.5">
+              {activeVideo.title}
+            </p>
           </div>
         </div>
       )}
