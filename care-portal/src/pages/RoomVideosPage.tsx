@@ -81,27 +81,22 @@ function GreetingVideoCard({
           if (locked || !greeting.has_video) return;
           onPlay({ id: greeting.id, title: greeting.title, kind: 'greeting' });
         }}
-        className={`greeting-wrap w-full text-left ${
+        className={`greeting-shell ${
           locked
-            ? 'greeting-wrap--locked cursor-not-allowed'
+            ? 'greeting-shell--locked cursor-not-allowed'
             : pending
-              ? 'greeting-wrap--pending cursor-not-allowed'
+              ? 'greeting-shell--pending cursor-not-allowed'
               : 'hover:brightness-[0.985] active:brightness-[0.97]'
         }`}
       >
-        <div className="greeting-head">
-          <div className={`greeting-mascot ${locked ? 'greeting-mascot--locked' : ''}`} aria-hidden>
-            {locked ? (
-              <Lock size={22} strokeWidth={2.25} />
-            ) : (
-              <img src="/greeting-mascot.png?v=4" alt="" className="greeting-mascot-img" draggable={false} />
-            )}
-          </div>
+        <img src="/greeting-shell.png?v=2" alt="" className="greeting-shell-bg" draggable={false} />
+
+        <div className="greeting-shell-topline">
           <span className={`greeting-slot ${locked ? 'greeting-slot--locked' : ''}`}>{greeting.slot_code}</span>
           <span className={`greeting-zone-name ${locked ? '!text-slate-500' : ''}`}>{label}</span>
         </div>
 
-        <div className="greeting-card">
+        <div className="greeting-shell-body">
           <p className={`greeting-title ${locked ? '!text-slate-500' : ''}`}>{titleText}</p>
           <div className={`greeting-hint ${locked ? '!text-slate-400' : ''}`}>
             {!locked ? (
