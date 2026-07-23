@@ -528,9 +528,9 @@ body {
   width: 100%;
 }
 
-/* B/C がブロック先頭（上の小部屋枠の直後）のとき、上余白を約2倍 */
+/* B/C がブロック先頭（上の小部屋枠の直後）のとき、上余白を今の約2倍 */
 .greeting-zone-block--spaced-top {
-  margin-top: 0.75rem;
+  margin-top: 2.25rem;
 }
 
 .greeting-item {
@@ -540,7 +540,7 @@ body {
   margin-left: 0.45rem;
 }
 
-/* B・C は上の枠とのあいだを約2倍 */
+/* B・C は上の枠とのあいだをさらに確保 */
 .greeting-item--b,
 .greeting-item--c {
   margin-top: 1.1rem;
@@ -548,22 +548,22 @@ body {
 
 .greeting-list > .greeting-item--b:first-child,
 .greeting-list > .greeting-item--c:first-child {
-  margin-top: 1.1rem;
+  margin-top: 2.2rem;
 }
 
-/* あいさつ〜小部屋のあいだ（直前の約2/3）＋▽を縦に3つ */
+/* あいさつ〜小部屋のあいだ：▽3つが並ぶ程度 */
 .greeting-to-rooms-gap {
-  height: 4.5rem;
+  height: 3.15rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.12rem;
+  gap: 0.02rem;
   pointer-events: none;
 }
 
 .greeting-to-rooms-arrow {
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   line-height: 1;
   color: #8a7350;
   font-weight: 700;
