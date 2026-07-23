@@ -531,7 +531,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
                       <div className="watch-top-title-ornament" aria-hidden />
                       <div className="watch-bridge-banner-card">
                         <img
-                          src="/clinic-logo.png"
+                          src="/clinic-logo-clear.png"
                           alt="a2 ReCONDITIONING STATION"
                           className="watch-bridge-banner-logo"
                           width={96}
