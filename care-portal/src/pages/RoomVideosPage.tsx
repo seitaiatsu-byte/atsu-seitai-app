@@ -70,7 +70,7 @@ function GreetingVideoCard({
   const tone = `greeting-card--${greeting.slot_code.toLowerCase()}`;
 
   return (
-    <li className="greeting-item">
+    <li className={`greeting-item greeting-item--${greeting.slot_code.toLowerCase()}`}>
       <button
         type="button"
         disabled={!canPlay}
@@ -551,8 +551,13 @@ export default function RoomVideosPage({ onLogout }: Props) {
           i += 1;
         }
         if (greetingKeys.length > 0) {
+          const firstSlot = parseGreetingSlot(greetingKeys[0]);
+          const spacedTop = firstSlot === 'B' || firstSlot === 'C';
           nodes.push(
-            <div key={`greeting-zone-${greetingKeys.join('-')}`} className="greeting-zone-block">
+            <div
+              key={`greeting-zone-${greetingKeys.join('-')}`}
+              className={`greeting-zone-block${spacedTop ? ' greeting-zone-block--spaced-top' : ''}`}
+            >
               <ul className="greeting-list" aria-label="あいさつ動画">
                 {greetingKeys.map((gKey) => {
                   const slotCode = parseGreetingSlot(gKey);
@@ -570,6 +575,8 @@ export default function RoomVideosPage({ onLogout }: Props) {
                 })}
               </ul>
               <div className="greeting-to-rooms-gap" aria-hidden>
+                <span className="greeting-to-rooms-arrow">▽</span>
+                <span className="greeting-to-rooms-arrow">▽</span>
                 <span className="greeting-to-rooms-arrow">▽</span>
               </div>
             </div>

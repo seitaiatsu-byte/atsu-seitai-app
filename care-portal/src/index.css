@@ -528,22 +528,9 @@ body {
   width: 100%;
 }
 
-/* あいさつ〜小部屋①のあいだ（現状の約3倍）＋中央に▽ */
-.greeting-to-rooms-gap {
-  height: 6.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.greeting-to-rooms-arrow {
-  font-size: 1.55rem;
-  line-height: 1;
-  color: #8a7350;
-  font-weight: 700;
-  opacity: 0.9;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+/* B/C がブロック先頭（上の小部屋枠の直後）のとき、上余白を約2倍 */
+.greeting-zone-block--spaced-top {
+  margin-top: 0.75rem;
 }
 
 .greeting-item {
@@ -551,6 +538,37 @@ body {
   overflow: visible;
   margin-top: 0.55rem;
   margin-left: 0.45rem;
+}
+
+/* B・C は上の枠とのあいだを約2倍 */
+.greeting-item--b,
+.greeting-item--c {
+  margin-top: 1.1rem;
+}
+
+.greeting-list > .greeting-item--b:first-child,
+.greeting-list > .greeting-item--c:first-child {
+  margin-top: 1.1rem;
+}
+
+/* あいさつ〜小部屋のあいだ（直前の約2/3）＋▽を縦に3つ */
+.greeting-to-rooms-gap {
+  height: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  pointer-events: none;
+}
+
+.greeting-to-rooms-arrow {
+  font-size: 1.35rem;
+  line-height: 1;
+  color: #8a7350;
+  font-weight: 700;
+  opacity: 0.9;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .greeting-card {
