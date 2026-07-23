@@ -117,7 +117,7 @@ function SubRoomCard({
   const showNumber = showsSubRoomNumber(subRoom.slot_number);
 
   return (
-    <li>
+    <li className={`sub-room-item ${showNumber ? 'sub-room-item--numbered' : ''}`}>
       <button
         type="button"
         disabled={locked}
@@ -125,43 +125,35 @@ function SubRoomCard({
           if (locked) return;
           onSelect(subRoom.slot_number);
         }}
-        className={`sub-room-card member-card w-full text-left px-4 py-4 flex items-center gap-3 min-h-[4.5rem] transition-colors ${
+        className={`sub-room-card member-card w-full text-left transition-colors ${
           locked
             ? 'bg-slate-200/80 border-slate-300 opacity-70 cursor-not-allowed grayscale'
             : 'hover:border-member-gold/45 active:bg-member-camel-light/50'
         }`}
       >
         {showNumber ? (
-          <span className={`sub-room-num shrink-0 ${locked ? '!bg-slate-300 !text-slate-500' : ''}`}>
+          <span className={`sub-room-num ${locked ? '!bg-slate-300 !text-slate-500' : ''}`}>
             {subRoom.slot_number}
           </span>
-        ) : (
-          <span className="shrink-0 w-7" aria-hidden />
-        )}
-        <div className="sub-room-play shrink-0">
-          {locked ? (
-            <Lock size={26} className="text-slate-500" />
-          ) : (
-            <PlayCircle size={28} className="text-member-teal" />
+        ) : null}
+        <p className={`sub-room-title ${locked ? '!text-slate-500' : ''}`}>{subRoom.title}</p>
+        <div className="sub-room-action-row">
+          <div className={`sub-room-play shrink-0 ${locked ? '!border-slate-400' : ''}`}>
+            {locked ? (
+              <Lock size={26} className="text-slate-500" />
+            ) : (
+              <PlayCircle size={28} className="text-member-teal" />
+            )}
+          </div>
+          <p className={`sub-room-action-text flex-1 min-w-0 ${locked ? '!text-slate-500' : ''}`}>
+            {locked ? '鍵付き（プログラム対象外）' : 'タップして動画をみる'}
+          </p>
+          {!locked && (
+            <div className="sub-room-count shrink-0">
+              <span className="sub-room-count-num">{formatVideoCount(subRoom.video_count)}</span>
+            </div>
           )}
         </div>
-        <div className="min-w-0 flex-1">
-          <p
-            className={`font-bold text-base sm:text-lg leading-snug line-clamp-3 ${
-              locked ? 'text-slate-500' : 'text-member-text'
-            }`}
-          >
-            {subRoom.title}
-          </p>
-          <p className={`text-sm font-bold mt-1 ${locked ? 'text-slate-500' : 'member-text-accent'}`}>
-            {locked ? '鍵付き（プログラム対象外）' : '▶ タップして動画一覧へ'}
-          </p>
-        </div>
-        {!locked && (
-          <div className="sub-room-count shrink-0">
-            <span className="sub-room-count-num">{formatVideoCount(subRoom.video_count)}</span>
-          </div>
-        )}
       </button>
     </li>
   );
