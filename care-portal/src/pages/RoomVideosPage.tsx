@@ -20,7 +20,7 @@ import {
   type CareVideoItem,
 } from '../lib/careApi';
 import type { GreetingVideoItem } from '../lib/greetingVideos';
-import { formatGreetingZoneLabel, DEFAULT_GREETING_ZONE_LABEL } from '../lib/greetingVideos';
+import { DEFAULT_GREETING_ZONE_LABEL } from '../lib/greetingVideos';
 import { LOCKED_ITEM_MESSAGE } from '../lib/programTiers';
 import { formatVideoCount, showsSubRoomNumber, parseSubRoomTitle, subRoomTitleAlignClass, type SubRoomItem } from '../lib/subRooms';
 import { clearSession, loadLastRoomCode, loadSession, rememberLastRoomCode, saveSession } from '../lib/session';
@@ -60,17 +60,20 @@ function formatDate(iso: string) {
 function GreetingVideoCard({
   greeting,
   locked,
+  zoneLabel,
   onPlay,
 }: {
   greeting: GreetingVideoItem;
   locked?: boolean;
+  zoneLabel: string;
   onPlay: (video: ActivePlayback) => void;
 }) {
-  const { align, text: titleText } = parseSubRoomTitle(greeting.title);
+  const { text: titleText } = parseSubRoomTitle(greeting.title);
   const pending = !locked && !greeting.has_video;
+  const label = (zoneLabel || DEFAULT_GREETING_ZONE_LABEL).trim() || DEFAULT_GREETING_ZONE_LABEL;
 
   return (
-    <li className={`greeting-item ${pending ? 'greeting-item--pending' : ''}`}>
+    <li className="greeting-item">
       <button
         type="button"
         disabled={locked || !greeting.has_video}
@@ -78,29 +81,46 @@ function GreetingVideoCard({
           if (locked || !greeting.has_video) return;
           onPlay({ id: greeting.id, title: greeting.title, kind: 'greeting' });
         }}
-        className={`greeting-card member-card w-full text-left transition-colors ${
+        className={`greeting-card w-full text-left transition-[filter] ${
           locked
             ? 'greeting-card--locked cursor-not-allowed'
             : pending
               ? 'greeting-card--pending cursor-not-allowed'
-              : 'hover:brightness-[0.98] active:brightness-[0.96]'
+              : 'hover:brightness-[0.985] active:brightness-[0.97]'
         }`}
       >
-        <div className={`greeting-mascot ${locked ? 'greeting-mascot--locked' : ''}`} aria-hidden>
-          {locked ? (
-            <Lock size={16} strokeWidth={2.25} />
-          ) : (
-            <img src="/greeting-mascot.png" alt="" className="greeting-mascot-img" />
-          )}
+        <div className="greeting-topline">
+          <div className={`greeting-mascot ${locked ? 'greeting-mascot--locked' : ''}`} aria-hidden>
+            {locked ? (
+              <Lock size={18} strokeWidth={2.25} />
+            ) : (
+              <img src="/greeting-mascot.png" alt="" className="greeting-mascot-img" />
+            )}
+          </div>
+          <span className={`greeting-slot ${locked ? 'greeting-slot--locked' : ''}`}>{greeting.slot_code}</span>
+          <span className={`greeting-zone-name ${locked ? '!text-slate-500' : ''}`}>{label}</span>
+          {pending ? <span className="greeting-pending">（準備中です）</span> : null}
+          {locked ? <span className="greeting-pending">鍵付き</span> : null}
         </div>
-        <p className={`greeting-title ${subRoomTitleAlignClass(align)} ${locked ? '!text-slate-500' : ''}`}>
-          {titleText}
-        </p>
-        <p className={`greeting-hint ${locked ? '!text-slate-400' : ''}`}>
-          {locked ? '鍵付き（プログラム対象外）' : 'タップしてください'}
-        </p>
+
+        <p className={`greeting-title ${locked ? '!text-slate-500' : ''}`}>{titleText}</p>
+
+        <div className={`greeting-hint ${locked ? '!text-slate-400' : ''}`}>
+          {!locked ? (
+            <span className="greeting-tap-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M9.5 11.5V7.2a1.2 1.2 0 0 1 2.4 0v6.1" strokeLinecap="round" />
+                <path d="M11.9 13.3V10a1.15 1.15 0 0 1 2.3 0v3.6" strokeLinecap="round" />
+                <path d="M14.2 13.6v-2.1a1.1 1.1 0 0 1 2.2 0v2.4" strokeLinecap="round" />
+                <path d="M9.5 14.2v1.6c0 2.2 1.5 4 3.6 4.2 2.4.2 4.4-1.7 4.4-4.1v-2" strokeLinecap="round" />
+                <path d="M9.5 13.2c-1.1.2-2 .9-2.3 1.9-.5 1.5.4 2.9 1.6 3.5" strokeLinecap="round" />
+                <path d="M15.2 5.2l.7-1.3M17.3 6.4l1.2-.8M13.4 4.6l-.2-1.4" strokeLinecap="round" />
+              </svg>
+            </span>
+          ) : null}
+          <span>{locked ? 'プログラム対象外' : 'タップしてください'}</span>
+        </div>
       </button>
-      {pending ? <span className="greeting-pending">（準備中です）</span> : null}
     </li>
   );
 }
@@ -539,33 +559,25 @@ export default function RoomVideosPage({ onLogout }: Props) {
           greetingKeys.push(watchLayout[i]);
           i += 1;
         }
-        const cards = greetingKeys
-          .map((gKey) => {
-            const slotCode = parseGreetingSlot(gKey);
-            if (!slotCode) return null;
-            const greeting = greetingVideos.find((g) => g.slot_code === slotCode);
-            if (!greeting) return null;
-            return (
-              <GreetingVideoCard
-                key={gKey}
-                greeting={greeting}
-                locked={!isUnlocked(gKey)}
-                onPlay={(v) => void handlePlay(v)}
-              />
-            );
-          })
-          .filter(Boolean);
         if (cards.length > 0) {
-          const firstSlot = parseGreetingSlot(greetingKeys[0]) || 'A';
           nodes.push(
-            <section
-              key={`greeting-zone-${greetingKeys.join('-')}`}
-              className="shared-zone shared-zone--greeting"
-              aria-label="あいさつ動画"
-            >
-              <p className="shared-zone-label">{formatGreetingZoneLabel(firstSlot, greetingZoneLabel)}</p>
-              <ul className="space-y-2.5">{cards}</ul>
-            </section>
+            <ul key={`greeting-zone-${greetingKeys.join('-')}`} className="greeting-list" aria-label="あいさつ動画">
+              {greetingKeys.map((gKey) => {
+                const slotCode = parseGreetingSlot(gKey);
+                if (!slotCode) return null;
+                const greeting = greetingVideos.find((g) => g.slot_code === slotCode);
+                if (!greeting) return null;
+                return (
+                  <GreetingVideoCard
+                    key={gKey}
+                    greeting={greeting}
+                    locked={!isUnlocked(gKey)}
+                    zoneLabel={greetingZoneLabel}
+                    onPlay={(v) => void handlePlay(v)}
+                  />
+                );
+              })}
+            </ul>
           );
         }
         continue;
