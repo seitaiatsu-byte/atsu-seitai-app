@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { BookOpen, ExternalLink, FileText, Image, Lock, PlayCircle } from 'lucide-react';
+import { BookOpen, ExternalLink, FileText, Image, Lock, MessageCircle, PlayCircle } from 'lucide-react';
 import VideoPlayer from '../components/VideoPlayer';
 import MemberBrandHeader from '../components/member/MemberBrandHeader';
 import MemberPageShell from '../components/member/MemberPageShell';
@@ -73,21 +73,21 @@ function GreetingVideoCard({
           if (locked || !greeting.has_video) return;
           onPlay({ id: greeting.id, title: greeting.title, kind: 'greeting' });
         }}
-        className={`member-card w-full text-left px-4 py-4 flex items-center gap-4 min-h-[5rem] transition-colors ${
+        className={`member-card greeting-card w-full text-left px-4 py-4 flex items-center gap-4 min-h-[5rem] transition-colors ${
           locked
             ? 'bg-slate-200/80 border-slate-300 opacity-70 cursor-not-allowed grayscale'
             : 'hover:border-member-gold/45 active:bg-member-camel-light/50 disabled:opacity-50 disabled:cursor-not-allowed'
         }`}
       >
         <span
-          className={`shrink-0 w-10 h-10 rounded-full font-bold flex items-center justify-center text-lg ${
-            locked ? 'bg-slate-300 text-slate-500' : 'bg-member-gold/20 text-member-gold-deep'
+          className={`greeting-slot-badge shrink-0 ${
+            locked ? '!bg-slate-300 !text-slate-500 !border-slate-400' : ''
           }`}
         >
           {greeting.slot_code}
         </span>
-        <div className={`member-icon-badge w-12 h-12 shrink-0 ${locked ? '!bg-slate-300 !text-slate-500' : ''}`}>
-          {locked ? <Lock size={28} /> : <PlayCircle size={32} />}
+        <div className={`greeting-icon shrink-0 ${locked ? '!bg-slate-300 !text-slate-500 !border-slate-400' : ''}`}>
+          {locked ? <Lock size={26} strokeWidth={2.25} /> : <MessageCircle size={28} strokeWidth={2.25} />}
         </div>
         <div className="min-w-0 flex-1">
           <p className={`font-bold text-lg sm:text-xl leading-snug ${locked ? 'text-slate-500' : 'text-member-text'}`}>
@@ -488,18 +488,6 @@ export default function RoomVideosPage({ onLogout }: Props) {
 
   const renderWatchEntry = (key: WatchLayoutItemKey) => {
     const locked = !isUnlocked(key);
-
-    const greetingSlot = parseGreetingSlot(key);
-    if (greetingSlot) {
-      const greeting = greetingVideos.find((g) => g.slot_code === greetingSlot);
-      if (!greeting) return null;
-      return (
-        <ul key={key} className="space-y-3">
-          <GreetingVideoCard greeting={greeting} locked={locked} onPlay={(v) => void handlePlay(v)} />
-        </ul>
-      );
-    }
-
     const slot = parseSubRoomSlot(key);
     if (slot == null) return null;
     const subRoom = subRooms.find((s) => s.slot_number === slot);
@@ -511,7 +499,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
     );
   };
 
-  /** 全員用の勉強部屋を枠でまとめ、その下に区切り線と TOP タイトルを置く */
+  /** 全員用の勉強部屋・あいさつ動画を枠でまとめ、勉強部屋の下に TOP タイトルを置く */
   const renderWatchList = () => {
     const nodes: ReactNode[] = [];
     let i = 0;
@@ -528,8 +516,8 @@ export default function RoomVideosPage({ onLogout }: Props) {
           const endsSection = studySectionEndKey != null && studyKeys.includes(studySectionEndKey);
           nodes.push(
             <div key={`study-zone-${studyKeys.join('-')}`}>
-              <section className="study-room-zone" aria-label="全員向けの部屋">
-                <p className="study-room-zone-label">全員向け</p>
+              <section className="shared-zone" aria-label="全員向けの部屋">
+                <p className="shared-zone-label">全員向け</p>
                 <ul className="space-y-3">{cards}</ul>
               </section>
               {endsSection &&
@@ -550,6 +538,41 @@ export default function RoomVideosPage({ onLogout }: Props) {
         }
         continue;
       }
+
+      const greetingSlot = parseGreetingSlot(key);
+      if (greetingSlot) {
+        const greetingKeys: WatchLayoutItemKey[] = [];
+        while (i < watchLayout.length && parseGreetingSlot(watchLayout[i])) {
+          greetingKeys.push(watchLayout[i]);
+          i += 1;
+        }
+        const cards = greetingKeys
+          .map((gKey) => {
+            const slotCode = parseGreetingSlot(gKey);
+            if (!slotCode) return null;
+            const greeting = greetingVideos.find((g) => g.slot_code === slotCode);
+            if (!greeting) return null;
+            return (
+              <GreetingVideoCard
+                key={gKey}
+                greeting={greeting}
+                locked={!isUnlocked(gKey)}
+                onPlay={(v) => void handlePlay(v)}
+              />
+            );
+          })
+          .filter(Boolean);
+        if (cards.length > 0) {
+          nodes.push(
+            <section key={`greeting-zone-${greetingKeys.join('-')}`} className="shared-zone" aria-label="あいさつ動画">
+              <p className="shared-zone-label">あいさつ</p>
+              <ul className="space-y-3">{cards}</ul>
+            </section>
+          );
+        }
+        continue;
+      }
+
       nodes.push(renderWatchEntry(key));
       i += 1;
     }
