@@ -65,6 +65,7 @@ function GreetingVideoCard({
   onPlay: (video: ActivePlayback) => void;
 }) {
   const { align, text: titleText } = parseSubRoomTitle(greeting.title);
+  const titleLines = titleText.split(/\n/).slice(0, 3);
   const canPlay = !locked && greeting.has_video;
   const tone = `greeting-card--${greeting.slot_code.toLowerCase()}`;
 
@@ -87,15 +88,20 @@ function GreetingVideoCard({
       >
         <div className={`greeting-mascot ${locked ? 'greeting-mascot--locked' : ''}`} aria-hidden>
           {locked ? (
-            <Lock size={16} strokeWidth={2.25} />
+            <Lock size={20} strokeWidth={2.25} />
           ) : (
-            <img src="/greeting-mascot.png?v=5" alt="" className="greeting-mascot-img" draggable={false} />
+            <img src="/greeting-mascot.png?v=6" alt="" className="greeting-mascot-img" draggable={false} />
           )}
         </div>
-        <p className={`sub-room-title ${subRoomTitleAlignClass(align)} ${locked ? '!text-slate-500' : ''}`}>
-          {titleText}
+        <p className={`greeting-title ${subRoomTitleAlignClass(align)} ${locked ? '!text-slate-500' : ''}`}>
+          {titleLines.map((line, i) => (
+            <span key={`${i}-${line}`} className={i === 0 ? 'greeting-title-lead' : 'greeting-title-body'}>
+              {i > 0 ? '\n' : ''}
+              {line}
+            </span>
+          ))}
         </p>
-        <div className="sub-room-action-row">
+        <div className="sub-room-action-row greeting-action-row">
           <div className="sub-room-action-center">
             <div
               className={`sub-room-play greeting-play-btn shrink-0 ${!canPlay ? 'sub-room-play--locked' : ''}`}

@@ -238,14 +238,19 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
                           <p className="text-sm font-bold text-indigo-800">{heading}</p>
                           <p className="text-xs text-slate-500">{GREETING_SLOT_HINTS[slot]}</p>
                           <div>
-                            <label className="text-xs font-bold text-slate-500">表示タイトル（Enterで改行可）</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              表示タイトル（最大3行・Enterで改行）
+                            </label>
                             <textarea
                               value={greetingTitles[slot] || ''}
                               onChange={(e) => setGreetingTitles((prev) => ({ ...prev, [slot]: e.target.value }))}
                               rows={3}
                               className="w-full mt-1 px-3 py-2 rounded-lg border text-sm leading-relaxed resize-y"
-                              placeholder={`${DEFAULT_GREETING_TITLES[slot]}\n2行目はEnterで改行`}
+                              placeholder={`あいさつ動画\n${DEFAULT_GREETING_TITLES[slot]}`}
                             />
+                            <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                              1行目は細め、2〜3行目は太字で表示されます。例：1行目「あいさつ動画」
+                            </p>
                             <button
                               type="button"
                               disabled={greetingSaving === slot}

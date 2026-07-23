@@ -536,8 +536,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.7rem;
-  padding: 1rem 1rem 0.85rem;
+  gap: 0.35rem;
+  padding: 0.55rem 0.85rem 0.5rem;
   overflow: visible;
   min-height: auto;
   box-shadow: 0 1px 2px rgba(61, 52, 40, 0.1);
@@ -603,12 +603,14 @@ body {
 
 .greeting-mascot {
   position: absolute;
-  top: -0.55rem;
-  left: -0.55rem;
+  top: -0.7rem;
+  left: -0.7rem;
   z-index: 3;
-  width: 2.35rem;
-  height: 2.35rem;
+  width: 3.85rem;
+  height: 3.85rem;
   border-radius: 9999px;
+  border-width: 2px;
+  border-style: solid;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -624,18 +626,51 @@ body {
 }
 
 .greeting-mascot-img {
-  width: 118%;
-  height: 118%;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  object-position: center 12%;
+  object-position: center 22%;
   display: block;
   background: transparent;
+  transform: scale(0.92);
 }
 
-.greeting-card .sub-room-title {
-  padding-left: 1.55rem;
-  max-height: calc(1.4em * 2);
-  min-height: calc(1.4em * 2);
+.greeting-title {
+  margin: 0;
+  width: 100%;
+  padding-left: 2.85rem;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  color: #152a4a;
+  white-space: pre-line;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-height: calc(1.35em * 3);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.greeting-title-lead {
+  font-weight: 500;
+}
+
+.greeting-title-body {
+  font-weight: 800;
+}
+
+.greeting-card .greeting-action-row {
+  min-height: 2.15rem;
+  padding-right: 0.25rem;
+}
+
+.greeting-card .greeting-play-btn {
+  width: 2.35rem;
+  height: 2.35rem;
+}
+
+.greeting-card .greeting-action-text {
+  font-size: 0.95rem;
 }
 
 .study-room-divider {
