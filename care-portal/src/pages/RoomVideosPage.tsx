@@ -459,17 +459,15 @@ export default function RoomVideosPage({ onLogout }: Props) {
           }`}
         >
           <div className={`study-room-icon ${locked ? '!bg-slate-300 !text-slate-500 !border-slate-400' : ''}`}>
-            {locked ? <Lock size={22} strokeWidth={2.25} /> : <BookOpen size={24} strokeWidth={2.25} />}
+            {locked ? <Lock size={16} strokeWidth={2.25} /> : <BookOpen size={17} strokeWidth={2.25} />}
           </div>
-          <p className={`sub-room-title ${subRoomTitleAlignClass(align)} ${locked ? '!text-slate-500' : ''}`}>
+          <p className={`study-room-title ${subRoomTitleAlignClass(align)} ${locked ? '!text-slate-500' : ''}`}>
             {titleText}
           </p>
-          <div className="sub-room-action-row">
-            <div className="sub-room-action-center">
-              <p className={`sub-room-action-text ${locked ? '!text-slate-500' : ''}`}>
-                {locked ? '鍵付き（プログラム対象外）' : 'タップしてください'}
-              </p>
-            </div>
+          <div className="study-room-action-row">
+            <p className={`study-room-hint ${locked ? '!text-slate-400' : ''}`}>
+              {locked ? '鍵付き（プログラム対象外）' : 'タップしてください'}
+            </p>
             {!locked && (
               <div className="sub-room-count shrink-0">
                 <span className="sub-room-count-num">{Math.min(99, studyRoom.item_count)}件</span>
