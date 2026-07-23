@@ -530,7 +530,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
                     <div className="watch-top-title-gap">
                       <div className="watch-top-title-ornament" aria-hidden />
                       <img
-                        src="/watch-bridge-banner.png"
+                        src="/watch-bridge-banner.png?v=2"
                         alt="何をやれば正解か分からない。結局1人だとやめちゃう。将来の体に不安がある、そんなあなたへ"
                         className="watch-bridge-banner"
                         draggable={false}
