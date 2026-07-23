@@ -713,6 +713,10 @@ export default function RoomVideosPage({ onLogout }: Props) {
         </div>
       )}
 
+      {/* 再生中・画像プレビュー中は下の一覧を隠して動画に集中できるようにする */}
+      {(activeVideo || previewImageUrl) && <div className="flex-1 min-h-[50vh]" aria-hidden />}
+
+      {!(activeVideo || previewImageUrl) && (
       <main className="flex-1 p-4 max-w-2xl mx-auto w-full space-y-4">
         {error && (
           <div className="rounded-xl bg-red-50 border-2 border-red-200 text-red-900 text-base px-4 py-4 leading-relaxed">
@@ -808,6 +812,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
           </ul>
         )}
       </main>
+      )}
     </MemberPageShell>
   );
 }
