@@ -28,8 +28,8 @@ import {
 
 const GREETING_SLOT_HINTS: Record<GreetingSlot, string> = {
   A: '部屋トップに表示',
-  B: '⑫の直後に表示',
-  C: 'ダイエット枠の後・⑬⑭⑮の直前に表示',
+  B: '一番下・ダイエット枠の直前に表示',
+  C: '⑫の直後・⑬⑭⑮の直前に表示',
 };
 
 type Props = {
@@ -326,15 +326,15 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
             <section className="space-y-3">
               <h2 className="font-bold text-slate-800">小部屋マスター（20枠）</h2>
               <p className="text-xs text-slate-500 leading-relaxed">
-                ①〜⑫は番号付き、16〜20はダイエット枠（番号なし）、13〜15は下部枠（番号なし）です。
+                ①〜⑫は番号付き、13〜15は補足講義枠（番号なし）、16〜20はダイエット枠（一番下・番号なし）です。
               </p>
               {[
                 { label: 'カラダ改善プログラム（①〜⑫）', slots: Array.from({ length: 12 }, (_, i) => i + 1) },
+                { label: '補足講義枠（⑬〜⑮・番号なし）', slots: [13, 14, 15] },
                 {
-                  label: 'ダイエット枠（5つ・番号なし）',
+                  label: 'ダイエット枠（5つ・一番下・番号なし）',
                   slots: Array.from({ length: DIET_SUB_ROOM_COUNT }, (_, i) => DIET_SUB_ROOM_START + i),
                 },
-                { label: '下部枠（⑬〜⑮・番号なし）', slots: [13, 14, 15] },
               ].map((group) => (
                 <div key={group.label} className="space-y-3">
                   <h3 className="text-sm font-bold text-slate-700">{group.label}</h3>

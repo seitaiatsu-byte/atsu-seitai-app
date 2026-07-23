@@ -22,18 +22,18 @@ export type WatchLayoutRow = {
   updated_at?: string;
 };
 
-/** 初期並び：勉強部屋 → 挨拶A/B/C（上から順）→ 小部屋 */
+/** 初期並び：勉強部屋 → 挨拶A＋①〜⑫ → 補足（C＋⑬⑭⑮） → ダイエット（B＋16〜20） */
 export const DEFAULT_WATCH_LAYOUT_KEYS: WatchLayoutItemKey[] = [
   'study',
   'study2',
   'greeting_A',
   ...Array.from({ length: 12 }, (_, i) => `sub_${i + 1}` as WatchLayoutItemKey),
-  'greeting_B',
-  ...Array.from({ length: 5 }, (_, i) => `sub_${16 + i}` as WatchLayoutItemKey),
   'greeting_C',
   'sub_13',
   'sub_14',
   'sub_15',
+  'greeting_B',
+  ...Array.from({ length: 5 }, (_, i) => `sub_${16 + i}` as WatchLayoutItemKey),
 ];
 
 export function isStudyLayoutKey(key: string): key is StudyRoomKey {

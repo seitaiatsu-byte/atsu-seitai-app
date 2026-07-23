@@ -4,7 +4,7 @@ export const SUB_ROOM_COUNT = 20;
 /** 会員画面で番号バッジを表示する小部屋（①〜⑫） */
 export const NUMBERED_SUB_ROOM_COUNT = 12;
 
-/** ダイエット用小部屋（⑫の次・Cの後に表示、番号なし） */
+/** ダイエット用小部屋（一番下・Bの直後に表示、番号なし） */
 export const DIET_SUB_ROOM_START = 16;
 export const DIET_SUB_ROOM_COUNT = 5;
 
