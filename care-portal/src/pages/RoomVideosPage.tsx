@@ -559,7 +559,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
           greetingKeys.push(watchLayout[i]);
           i += 1;
         }
-        if (cards.length > 0) {
+        if (greetingKeys.length > 0) {
           nodes.push(
             <ul key={`greeting-zone-${greetingKeys.join('-')}`} className="greeting-list" aria-label="あいさつ動画">
               {greetingKeys.map((gKey) => {
