@@ -727,13 +727,50 @@ body {
   align-items: stretch;
 }
 
-/* 全員向け枠のすぐ下に線 → バナー → タイトル帯 */
+/* 全員向け枠 → 区切り（倍の隙間・中央の太線） → バナー → タイトル帯 */
 .watch-top-title-gap {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.75rem;
-  padding: 0.45rem 0.05rem 0.55rem;
+  gap: 0.85rem;
+  padding: 0.15rem 0.05rem 0.55rem;
+}
+
+.watch-section-divider {
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: stretch;
+  padding: 0 0.15rem;
+}
+
+.watch-top-title-ornament {
+  width: 100%;
+  height: 3px;
+  position: relative;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(138, 115, 80, 0.35) 8%,
+    #8a7350 50%,
+    rgba(138, 115, 80, 0.35) 92%,
+    transparent 100%
+  );
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.watch-top-title-ornament::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.55rem;
+  height: 0.55rem;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: #c4ae82;
+  border: 1.5px solid #6b5a3e;
+  box-shadow: 0 0 0 3px rgba(250, 244, 232, 0.95);
 }
 
 .watch-bridge-banner-card {
@@ -803,33 +840,6 @@ body {
   .watch-bridge-closing {
     font-size: 1.05rem;
   }
-}
-
-.watch-top-title-ornament {
-  width: 100%;
-  height: 1px;
-  position: relative;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(168, 143, 97, 0.15) 12%,
-    rgba(168, 143, 97, 0.7) 50%,
-    rgba(168, 143, 97, 0.15) 88%,
-    transparent 100%
-  );
-}
-
-.watch-top-title-ornament::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 0.42rem;
-  height: 0.42rem;
-  transform: translate(-50%, -50%) rotate(45deg);
-  background: #c4ae82;
-  border: 1px solid #8a7350;
-  box-shadow: 0 0 0 3px rgba(250, 244, 232, 0.95);
 }
 
 .watch-top-title-bubble {

@@ -528,7 +528,9 @@ export default function RoomVideosPage({ onLogout }: Props) {
                 (watchTopTitle.trim() ? (
                   <div className="watch-top-title-wrap">
                     <div className="watch-top-title-gap">
-                      <div className="watch-top-title-ornament" aria-hidden />
+                      <div className="watch-section-divider" aria-hidden>
+                        <div className="watch-top-title-ornament" />
+                      </div>
                       <div className="watch-bridge-banner-card">
                         <img
                           src="/clinic-logo-clear.png"
