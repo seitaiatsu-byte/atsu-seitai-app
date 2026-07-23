@@ -552,22 +552,27 @@ export default function RoomVideosPage({ onLogout }: Props) {
         }
         if (greetingKeys.length > 0) {
           nodes.push(
-            <ul key={`greeting-zone-${greetingKeys.join('-')}`} className="greeting-list" aria-label="あいさつ動画">
-              {greetingKeys.map((gKey) => {
-                const slotCode = parseGreetingSlot(gKey);
-                if (!slotCode) return null;
-                const greeting = greetingVideos.find((g) => g.slot_code === slotCode);
-                if (!greeting) return null;
-                return (
-                  <GreetingVideoCard
-                    key={gKey}
-                    greeting={greeting}
-                    locked={!isUnlocked(gKey)}
-                    onPlay={(v) => void handlePlay(v)}
-                  />
-                );
-              })}
-            </ul>
+            <div key={`greeting-zone-${greetingKeys.join('-')}`} className="greeting-zone-block">
+              <ul className="greeting-list" aria-label="あいさつ動画">
+                {greetingKeys.map((gKey) => {
+                  const slotCode = parseGreetingSlot(gKey);
+                  if (!slotCode) return null;
+                  const greeting = greetingVideos.find((g) => g.slot_code === slotCode);
+                  if (!greeting) return null;
+                  return (
+                    <GreetingVideoCard
+                      key={gKey}
+                      greeting={greeting}
+                      locked={!isUnlocked(gKey)}
+                      onPlay={(v) => void handlePlay(v)}
+                    />
+                  );
+                })}
+              </ul>
+              <div className="greeting-to-rooms-gap" aria-hidden>
+                <span className="greeting-to-rooms-arrow">▽</span>
+              </div>
+            </div>
           );
         }
         continue;
