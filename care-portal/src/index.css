@@ -543,21 +543,21 @@ body {
   box-shadow: 0 1px 2px rgba(61, 52, 40, 0.1);
 }
 
-/* A: 青系 */
+/* A: 赤系 */
 .greeting-card--a {
-  background: #eaf4fb !important;
-  border: 2px solid #3b7eb8 !important;
+  background: #fef1f1 !important;
+  border: 2px solid #d45a5a !important;
 }
 .greeting-card--a .greeting-mascot {
-  background: #f2f8fc;
-  border-color: #3b7eb8;
+  background: #fff5f5;
+  border-color: #d45a5a;
 }
 .greeting-card--a .greeting-play-btn:not(.sub-room-play--locked) {
-  background: #2f7eb0;
-  box-shadow: 0 1px 2px rgba(47, 126, 176, 0.28);
+  background: #c94a4a;
+  box-shadow: 0 1px 2px rgba(201, 74, 74, 0.28);
 }
 .greeting-card--a .greeting-action-text {
-  color: #1f5f8f;
+  color: #a33838;
 }
 
 /* B: 緑系 */
@@ -577,21 +577,21 @@ body {
   color: #2d6b3f;
 }
 
-/* C: 赤系 */
+/* C: 青系 */
 .greeting-card--c {
-  background: #fef1f1 !important;
-  border: 2px solid #d45a5a !important;
+  background: #eaf4fb !important;
+  border: 2px solid #3b7eb8 !important;
 }
 .greeting-card--c .greeting-mascot {
-  background: #fff5f5;
-  border-color: #d45a5a;
+  background: #f2f8fc;
+  border-color: #3b7eb8;
 }
 .greeting-card--c .greeting-play-btn:not(.sub-room-play--locked) {
-  background: #c94a4a;
-  box-shadow: 0 1px 2px rgba(201, 74, 74, 0.28);
+  background: #2f7eb0;
+  box-shadow: 0 1px 2px rgba(47, 126, 176, 0.28);
 }
 .greeting-card--c .greeting-action-text {
-  color: #a33838;
+  color: #1f5f8f;
 }
 
 .greeting-card--locked {
