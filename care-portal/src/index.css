@@ -540,13 +540,61 @@ body {
   padding: 1rem 1rem 0.85rem;
   overflow: visible;
   min-height: auto;
-  background: #fff4e8 !important;
-  border: 2px solid #e08a3c !important;
-  box-shadow: 0 1px 2px rgba(176, 98, 40, 0.12);
+  box-shadow: 0 1px 2px rgba(61, 52, 40, 0.1);
 }
 
-.greeting-card--locked,
-.greeting-card--disabled {
+/* A: 青系 */
+.greeting-card--a {
+  background: #eaf4fb !important;
+  border: 2px solid #3b7eb8 !important;
+}
+.greeting-card--a .greeting-mascot {
+  background: #f2f8fc;
+  border-color: #3b7eb8;
+}
+.greeting-card--a .greeting-play-btn:not(.sub-room-play--locked) {
+  background: #2f7eb0;
+  box-shadow: 0 1px 2px rgba(47, 126, 176, 0.28);
+}
+.greeting-card--a .greeting-action-text {
+  color: #1f5f8f;
+}
+
+/* B: 緑系 */
+.greeting-card--b {
+  background: #eef7f0 !important;
+  border: 2px solid #4f9a62 !important;
+}
+.greeting-card--b .greeting-mascot {
+  background: #f3faf5;
+  border-color: #4f9a62;
+}
+.greeting-card--b .greeting-play-btn:not(.sub-room-play--locked) {
+  background: #3d8f55;
+  box-shadow: 0 1px 2px rgba(61, 143, 85, 0.28);
+}
+.greeting-card--b .greeting-action-text {
+  color: #2d6b3f;
+}
+
+/* C: 赤系 */
+.greeting-card--c {
+  background: #fef1f1 !important;
+  border: 2px solid #d45a5a !important;
+}
+.greeting-card--c .greeting-mascot {
+  background: #fff5f5;
+  border-color: #d45a5a;
+}
+.greeting-card--c .greeting-play-btn:not(.sub-room-play--locked) {
+  background: #c94a4a;
+  box-shadow: 0 1px 2px rgba(201, 74, 74, 0.28);
+}
+.greeting-card--c .greeting-action-text {
+  color: #a33838;
+}
+
+.greeting-card--locked {
   background: #e2e8f0 !important;
   border-color: #94a3b8 !important;
   opacity: 0.75;
@@ -565,15 +613,13 @@ body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: #fff8f1;
-  border: 2px solid #e08a3c;
-  box-shadow: 0 1px 3px rgba(176, 98, 40, 0.18);
-  color: #9a5a28;
+  box-shadow: 0 1px 3px rgba(61, 52, 40, 0.16);
+  color: #64748b;
 }
 
 .greeting-mascot--locked {
-  background: #e2e8f0;
-  border-color: #94a3b8;
+  background: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
   color: #64748b;
 }
 
@@ -590,15 +636,6 @@ body {
   padding-left: 1.55rem;
   max-height: calc(1.4em * 2);
   min-height: calc(1.4em * 2);
-}
-
-.greeting-play-btn {
-  background: #e08a3c;
-  box-shadow: 0 1px 2px rgba(176, 98, 40, 0.28);
-}
-
-.greeting-card .sub-room-action-text {
-  color: #c45f12;
 }
 
 .study-room-divider {

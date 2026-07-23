@@ -267,7 +267,9 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
                           )}
 
                           <div>
-                            <label className="text-xs font-bold text-slate-500">動画ファイル（mp4など）</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              動画ファイル（mp4 / mov など・最大500MB）
+                            </label>
                             <input
                               type="file"
                               accept="video/*"
@@ -279,6 +281,12 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
                               }
                               className="w-full mt-1 text-sm"
                             />
+                            {greetingFiles[slot] ? (
+                              <p className="text-[11px] text-slate-600 mt-1">
+                                選択中: {greetingFiles[slot]!.name}（
+                                {(greetingFiles[slot]!.size / (1024 * 1024)).toFixed(1)}MB）
+                              </p>
+                            ) : null}
                           </div>
 
                           <div className="flex flex-wrap gap-2">

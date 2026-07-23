@@ -66,6 +66,7 @@ function GreetingVideoCard({
 }) {
   const { align, text: titleText } = parseSubRoomTitle(greeting.title);
   const canPlay = !locked && greeting.has_video;
+  const tone = `greeting-card--${greeting.slot_code.toLowerCase()}`;
 
   return (
     <li className="greeting-item">
@@ -76,12 +77,12 @@ function GreetingVideoCard({
           if (!canPlay) return;
           onPlay({ id: greeting.id, title: greeting.title, kind: 'greeting' });
         }}
-        className={`greeting-card member-card w-full text-left transition-colors ${
+        className={`greeting-card member-card ${tone} w-full text-left transition-colors ${
           locked
             ? 'greeting-card--locked cursor-not-allowed'
             : canPlay
               ? 'hover:brightness-[0.99] active:brightness-[0.97]'
-              : 'greeting-card--disabled cursor-not-allowed'
+              : 'cursor-not-allowed'
         }`}
       >
         <div className={`greeting-mascot ${locked ? 'greeting-mascot--locked' : ''}`} aria-hidden>
@@ -96,10 +97,13 @@ function GreetingVideoCard({
         </p>
         <div className="sub-room-action-row">
           <div className="sub-room-action-center">
-            <div className={`sub-room-play greeting-play-btn shrink-0 ${!canPlay ? 'sub-room-play--locked' : ''}`} aria-hidden>
+            <div
+              className={`sub-room-play greeting-play-btn shrink-0 ${!canPlay ? 'sub-room-play--locked' : ''}`}
+              aria-hidden
+            >
               {locked ? <Lock size={22} className="text-slate-500" /> : <span className="sub-room-play-triangle" />}
             </div>
-            <p className={`sub-room-action-text ${locked ? '!text-slate-500' : ''}`}>
+            <p className={`sub-room-action-text greeting-action-text ${locked ? '!text-slate-500' : ''}`}>
               {locked ? '鍵付き（プログラム対象外）' : greeting.has_video ? 'タップして中をみる' : '準備中です'}
             </p>
           </div>

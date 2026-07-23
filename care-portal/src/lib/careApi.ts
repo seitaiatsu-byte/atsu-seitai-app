@@ -559,7 +559,16 @@ export async function adminUploadGreetingVideo(slot: GreetingSlot, file: File, t
     upsert: false,
     contentType: file.type || 'video/mp4',
   });
-  if (upErr) throw new Error(upErr.message);
+  if (upErr) {
+    const mb = (file.size / (1024 * 1024)).toFixed(1);
+    const msg = upErr.message || '';
+    if (/exceeded the maximum allowed size|maximum allowed size|Payload too large|413/i.test(msg)) {
+      throw new Error(
+        `ファイルが大きすぎます（${mb}MB）。Supabase の care-videos バケット上限を 500MB に上げてから再試行してください。`
+      );
+    }
+    throw new Error(upErr.message);
+  }
 
   const { error: dbErr } = await supabase
     .from('care_greeting_videos')
