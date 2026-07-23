@@ -408,6 +408,28 @@ body {
   color: #e88a9e;
 }
 
+/* 全員向け勉強部屋ゾーン（穏やかなセージグリーン） */
+.study-room-zone {
+  padding: 0.75rem 0.75rem 0.85rem;
+  border-radius: 1.15rem;
+  border: 2px solid #9db8a8;
+  background: linear-gradient(165deg, #f3f8f4 0%, #e8f1eb 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.study-room-zone-label {
+  margin: 0 0 0.65rem;
+  padding: 0 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #4f6f5c;
+}
+
+.study-room-zone .study-room-card {
+  background: rgba(255, 252, 248, 0.96);
+}
+
 .study-room-divider {
   height: 1px;
   background: #8a7a58;

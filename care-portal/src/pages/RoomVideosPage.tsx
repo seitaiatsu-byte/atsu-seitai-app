@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { BookOpen, ExternalLink, FileText, Image, Lock, PlayCircle } from 'lucide-react';
 import VideoPlayer from '../components/VideoPlayer';
 import MemberBrandHeader from '../components/member/MemberBrandHeader';
@@ -440,64 +440,54 @@ export default function RoomVideosPage({ onLogout }: Props) {
 
   const selectedSubRoom = selectedSlot !== null ? subRooms.find((s) => s.slot_number === selectedSlot) : null;
 
+  const renderStudyCard = (key: StudyRoomKey) => {
+    const studyRoom = studyByKey[key];
+    if (!studyRoom) return null;
+    const locked = !isUnlocked(key);
+    return (
+      <li key={key}>
+        <button
+          type="button"
+          disabled={locked}
+          onClick={() => {
+            if (locked) return;
+            setActiveStudyKey(key);
+            setSelectedSlot(null);
+            setVideos([]);
+          }}
+          className={`member-card study-room-card w-full text-left px-4 py-4 flex items-center gap-4 min-h-[5rem] transition-colors ${
+            locked
+              ? 'bg-slate-200/80 border-slate-300 opacity-70 cursor-not-allowed grayscale'
+              : 'hover:border-member-gold/45 active:bg-member-camel-light/50'
+          }`}
+        >
+          <div className={`study-room-icon shrink-0 ${locked ? '!bg-slate-300 !text-slate-500' : ''}`}>
+            {locked ? <Lock size={26} strokeWidth={2.25} /> : <BookOpen size={28} strokeWidth={2.25} />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p
+              className={`font-bold text-lg sm:text-xl leading-snug ${
+                locked ? 'text-slate-500' : 'text-member-text'
+              }`}
+            >
+              {studyRoom.title || defaultStudyRoomTitle(key)}
+            </p>
+            <p className={`text-sm font-bold mt-1 ${locked ? 'text-slate-500' : 'member-text-accent'}`}>
+              {locked ? '鍵付き（プログラム対象外）' : '▶ タップして資料一覧へ'}
+            </p>
+          </div>
+          {!locked && (
+            <div className="sub-room-count shrink-0">
+              <span className="sub-room-count-num">{Math.min(99, studyRoom.item_count)}件</span>
+            </div>
+          )}
+        </button>
+      </li>
+    );
+  };
+
   const renderWatchEntry = (key: WatchLayoutItemKey) => {
     const locked = !isUnlocked(key);
-
-    if (isStudyLayoutKey(key)) {
-      const studyRoom = studyByKey[key];
-      if (!studyRoom) return null;
-      const isLastStudy = key === studySectionEndKey;
-      return (
-        <div key={key} className="space-y-4">
-          <ul className="space-y-3">
-            <li>
-              <button
-                type="button"
-                disabled={locked}
-                onClick={() => {
-                  if (locked) return;
-                  setActiveStudyKey(key);
-                  setSelectedSlot(null);
-                  setVideos([]);
-                }}
-                className={`member-card w-full text-left px-4 py-4 flex items-center gap-4 min-h-[5rem] transition-colors ${
-                  locked
-                    ? 'bg-slate-200/80 border-slate-300 opacity-70 cursor-not-allowed grayscale'
-                    : 'hover:border-member-gold/45 active:bg-member-camel-light/50'
-                }`}
-              >
-                <div className={`study-room-icon shrink-0 ${locked ? '!bg-slate-300 !text-slate-500' : ''}`}>
-                  {locked ? <Lock size={26} strokeWidth={2.25} /> : <BookOpen size={28} strokeWidth={2.25} />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={`font-bold text-lg sm:text-xl leading-snug ${
-                      locked ? 'text-slate-500' : 'text-member-text'
-                    }`}
-                  >
-                    {studyRoom.title || defaultStudyRoomTitle(key)}
-                  </p>
-                  <p className={`text-sm font-bold mt-1 ${locked ? 'text-slate-500' : 'member-text-accent'}`}>
-                    {locked ? '鍵付き（プログラム対象外）' : '▶ タップして資料一覧へ'}
-                  </p>
-                </div>
-                {!locked && (
-                  <div className="sub-room-count shrink-0">
-                    <span className="sub-room-count-num">{Math.min(99, studyRoom.item_count)}件</span>
-                  </div>
-                )}
-              </button>
-            </li>
-          </ul>
-          {isLastStudy && (
-            <>
-              <div className="study-room-divider" aria-hidden />
-              {watchTopTitle.trim() ? <h2 className="watch-top-title">{watchTopTitle.trim()}</h2> : null}
-            </>
-          )}
-        </div>
-      );
-    }
 
     const greetingSlot = parseGreetingSlot(key);
     if (greetingSlot) {
@@ -519,6 +509,44 @@ export default function RoomVideosPage({ onLogout }: Props) {
         <SubRoomCard subRoom={subRoom} locked={locked} onSelect={setSelectedSlot} />
       </ul>
     );
+  };
+
+  /** 全員用の勉強部屋を枠でまとめ、その下に区切り線と TOP タイトルを置く */
+  const renderWatchList = () => {
+    const nodes: ReactNode[] = [];
+    let i = 0;
+    while (i < watchLayout.length) {
+      const key = watchLayout[i];
+      if (isStudyLayoutKey(key)) {
+        const studyKeys: StudyRoomKey[] = [];
+        while (i < watchLayout.length && isStudyLayoutKey(watchLayout[i])) {
+          studyKeys.push(watchLayout[i] as StudyRoomKey);
+          i += 1;
+        }
+        const cards = studyKeys.map((k) => renderStudyCard(k)).filter(Boolean);
+        if (cards.length > 0) {
+          const endsSection = studySectionEndKey != null && studyKeys.includes(studySectionEndKey);
+          nodes.push(
+            <div key={`study-zone-${studyKeys.join('-')}`} className="space-y-4">
+              <section className="study-room-zone" aria-label="全員向けの部屋">
+                <p className="study-room-zone-label">全員向け</p>
+                <ul className="space-y-3">{cards}</ul>
+              </section>
+              {endsSection && (
+                <>
+                  <div className="study-room-divider" aria-hidden />
+                  {watchTopTitle.trim() ? <h2 className="watch-top-title">{watchTopTitle.trim()}</h2> : null}
+                </>
+              )}
+            </div>
+          );
+        }
+        continue;
+      }
+      nodes.push(renderWatchEntry(key));
+      i += 1;
+    }
+    return nodes;
   };
 
   if (!session) {
@@ -709,7 +737,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
             </ul>
           )
         ) : selectedSlot === null ? (
-          <div className="space-y-3">{watchLayout.map((key) => renderWatchEntry(key))}</div>
+          <div className="space-y-3">{renderWatchList()}</div>
         ) : videos.length === 0 ? (
           <div className="text-center py-10 px-4 member-card">
             <p className="font-bold text-xl text-member-text">この小部屋にはまだ動画がありません</p>
