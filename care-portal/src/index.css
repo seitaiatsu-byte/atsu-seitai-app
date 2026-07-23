@@ -775,9 +775,10 @@ body {
 
 .watch-bridge-banner-card {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.7rem 0.85rem 0.75rem 0.7rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  padding: 0.65rem 0.75rem 0.7rem;
   border-radius: 0.95rem;
   background: #f7e9b8;
   border: 2.5px solid #e0b84a;
@@ -786,10 +787,17 @@ body {
     0 1px 2px rgba(61, 52, 40, 0.08);
 }
 
+.watch-bridge-banner-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
 .watch-bridge-banner-logo {
-  width: 4.6rem;
-  height: 4.6rem;
+  width: 4.2rem;
+  height: 4.2rem;
   flex-shrink: 0;
+  margin-top: 0.02rem;
   object-fit: contain;
   border-radius: 9999px;
   background: transparent;
@@ -800,14 +808,15 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.28rem;
+  gap: 0.22rem;
+  padding-top: 0.05rem;
 }
 
 .watch-bridge-line {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 800;
-  line-height: 1.45;
+  line-height: 1.4;
   color: #1a1a1a;
   letter-spacing: 0.01em;
 }
@@ -824,24 +833,24 @@ body {
 }
 
 .watch-bridge-closing {
-  margin: 0.2rem 0 0;
-  font-size: 0.95rem;
-  font-weight: 800;
-  line-height: 1.45;
-  letter-spacing: 0.02em;
-  color: #5c4a28;
+  margin: 0;
+  width: 100%;
+  text-align: center;
+  font-size: clamp(0.92rem, 4.1vw, 1.12rem);
+  font-weight: 900;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: #3d2f12;
+  white-space: nowrap;
 }
 
 @media (min-width: 420px) {
   .watch-bridge-banner-logo {
-    width: 5.2rem;
-    height: 5.2rem;
+    width: 4.8rem;
+    height: 4.8rem;
   }
   .watch-bridge-line {
-    font-size: 1rem;
-  }
-  .watch-bridge-closing {
-    font-size: 1.05rem;
+    font-size: 0.98rem;
   }
 }
 

@@ -532,31 +532,33 @@ export default function RoomVideosPage({ onLogout }: Props) {
                         <div className="watch-top-title-ornament" />
                       </div>
                       <div className="watch-bridge-banner-card">
-                        <img
-                          src="/clinic-logo-clear.png"
-                          alt="a2 ReCONDITIONING STATION"
-                          className="watch-bridge-banner-logo"
-                          width={96}
-                          height={96}
-                          draggable={false}
-                        />
-                        <div className="watch-bridge-banner-copy">
-                          <p className="watch-bridge-line">
-                            <span className="watch-bridge-bullet" aria-hidden>
-                              ▶
-                            </span>
-                            何をやれば
-                            <span className="watch-bridge-accent">“正解”</span>
-                            か分からない
-                          </p>
-                          <p className="watch-bridge-line">
-                            <span className="watch-bridge-bullet" aria-hidden>
-                              ▶
-                            </span>
-                            結局1人だと…やめちゃう
-                          </p>
-                          <p className="watch-bridge-closing">将来の体に不安がある、そんなあなたへ</p>
+                        <div className="watch-bridge-banner-top">
+                          <img
+                            src="/clinic-logo-clear.png"
+                            alt="a2 ReCONDITIONING STATION"
+                            className="watch-bridge-banner-logo"
+                            width={96}
+                            height={96}
+                            draggable={false}
+                          />
+                          <div className="watch-bridge-banner-copy">
+                            <p className="watch-bridge-line">
+                              <span className="watch-bridge-bullet" aria-hidden>
+                                ▶
+                              </span>
+                              何をやれば
+                              <span className="watch-bridge-accent">“正解”</span>
+                              か分からない
+                            </p>
+                            <p className="watch-bridge-line">
+                              <span className="watch-bridge-bullet" aria-hidden>
+                                ▶
+                              </span>
+                              結局1人だと…やめちゃう
+                            </p>
+                          </div>
                         </div>
+                        <p className="watch-bridge-closing">将来の体に不安がある、そんなあなたへ</p>
                       </div>
                     </div>
                     <div className="watch-top-title-bubble">
