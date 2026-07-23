@@ -67,9 +67,10 @@ function GreetingVideoCard({
   onPlay: (video: ActivePlayback) => void;
 }) {
   const { align, text: titleText } = parseSubRoomTitle(greeting.title);
+  const pending = !locked && !greeting.has_video;
 
   return (
-    <li className="greeting-item">
+    <li className={`greeting-item ${pending ? 'greeting-item--pending' : ''}`}>
       <button
         type="button"
         disabled={locked || !greeting.has_video}
@@ -79,28 +80,27 @@ function GreetingVideoCard({
         }}
         className={`greeting-card member-card w-full text-left transition-colors ${
           locked
-            ? 'bg-slate-200/80 border-slate-300 opacity-70 cursor-not-allowed grayscale'
-            : 'hover:border-member-gold/45 active:bg-member-camel-light/50 disabled:opacity-50 disabled:cursor-not-allowed'
+            ? 'greeting-card--locked cursor-not-allowed'
+            : pending
+              ? 'greeting-card--pending cursor-not-allowed'
+              : 'hover:brightness-[0.98] active:brightness-[0.96]'
         }`}
       >
-        <p className={`sub-room-title ${subRoomTitleAlignClass(align)} ${locked ? '!text-slate-500' : ''}`}>
+        <div className={`greeting-mascot ${locked ? 'greeting-mascot--locked' : ''}`} aria-hidden>
+          {locked ? (
+            <Lock size={16} strokeWidth={2.25} />
+          ) : (
+            <img src="/greeting-mascot.png" alt="" className="greeting-mascot-img" />
+          )}
+        </div>
+        <p className={`greeting-title ${subRoomTitleAlignClass(align)} ${locked ? '!text-slate-500' : ''}`}>
           {titleText}
         </p>
-        <div className="sub-room-action-row">
-          <div className="sub-room-action-center">
-            <div className={`sub-room-play shrink-0 ${locked ? 'sub-room-play--locked' : ''}`} aria-hidden>
-              {locked ? <Lock size={22} className="text-slate-500" /> : <span className="sub-room-play-triangle" />}
-            </div>
-            <p className={`sub-room-action-text ${locked ? '!text-slate-500' : ''}`}>
-              {locked
-                ? '鍵付き（プログラム対象外）'
-                : greeting.has_video
-                  ? 'タップして動画をみる'
-                  : '準備中です'}
-            </p>
-          </div>
-        </div>
+        <p className={`greeting-hint ${locked ? '!text-slate-400' : ''}`}>
+          {locked ? '鍵付き（プログラム対象外）' : 'タップしてください'}
+        </p>
       </button>
+      {pending ? <span className="greeting-pending">（準備中です）</span> : null}
     </li>
   );
 }

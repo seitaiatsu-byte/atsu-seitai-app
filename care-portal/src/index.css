@@ -488,7 +488,14 @@ body {
 }
 
 .shared-zone--greeting {
-  padding: 0.5rem 0.55rem 0.55rem;
+  padding: 0.55rem 0.6rem 0.6rem;
+  border-color: #7ea0c4;
+  background: linear-gradient(165deg, #eef5fb 0%, #dfeaf5 100%);
+  overflow: visible;
+}
+
+.shared-zone--greeting .shared-zone-label {
+  color: #3d5f82;
 }
 
 .shared-zone-label,
@@ -502,7 +509,6 @@ body {
 }
 
 .shared-zone .study-room-card,
-.shared-zone .greeting-card,
 .study-room-zone .study-room-card {
   background: rgba(255, 252, 248, 0.96);
 }
@@ -510,6 +516,12 @@ body {
 .greeting-item {
   position: relative;
   overflow: visible;
+  margin-top: 0.45rem;
+  margin-left: 0.4rem;
+}
+
+.greeting-item--pending {
+  margin-right: 4.75rem;
 }
 
 .greeting-card {
@@ -517,10 +529,95 @@ body {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.65rem;
-  padding: 0.9rem 0.95rem 0.8rem;
+  gap: 0.35rem;
+  padding: 0.7rem 0.85rem 0.55rem;
   overflow: visible;
   min-height: auto;
+  background: rgba(248, 252, 255, 0.98);
+  border: 2px solid #6f93b8;
+  box-shadow: 0 1px 2px rgba(61, 95, 130, 0.1);
+}
+
+.greeting-card--locked {
+  background: rgba(226, 232, 240, 0.92);
+  border-color: #94a3b8;
+  opacity: 0.75;
+  filter: grayscale(1);
+}
+
+.greeting-card--pending {
+  opacity: 0.92;
+}
+
+.greeting-mascot {
+  position: absolute;
+  top: -0.55rem;
+  left: -0.55rem;
+  z-index: 3;
+  width: 2.55rem;
+  height: 2.55rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #fff;
+  border: 2px solid #6f93b8;
+  box-shadow: 0 1px 3px rgba(61, 95, 130, 0.18);
+  color: #64748b;
+}
+
+.greeting-mascot--locked {
+  border-color: #94a3b8;
+  background: #e2e8f0;
+}
+
+.greeting-mascot-img {
+  width: 118%;
+  height: 118%;
+  object-fit: cover;
+  object-position: center 12%;
+  display: block;
+}
+
+.greeting-title {
+  margin: 0;
+  width: 100%;
+  padding-left: 2rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  color: #152a4a;
+  white-space: pre-line;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-height: calc(1.35em * 2);
+  overflow: hidden;
+  min-height: calc(1.35em * 2);
+}
+
+.greeting-hint {
+  margin: 0.1rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #9a9080;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.greeting-pending {
+  position: absolute;
+  right: -4.6rem;
+  bottom: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #7a8694;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .study-room-divider {
