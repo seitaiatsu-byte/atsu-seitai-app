@@ -81,20 +81,20 @@ function GreetingVideoCard({
           if (locked || !greeting.has_video) return;
           onPlay({ id: greeting.id, title: greeting.title, kind: 'greeting' });
         }}
-        className={`greeting-card w-full text-left transition-[filter] ${
+        className={`greeting-wrap w-full text-left transition-[filter] ${
           locked
-            ? 'greeting-card--locked cursor-not-allowed'
+            ? 'greeting-wrap--locked cursor-not-allowed'
             : pending
-              ? 'greeting-card--pending cursor-not-allowed'
+              ? 'greeting-wrap--pending cursor-not-allowed'
               : 'hover:brightness-[0.985] active:brightness-[0.97]'
         }`}
       >
-        <div className="greeting-topline">
+        <div className="greeting-head">
           <div className={`greeting-mascot ${locked ? 'greeting-mascot--locked' : ''}`} aria-hidden>
             {locked ? (
-              <Lock size={18} strokeWidth={2.25} />
+              <Lock size={20} strokeWidth={2.25} />
             ) : (
-              <img src="/greeting-mascot.png" alt="" className="greeting-mascot-img" />
+              <img src="/greeting-mascot.png?v=2" alt="" className="greeting-mascot-img" />
             )}
           </div>
           <span className={`greeting-slot ${locked ? 'greeting-slot--locked' : ''}`}>{greeting.slot_code}</span>
@@ -103,22 +103,23 @@ function GreetingVideoCard({
           {locked ? <span className="greeting-pending">鍵付き</span> : null}
         </div>
 
-        <p className={`greeting-title ${locked ? '!text-slate-500' : ''}`}>{titleText}</p>
-
-        <div className={`greeting-hint ${locked ? '!text-slate-400' : ''}`}>
-          {!locked ? (
-            <span className="greeting-tap-icon" aria-hidden>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M9.5 11.5V7.2a1.2 1.2 0 0 1 2.4 0v6.1" strokeLinecap="round" />
-                <path d="M11.9 13.3V10a1.15 1.15 0 0 1 2.3 0v3.6" strokeLinecap="round" />
-                <path d="M14.2 13.6v-2.1a1.1 1.1 0 0 1 2.2 0v2.4" strokeLinecap="round" />
-                <path d="M9.5 14.2v1.6c0 2.2 1.5 4 3.6 4.2 2.4.2 4.4-1.7 4.4-4.1v-2" strokeLinecap="round" />
-                <path d="M9.5 13.2c-1.1.2-2 .9-2.3 1.9-.5 1.5.4 2.9 1.6 3.5" strokeLinecap="round" />
-                <path d="M15.2 5.2l.7-1.3M17.3 6.4l1.2-.8M13.4 4.6l-.2-1.4" strokeLinecap="round" />
-              </svg>
-            </span>
-          ) : null}
-          <span>{locked ? 'プログラム対象外' : 'タップしてください'}</span>
+        <div className="greeting-card">
+          <p className={`greeting-title ${locked ? '!text-slate-500' : ''}`}>{titleText}</p>
+          <div className={`greeting-hint ${locked ? '!text-slate-400' : ''}`}>
+            {!locked ? (
+              <span className="greeting-tap-icon" aria-hidden>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M9.5 11.5V7.2a1.2 1.2 0 0 1 2.4 0v6.1" strokeLinecap="round" />
+                  <path d="M11.9 13.3V10a1.15 1.15 0 0 1 2.3 0v3.6" strokeLinecap="round" />
+                  <path d="M14.2 13.6v-2.1a1.1 1.1 0 0 1 2.2 0v2.4" strokeLinecap="round" />
+                  <path d="M9.5 14.2v1.6c0 2.2 1.5 4 3.6 4.2 2.4.2 4.4-1.7 4.4-4.1v-2" strokeLinecap="round" />
+                  <path d="M9.5 13.2c-1.1.2-2 .9-2.3 1.9-.5 1.5.4 2.9 1.6 3.5" strokeLinecap="round" />
+                  <path d="M15.2 5.2l.7-1.3M17.3 6.4l1.2-.8M13.4 4.6l-.2-1.4" strokeLinecap="round" />
+                </svg>
+              </span>
+            ) : null}
+            <span>{locked ? 'プログラム対象外' : 'タップしてください'}</span>
+          </div>
         </div>
       </button>
     </li>
