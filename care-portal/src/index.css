@@ -516,6 +516,8 @@ body {
 .greeting-list {
   list-style: none;
   margin: 0;
+  /* space-y-3(0.75rem)と合わせて、あいさつ〜小部屋①のあいだを約3倍に */
+  margin-bottom: 1.5rem;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -687,12 +689,13 @@ body {
   align-items: stretch;
 }
 
-/* 全員向け枠〜タイトル帯のあいだ＝帯の厚みくらい */
+/* 全員向け枠のすぐ下に線、その下の余白を約3倍（着目用） */
 .watch-top-title-gap {
-  height: 3.1rem;
+  height: 9.3rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: stretch;
+  padding-top: 0.45rem;
 }
 
 .watch-top-title-ornament {
