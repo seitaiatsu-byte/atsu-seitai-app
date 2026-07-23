@@ -527,7 +527,7 @@ export default function RoomVideosPage({ onLogout }: Props) {
         if (cards.length > 0) {
           const endsSection = studySectionEndKey != null && studyKeys.includes(studySectionEndKey);
           nodes.push(
-            <div key={`study-zone-${studyKeys.join('-')}`} className="space-y-4">
+            <div key={`study-zone-${studyKeys.join('-')}`}>
               <section className="study-room-zone" aria-label="全員向けの部屋">
                 <p className="study-room-zone-label">全員向け</p>
                 <ul className="space-y-3">{cards}</ul>
@@ -535,7 +535,9 @@ export default function RoomVideosPage({ onLogout }: Props) {
               {endsSection &&
                 (watchTopTitle.trim() ? (
                   <div className="watch-top-title-wrap">
-                    <div className="watch-top-title-ornament" aria-hidden />
+                    <div className="watch-top-title-gap" aria-hidden>
+                      <div className="watch-top-title-ornament" />
+                    </div>
                     <div className="watch-top-title-bubble">
                       <h2 className="watch-top-title">{watchTopTitle.trim()}</h2>
                     </div>

@@ -437,15 +437,23 @@ body {
 }
 
 .watch-top-title-wrap {
-  margin: 1.35rem 0 0.75rem;
+  margin: 0 0 0.75rem;
   padding: 0 0.1rem;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.45rem;
+}
+
+/* 全員向け枠〜タイトル帯のあいだ＝帯の厚みくらい */
+.watch-top-title-gap {
+  height: 3.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: stretch;
 }
 
 .watch-top-title-ornament {
+  width: 100%;
   height: 1px;
   position: relative;
   background: linear-gradient(
