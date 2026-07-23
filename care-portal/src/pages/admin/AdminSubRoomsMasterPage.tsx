@@ -238,12 +238,13 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
                           <p className="text-sm font-bold text-indigo-800">{heading}</p>
                           <p className="text-xs text-slate-500">{GREETING_SLOT_HINTS[slot]}</p>
                           <div>
-                            <label className="text-xs font-bold text-slate-500">表示タイトル</label>
-                            <input
+                            <label className="text-xs font-bold text-slate-500">表示タイトル（Enterで改行可）</label>
+                            <textarea
                               value={greetingTitles[slot] || ''}
                               onChange={(e) => setGreetingTitles((prev) => ({ ...prev, [slot]: e.target.value }))}
-                              className="w-full mt-1 px-3 py-2 rounded-lg border text-sm"
-                              placeholder={DEFAULT_GREETING_TITLES[slot]}
+                              rows={3}
+                              className="w-full mt-1 px-3 py-2 rounded-lg border text-sm leading-relaxed resize-y"
+                              placeholder={`${DEFAULT_GREETING_TITLES[slot]}\n2行目はEnterで改行`}
                             />
                             <button
                               type="button"

@@ -396,31 +396,58 @@ body {
   max-width: 210mm;
 }
 
+.study-room-item {
+  position: relative;
+  overflow: visible;
+  margin-top: 0.55rem;
+  margin-left: 0.45rem;
+}
+
+.study-room-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
+  padding: 1rem 1rem 0.85rem;
+  overflow: visible;
+  min-height: auto;
+}
+
 .study-room-icon {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 0.85rem;
+  position: absolute;
+  top: -0.55rem;
+  left: -0.55rem;
+  z-index: 3;
+  width: 2.65rem;
+  height: 2.65rem;
+  border-radius: 0.7rem;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #fff5f7;
   border: 2px solid #fdb9c8;
   color: #e88a9e;
+  box-shadow: 0 1px 3px rgba(61, 52, 40, 0.16);
 }
 
 /* 共通コンテンツ枠（全員向け勉強部屋・あいさつ動画） */
 .shared-zone,
 .study-room-zone {
-  padding: 0.75rem 0.75rem 0.85rem;
+  padding: 0.65rem 0.65rem 0.75rem;
   border-radius: 1.15rem;
   border: 2px solid #9db8a8;
   background: linear-gradient(165deg, #f3f8f4 0%, #e8f1eb 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
+.shared-zone--greeting {
+  padding: 0.5rem 0.55rem 0.55rem;
+}
+
 .shared-zone-label,
 .study-room-zone-label {
-  margin: 0 0 0.65rem;
+  margin: 0 0 0.45rem;
   padding: 0 0.15rem;
   font-size: 0.8rem;
   font-weight: 800;
@@ -434,30 +461,20 @@ body {
   background: rgba(255, 252, 248, 0.96);
 }
 
-.greeting-slot-badge {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 9999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.05rem;
-  font-weight: 800;
-  background: #e8f3ec;
-  border: 2px solid #9db8a8;
-  color: #4f6f5c;
+.greeting-item {
+  position: relative;
+  overflow: visible;
 }
 
-.greeting-icon {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 0.85rem;
+.greeting-card {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #eef6f8;
-  border: 2px solid #9ebcc8;
-  color: #5a8fa0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
+  padding: 0.9rem 0.95rem 0.8rem;
+  overflow: visible;
+  min-height: auto;
 }
 
 .study-room-divider {

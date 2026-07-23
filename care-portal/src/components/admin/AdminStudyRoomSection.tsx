@@ -149,13 +149,15 @@ export default function AdminStudyRoomSection({ roomKey = 'study', memberRoomId 
 
       {!isRoomScoped && (
       <div className="bg-white rounded-xl border p-4 space-y-2">
-        <label className="text-xs font-bold text-slate-500">部屋の名前</label>
-        <input
+        <label className="text-xs font-bold text-slate-500">部屋の名前（Enterで改行可）</label>
+        <textarea
           value={roomTitle}
           onChange={(e) => setRoomTitle(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border text-sm"
-          placeholder={defaultTitle}
+          rows={3}
+          className="w-full px-3 py-2 rounded-lg border text-sm leading-relaxed resize-y"
+          placeholder={`${defaultTitle}\n2行目はEnterで改行`}
         />
+        <p className="text-[11px] text-slate-500">会員画面では2行で大きく表示されます。</p>
         <button
           type="button"
           disabled={savingTitle}

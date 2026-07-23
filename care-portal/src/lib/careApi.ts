@@ -278,6 +278,18 @@ export async function getMemberWatchTopTitle(sessionToken: string): Promise<stri
   }
 }
 
+export async function getMemberGreetingZoneLabel(sessionToken: string): Promise<string> {
+  try {
+    const { data, error } = await supabase.rpc('care_room_get_greeting_zone_label', {
+      p_session_token: sessionToken,
+    });
+    if (error) throw error;
+    return (typeof data === 'string' ? data : '').trim() || 'あいさつ';
+  } catch {
+    return 'あいさつ';
+  }
+}
+
 export async function fetchMaterialUrl(sessionToken: string, itemId: string): Promise<string> {
   const base = functionsBaseUrl();
   const res = await fetch(`${base}/care-material-access`, {
@@ -655,9 +667,48 @@ export async function adminGetWatchTopTitle(): Promise<string> {
 
 export async function adminUpdateWatchTopTitle(title: string) {
   const trimmed = title.trim() || DEFAULT_WATCH_TOP_TITLE;
+  const { data: existing } = await supabase
+    .from('care_watch_ui_settings')
+    .select('greeting_zone_label')
+    .eq('id', 1)
+    .maybeSingle();
+  const zoneLabel =
+    (existing as { greeting_zone_label?: string } | null)?.greeting_zone_label?.trim() || 'あいさつ';
   const { error } = await supabase.from('care_watch_ui_settings').upsert({
     id: 1,
     top_title: trimmed,
+    greeting_zone_label: zoneLabel,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminGetGreetingZoneLabel(): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from('care_watch_ui_settings')
+      .select('greeting_zone_label')
+      .eq('id', 1)
+      .maybeSingle();
+    if (error) throw error;
+    const label = (data as { greeting_zone_label?: string } | null)?.greeting_zone_label;
+    return label?.trim() || 'あいさつ';
+  } catch {
+    return 'あいさつ';
+  }
+}
+
+export async function adminUpdateGreetingZoneLabel(label: string) {
+  const trimmed = label.trim() || 'あいさつ';
+  const { data: existing } = await supabase
+    .from('care_watch_ui_settings')
+    .select('top_title')
+    .eq('id', 1)
+    .maybeSingle();
+  const { error } = await supabase.from('care_watch_ui_settings').upsert({
+    id: 1,
+    top_title: existing?.top_title?.trim() || DEFAULT_WATCH_TOP_TITLE,
+    greeting_zone_label: trimmed,
     updated_at: new Date().toISOString(),
   });
   if (error) throw new Error(error.message);

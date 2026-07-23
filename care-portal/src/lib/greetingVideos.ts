@@ -7,6 +7,19 @@ export const DEFAULT_GREETING_TITLES: Record<GreetingSlot, string> = {
   C: '挨拶動画C',
 };
 
+export const DEFAULT_GREETING_ZONE_LABEL = 'あいさつ';
+
+export const GREETING_SLOT_MARK: Record<GreetingSlot, string> = {
+  A: '🅰',
+  B: '🅱',
+  C: '🅲',
+};
+
+export function formatGreetingZoneLabel(slot: GreetingSlot, label?: string | null): string {
+  const text = (label || DEFAULT_GREETING_ZONE_LABEL).trim() || DEFAULT_GREETING_ZONE_LABEL;
+  return `${GREETING_SLOT_MARK[slot]}${text}`;
+}
+
 export type GreetingVideoItem = {
   slot_code: GreetingSlot;
   id: string;
