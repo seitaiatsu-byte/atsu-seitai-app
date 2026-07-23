@@ -612,28 +612,80 @@ body {
   line-height: 1.4;
   letter-spacing: 0.01em;
   color: #152a4a;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: pre-line;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-height: calc(1.4em * 4);
   overflow: hidden;
   min-height: calc(1.4em * 2);
 }
 
-.sub-room-action-row {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
+.sub-room-title--left {
+  text-align: left;
 }
 
-.sub-room-play {
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 0.75rem;
-  border: 2px solid var(--member-gold-soft, #e8dcc8);
+.sub-room-title--center {
+  text-align: center;
+}
+
+.sub-room-title--right {
+  text-align: right;
+}
+
+.sub-room-action-row {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
+  min-height: 2.75rem;
+  padding-right: 3.5rem;
+}
+
+.sub-room-action-center {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: 100%;
+}
+
+.sub-room-count {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 3.25rem;
+  text-align: center;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.5rem;
+  background: var(--member-camel-card, #faf4e8);
+  border: 1px solid var(--member-gold-soft, #e8dcc8);
+}
+
+.sub-room-play {
+  width: 2.65rem;
+  height: 2.65rem;
+  border-radius: 9999px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--member-teal, #2f8c95);
+  box-shadow: 0 1px 2px rgba(47, 140, 149, 0.28);
+}
+
+.sub-room-play--locked {
+  background: #cbd5e1;
+  box-shadow: none;
+}
+
+.sub-room-play-triangle {
+  display: block;
+  width: 0;
+  height: 0;
+  margin-left: 0.15rem;
+  border-style: solid;
+  border-width: 0.45rem 0 0.45rem 0.75rem;
+  border-color: transparent transparent transparent #fff;
 }
 
 .sub-room-action-text {
@@ -642,15 +694,7 @@ body {
   font-weight: 800;
   color: var(--member-teal, #2f8c95);
   line-height: 1.3;
-}
-
-.sub-room-count {
-  min-width: 3.25rem;
-  text-align: center;
-  padding: 0.35rem 0.5rem;
-  border-radius: 0.5rem;
-  background: var(--member-camel-card, #faf4e8);
-  border: 1px solid var(--member-gold-soft, #e8dcc8);
+  white-space: nowrap;
 }
 
 .sub-room-count-num {

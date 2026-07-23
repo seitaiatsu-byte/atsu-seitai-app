@@ -20,7 +20,7 @@ import {
 } from '../lib/careApi';
 import type { GreetingVideoItem } from '../lib/greetingVideos';
 import { LOCKED_ITEM_MESSAGE } from '../lib/programTiers';
-import { formatVideoCount, showsSubRoomNumber, type SubRoomItem } from '../lib/subRooms';
+import { formatVideoCount, showsSubRoomNumber, parseSubRoomTitle, subRoomTitleAlignClass, type SubRoomItem } from '../lib/subRooms';
 import { clearSession, loadLastRoomCode, loadSession, rememberLastRoomCode, saveSession } from '../lib/session';
 import {
   DEFAULT_VIDEO_TITLE,
@@ -115,6 +115,7 @@ function SubRoomCard({
   onSelect: (slot: number) => void;
 }) {
   const showNumber = showsSubRoomNumber(subRoom.slot_number);
+  const { align, text: titleText } = parseSubRoomTitle(subRoom.title);
 
   return (
     <li className={`sub-room-item ${showNumber ? 'sub-room-item--numbered' : ''}`}>
@@ -136,18 +137,18 @@ function SubRoomCard({
             {subRoom.slot_number}
           </span>
         ) : null}
-        <p className={`sub-room-title ${locked ? '!text-slate-500' : ''}`}>{subRoom.title}</p>
+        <p className={`sub-room-title ${subRoomTitleAlignClass(align)} ${locked ? '!text-slate-500' : ''}`}>
+          {titleText}
+        </p>
         <div className="sub-room-action-row">
-          <div className={`sub-room-play shrink-0 ${locked ? '!border-slate-400' : ''}`}>
-            {locked ? (
-              <Lock size={26} className="text-slate-500" />
-            ) : (
-              <PlayCircle size={28} className="text-member-teal" />
-            )}
+          <div className="sub-room-action-center">
+            <div className={`sub-room-play shrink-0 ${locked ? 'sub-room-play--locked' : ''}`} aria-hidden>
+              {locked ? <Lock size={22} className="text-slate-500" /> : <span className="sub-room-play-triangle" />}
+            </div>
+            <p className={`sub-room-action-text ${locked ? '!text-slate-500' : ''}`}>
+              {locked ? '鍵付き（プログラム対象外）' : 'タップして動画をみる'}
+            </p>
           </div>
-          <p className={`sub-room-action-text flex-1 min-w-0 ${locked ? '!text-slate-500' : ''}`}>
-            {locked ? '鍵付き（プログラム対象外）' : 'タップして動画をみる'}
-          </p>
           {!locked && (
             <div className="sub-room-count shrink-0">
               <span className="sub-room-count-num">{formatVideoCount(subRoom.video_count)}</span>

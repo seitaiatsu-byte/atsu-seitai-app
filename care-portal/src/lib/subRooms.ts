@@ -43,6 +43,39 @@ export const DEFAULT_SUB_ROOM_TITLES: Record<number, string> = {
   20: '体組成の見直し',
 };
 
+export type SubRoomTitleAlign = 'left' | 'center' | 'right';
+
+export type SubRoomTitleFormat = {
+  align: SubRoomTitleAlign;
+  text: string;
+};
+
+const TITLE_ALIGN_PREFIX = /^@@(left|center|right)@@\r?\n?/;
+
+/** 保存用：寄せ指定をタイトル文字列に埋め込む（左寄せは従来どおり素の文字） */
+export function encodeSubRoomTitle(align: SubRoomTitleAlign, text: string): string {
+  const body = text.replace(/\r\n/g, '\n');
+  if (align === 'left') return body;
+  return `@@${align}@@\n${body}`;
+}
+
+/** 表示・編集用：埋め込み寄せ指定を取り出す */
+export function parseSubRoomTitle(raw: string): SubRoomTitleFormat {
+  const value = (raw || '').replace(/\r\n/g, '\n');
+  const m = TITLE_ALIGN_PREFIX.exec(value);
+  if (!m) return { align: 'left', text: value };
+  return {
+    align: m[1] as SubRoomTitleAlign,
+    text: value.slice(m[0].length),
+  };
+}
+
+export function subRoomTitleAlignClass(align: SubRoomTitleAlign): string {
+  if (align === 'center') return 'sub-room-title--center';
+  if (align === 'right') return 'sub-room-title--right';
+  return 'sub-room-title--left';
+}
+
 export type SubRoomItem = {
   slot_number: number;
   title: string;

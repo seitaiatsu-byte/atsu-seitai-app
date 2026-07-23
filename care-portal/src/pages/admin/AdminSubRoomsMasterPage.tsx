@@ -21,6 +21,9 @@ import {
   DIET_SUB_ROOM_COUNT,
   DIET_SUB_ROOM_START,
   SUB_ROOM_COUNT,
+  encodeSubRoomTitle,
+  parseSubRoomTitle,
+  type SubRoomTitleAlign,
 } from '../../lib/subRooms';
 
 const GREETING_SLOT_HINTS: Record<GreetingSlot, string> = {
@@ -120,14 +123,16 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
   }, []);
 
   const handleSave = async (slot: number) => {
-    const title = titles[slot]?.trim();
-    if (!title) {
+    const parsed = parseSubRoomTitle(titles[slot] || '');
+    if (!parsed.text.trim()) {
       alert('タイトルを入力してください');
       return;
     }
+    const title = encodeSubRoomTitle(parsed.align, parsed.text);
     setSaving(slot);
     try {
       await adminUpdateSubRoomTitle(slot, title);
+      setTitles((prev) => ({ ...prev, [slot]: title }));
       alert(`小部屋${slot}のタイトルを保存しました`);
     } catch (err) {
       alert(err instanceof Error ? err.message : '保存に失敗しました');
@@ -327,13 +332,59 @@ export default function AdminSubRoomsMasterPage({ onBack, onNeedLogin }: Props) 
                             {slot}
                           </span>
                           <div className="flex-1 min-w-0 space-y-2">
-                            <label className="text-xs font-bold text-slate-500">小部屋の名前</label>
-                            <input
-                              value={titles[slot] || ''}
-                              onChange={(e) => setTitles((prev) => ({ ...prev, [slot]: e.target.value }))}
-                              className="w-full px-3 py-2 rounded-lg border text-sm"
-                              placeholder={`小部屋${slot}`}
-                            />
+                            <label className="text-xs font-bold text-slate-500">小部屋の名前（改行・寄せ可）</label>
+                            {(() => {
+                              const parsed = parseSubRoomTitle(titles[slot] || '');
+                              return (
+                                <>
+                                  <div className="flex flex-wrap gap-2">
+                                    {(
+                                      [
+                                        { value: 'left', label: '左寄せ' },
+                                        { value: 'center', label: '中央' },
+                                        { value: 'right', label: '右寄せ' },
+                                      ] as const
+                                    ).map((opt) => (
+                                      <button
+                                        key={opt.value}
+                                        type="button"
+                                        onClick={() =>
+                                          setTitles((prev) => ({
+                                            ...prev,
+                                            [slot]: encodeSubRoomTitle(opt.value, parsed.text),
+                                          }))
+                                        }
+                                        className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border ${
+                                          parsed.align === opt.value
+                                            ? 'bg-indigo-600 text-white border-indigo-600'
+                                            : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                                        }`}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <textarea
+                                    value={parsed.text}
+                                    onChange={(e) =>
+                                      setTitles((prev) => ({
+                                        ...prev,
+                                        [slot]: encodeSubRoomTitle(
+                                          parsed.align as SubRoomTitleAlign,
+                                          e.target.value
+                                        ),
+                                      }))
+                                    }
+                                    rows={3}
+                                    className="w-full px-3 py-2 rounded-lg border text-sm leading-relaxed resize-y"
+                                    placeholder={`小部屋${slot}\n2行目はEnterで改行`}
+                                  />
+                                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                                    Enterで改行、全角スペースで字間調整できます。端末幅で折り返し位置は変わります。
+                                  </p>
+                                </>
+                              );
+                            })()}
                             <button
                               type="button"
                               disabled={saving === slot}

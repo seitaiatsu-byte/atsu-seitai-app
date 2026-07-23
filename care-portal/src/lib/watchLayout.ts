@@ -4,7 +4,12 @@ import {
   DEFAULT_STUDY_ROOM_TITLE,
   type StudyRoomKey,
 } from './studyRoom';
-import { DEFAULT_SUB_ROOM_TITLES, SUB_ROOM_COUNT, showsSubRoomNumber } from './subRooms';
+import {
+  DEFAULT_SUB_ROOM_TITLES,
+  SUB_ROOM_COUNT,
+  parseSubRoomTitle,
+  showsSubRoomNumber,
+} from './subRooms';
 
 export type WatchLayoutItemKey =
   | StudyRoomKey
@@ -73,7 +78,8 @@ export function watchLayoutLabel(
   if (g) return opts?.greetingTitles?.[g] || DEFAULT_GREETING_TITLES[g];
   const slot = parseSubRoomSlot(key);
   if (slot != null) {
-    const title = opts?.subRoomTitles?.[slot] || DEFAULT_SUB_ROOM_TITLES[slot] || `小部屋${slot}`;
+    const raw = opts?.subRoomTitles?.[slot] || DEFAULT_SUB_ROOM_TITLES[slot] || `小部屋${slot}`;
+    const title = parseSubRoomTitle(raw).text.replace(/\n+/g, ' ').trim() || `小部屋${slot}`;
     if (showsSubRoomNumber(slot)) return `${slot}. ${title}`;
     return title;
   }
