@@ -536,8 +536,9 @@ export default function RoomVideosPage({ onLogout }: Props) {
                 (watchTopTitle.trim() ? (
                   <div className="watch-top-title-wrap">
                     <div className="watch-top-title-ornament" aria-hidden />
-                    <h2 className="watch-top-title">{watchTopTitle.trim()}</h2>
-                    <div className="watch-top-title-ornament" aria-hidden />
+                    <div className="watch-top-title-bubble">
+                      <h2 className="watch-top-title">{watchTopTitle.trim()}</h2>
+                    </div>
                   </div>
                 ) : (
                   <div className="study-room-divider" aria-hidden />
