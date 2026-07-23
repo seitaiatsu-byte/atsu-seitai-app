@@ -857,12 +857,38 @@ body {
 .watch-top-title-bubble {
   position: relative;
   margin-bottom: 0.35rem;
+  overflow: visible;
+}
+
+.watch-top-idea-badge {
+  position: absolute;
+  top: -0.62rem;
+  left: -0.42rem;
+  z-index: 5;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: linear-gradient(155deg, #fff9e8 0%, #f3dfa0 42%, #e0b84a 100%);
+  border: 1.5px solid #c9a23f;
+  box-shadow:
+    0 1px 3px rgba(107, 90, 62, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 0 10px rgba(224, 184, 74, 0.35);
+}
+
+.watch-top-idea-icon {
+  color: #8a6514;
+  filter: drop-shadow(0 0 2px rgba(255, 236, 170, 0.9));
 }
 
 .watch-top-title {
   position: relative;
   margin: 0;
-  padding: 0.7rem 0.95rem;
+  padding: 0.7rem 1.05rem 0.7rem 1.55rem;
   font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: 0.03em;

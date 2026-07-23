@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { BookOpen, ExternalLink, FileText, Image, Lock, PlayCircle } from 'lucide-react';
+import { BookOpen, ExternalLink, FileText, Image, Lightbulb, Lock, PlayCircle } from 'lucide-react';
 import VideoPlayer from '../components/VideoPlayer';
 import MemberBrandHeader from '../components/member/MemberBrandHeader';
 import MemberPageShell from '../components/member/MemberPageShell';
@@ -562,6 +562,9 @@ export default function RoomVideosPage({ onLogout }: Props) {
                       </div>
                     </div>
                     <div className="watch-top-title-bubble">
+                      <span className="watch-top-idea-badge" aria-hidden>
+                        <Lightbulb size={18} strokeWidth={2.1} className="watch-top-idea-icon" />
+                      </span>
                       <h2 className="watch-top-title">{watchTopTitle.trim()}</h2>
                     </div>
                   </div>
