@@ -94,7 +94,7 @@ function GreetingVideoCard({
             {locked ? (
               <Lock size={20} strokeWidth={2.25} />
             ) : (
-              <img src="/greeting-mascot.png?v=2" alt="" className="greeting-mascot-img" />
+              <img src="/greeting-mascot.png?v=3" alt="" className="greeting-mascot-img" />
             )}
           </div>
           <span className={`greeting-slot ${locked ? 'greeting-slot--locked' : ''}`}>{greeting.slot_code}</span>
