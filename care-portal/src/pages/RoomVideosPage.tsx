@@ -527,8 +527,26 @@ export default function RoomVideosPage({ onLogout }: Props) {
               {endsSection &&
                 (watchTopTitle.trim() ? (
                   <div className="watch-top-title-wrap">
-                    <div className="watch-top-title-gap" aria-hidden>
-                      <div className="watch-top-title-ornament" />
+                    <div className="watch-top-title-gap">
+                      <div className="watch-top-title-ornament" aria-hidden />
+                      <div className="watch-bridge">
+                        <img
+                          src="/a2-logo-watch.png"
+                          alt="a2 ReCONDITIONING STATION"
+                          className="watch-bridge-logo"
+                          width={112}
+                          height={112}
+                          draggable={false}
+                        />
+                        <div className="watch-bridge-copy">
+                          <ul className="watch-bridge-points">
+                            <li>何をやれば“正解”か分からない</li>
+                            <li>誰も一緒にやってくれない</li>
+                            <li>結局1人だと…やめちゃう</li>
+                          </ul>
+                          <p className="watch-bridge-closing">将来の体に不安がある、そんなあなたへ</p>
+                        </div>
+                      </div>
                     </div>
                     <div className="watch-top-title-bubble">
                       <h2 className="watch-top-title">{watchTopTitle.trim()}</h2>
